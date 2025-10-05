@@ -313,6 +313,23 @@
         <div class="invalid-feedback">كلمات المرور غير متطابقة</div>
       </div>
 
+      <!-- 🆕 الحقول الجديدة للملف الشخصي -->
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">الاسم المستعار (اختياري)</label>
+          <input type="text" class="form-control" name="nickname" placeholder="اختر اسمًا مستعارًا">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">العمر (اختياري)</label>
+          <input type="number" class="form-control" name="age" min="10" max="100" placeholder="أدخل عمرك">
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">نبذة عني (اختياري)</label>
+        <textarea class="form-control" name="bio" rows="3" placeholder="اكتب نبذة مختصرة عن نفسك..."></textarea>
+      </div>
+
       <!-- نوع الحساب -->
       <div class="form-floating">
         <select class="form-select" id="role" required>
@@ -499,7 +516,7 @@
       return isValid;
     }
 
-    // 🆕 إرسال النموذج المحسّن
+    // 🆕 إرسال النموذج المحسّن مع الحقول الجديدة
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       
@@ -513,6 +530,9 @@
       const phone = document.getElementById('phone').value.trim();
       const password = document.getElementById('password').value;
       const role = document.getElementById('role').value;
+      const nickname = document.querySelector('[name="nickname"]').value;
+      const age = document.querySelector('[name="age"]').value;
+      const bio = document.querySelector('[name="bio"]').value;
       const _csrf = document.getElementById('csrfToken').value;
 
       // تعطيل الزر وعرض loading
@@ -526,7 +546,10 @@
             'Content-Type': 'application/json',
             'X-CSRF-Token': _csrf
           },
-          body: JSON.stringify({ username, email, phone, password, role, _csrf })
+          body: JSON.stringify({ 
+            username, email, phone, password, role, 
+            nickname, age, bio, _csrf 
+          })
         });
 
         const data = await res.json();
