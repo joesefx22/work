@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>إنشاء حساب - احجزلي</title>
+  
+  <!-- Bootstrap + Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Cairo', sans-serif;
+      background: linear-gradient(135deg, #1a7f46 0%, #38f9d7 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #333;
+      padding: 20px;
+    }
+    
+    .signup-container {
+      background: #fff;
+      padding: 2.5rem;
+      border-radius: 16px;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 480px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .signup-container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, #1a7f46, #38f9d7);
+    }
+    
+    .logo {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    
+    .logo i {
+      font-size: 2.5rem;
+      color: #1a7f46;
+      margin-bottom: 0.5rem;
+    }
+    
+    .form-floating {
+      margin-bottom: 1rem;
+    }
+    
+    .form-floating label {
+      right: 0.75rem !important;
+      left: auto !important;
+    }
+    
+    .form-control:focus {
+      border-color: #1a7f46;
+      box-shadow: 0 0 0 0.25rem rgba(26, 127, 70, 0.25);
+    }
+    
+    .btn-success {
+      background: linear-gradient(135deg, #1a7f46, #2ecc71);
+      border: none;
+      padding: 12px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    
+    .btn-success:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(26, 127, 70, 0.3);
+    }
+    
+    .google-btn {
+      background: #fff;
+      color: #757575;
+      border: 2px solid #ddd;
+      padding: 12px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    
+    .google-btn:hover {
+      border-color: #db4437;
+      color: #db4437;
+      transform: translateY(-2px);
+    }
+    
+    .password-strength {
+      height: 4px;
+      background: #eee;
+      border-radius: 2px;
+      margin-top: 5px;
+      overflow: hidden;
+    }
+    
+    .strength-bar {
+      height: 100%;
+      width: 0%;
+      transition: all 0.3s ease;
+      border-radius: 2px;
+    }
+    
+    .strength-weak { background: #e74c3c; width: 33%; }
+    .strength-medium { background: #f39c12; width: 66%; }
+    .strength-strong { background: #2ecc71; width: 100%; }
+    
+    .requirements {
+      font-size: 0.8rem;
+      color: #666;
+      margin-top: 0.5rem;
+    }
+    
+    .requirement {
+      display: flex;
+      align-items: center;
+      margin-bottom: 0.25rem;
+    }
+    
+    .requirement i {
+      font-size: 0.7rem;
+      margin-left: 0.5rem;
+    }
+    
+    .valid { color: #2ecc71; }
+    .invalid { color: #e74c3c; }
+    
+    .nav-links {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+    }
+    
+    .nav-links a {
+      color: #fff;
+      text-decoration: none;
+      margin-left: 15px;
+      font-weight: 600;
+      transition: color 0.3s ease;
+    }
+    
+    .nav-links a:hover {
+      color: #e8f5e8;
+    }
+    
+    .alert {
+      border: none;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 1rem;
+    }
+    
+    .spinner {
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
+    @media (max-width: 576px) {
+      .signup-container {
+        padding: 2rem 1.5rem;
+      }
+      
+      .nav-links {
+        position: relative;
+        top: 0;
+        left: 0;
+        text-align: center;
+        margin-bottom: 1rem;
+      }
+      
+      body {
+        padding: 10px;
+      }
+    }
+    
+    /* Dark mode support */
+    @media (prefers-color-scheme: dark) {
+      .signup-container {
+        background: #2d3748;
+        color: #e2e8f0;
+      }
+      
+      .form-control {
+        background: #4a5568;
+        border-color: #718096;
+        color: #e2e8f0;
+      }
+      
+      .form-control:focus {
+        background: #4a5568;
+        color: #e2e8f0;
+      }
+      
+      .form-control::placeholder {
+        color: #a0aec0;
+      }
+      
+      .requirements {
+        color: #a0aec0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="nav-links">
+    <a href="/index.html">
+      <i class="bi bi-house-fill"></i> الرئيسية
+    </a>
+    <a href="/login.html">
+      <i class="bi bi-box-arrow-in-left"></i> تسجيل الدخول
+    </a>
+  </nav>
+
+  <main class="signup-container">
+    <div class="logo">
+      <i class="bi bi-soccer-ball"></i>
+      <h2 class="h4 mb-3">إنشاء حساب جديد</h2>
+    </div>
+
+    <!-- 🆕 نظام التنبيهات -->
+    <div id="alertsContainer"></div>
+
+    <form id="signupForm" novalidate>
+      <!-- CSRF Token -->
+      <input type="hidden" name="_csrf" id="csrfToken">
+      
+      <!-- اسم المستخدم -->
+      <div class="form-floating">
+        <input type="text" class="form-control" id="username" 
+               placeholder="اسم المستخدم" required minlength="3" maxlength="30"
+               pattern="[A-Za-z0-9_\u0600-\u06FF\s]+"
+               title="يجب أن يحتوي على أحرف عربية/إنجليزية وأرقام فقط">
+        <label for="username">
+          <i class="bi bi-person me-1"></i> اسم المستخدم
+        </label>
+        <div class="invalid-feedback">يرجى إدخال اسم مستخدم صحيح (3-30 حرف)</div>
+      </div>
+
+      <!-- البريد الإلكتروني -->
+      <div class="form-floating">
+        <input type="email" class="form-control" id="email" 
+               placeholder="البريد الإلكتروني" required
+               pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}">
+        <label for="email">
+          <i class="bi bi-envelope me-1"></i> البريد الإلكتروني
+        </label>
+        <div class="invalid-feedback">يرجى إدخال بريد إلكتروني صحيح</div>
+      </div>
+
+      <!-- رقم الهاتف -->
+      <div class="form-floating">
+        <input type="tel" class="form-control" id="phone"
+               pattern="^01[0-2,5]{1}[0-9]{8}$"
+               placeholder="رقم الهاتف" required>
+        <label for="phone">
+          <i class="bi bi-phone me-1"></i> رقم الهاتف
+        </label>
+        <div class="invalid-feedback">يرجى إدخال رقم هاتف مصري صحيح (مثال: 01012345678)</div>
+      </div>
+
+      <!-- كلمة المرور -->
+      <div class="form-floating">
+        <input type="password" class="form-control" id="password" 
+               placeholder="كلمة المرور" required minlength="6"
+               oninput="checkPasswordStrength()">
+        <label for="password">
+          <i class="bi bi-lock me-1"></i> كلمة المرور
+        </label>
+        <div class="password-strength">
+          <div class="strength-bar" id="passwordStrength"></div>
+        </div>
+        <div class="requirements">
+          <div class="requirement">
+            <i class="bi" id="lengthIcon"></i>
+            <span>6 أحرف على الأقل</span>
+          </div>
+          <div class="requirement">
+            <i class="bi" id="upperLowerIcon"></i>
+            <span>أحرف كبيرة وصغيرة</span>
+          </div>
+          <div class="requirement">
+            <i class="bi" id="numberIcon"></i>
+            <span>رقم واحد على الأقل</span>
+          </div>
+        </div>
+        <div class="invalid-feedback">كلمة المرور يجب أن تكون 6 أحرف على الأقل</div>
+      </div>
+
+      <!-- تأكيد كلمة المرور -->
+      <div class="form-floating">
+        <input type="password" class="form-control" id="confirmPassword" 
+               placeholder="تأكيد كلمة المرور" required
+               oninput="checkPasswordMatch()">
+        <label for="confirmPassword">
+          <i class="bi bi-lock-fill me-1"></i> تأكيد كلمة المرور
+        </label>
+        <div class="invalid-feedback">كلمات المرور غير متطابقة</div>
+      </div>
+
+      <!-- نوع الحساب -->
+      <div class="form-floating">
+        <select class="form-select" id="role" required>
+          <option value="">اختر نوع الحساب</option>
+          <option value="user">مستخدم عادي</option>
+          <option value="admin">مدير نظام</option>
+        </select>
+        <label for="role">
+          <i class="bi bi-person-badge me-1"></i> نوع الحساب
+        </label>
+        <div class="form-text">
+          <small>سيحتاج حساب المدير إلى موافقة من الإدارة</small>
+        </div>
+      </div>
+
+      <!-- الشروط والأحكام -->
+      <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" id="terms" required>
+        <label class="form-check-label" for="terms">
+          أوافق على <a href="/terms.html" target="_blank">الشروط والأحكام</a> 
+          و <a href="/privacy.html" target="_blank">سياسة الخصوصية</a>
+        </label>
+        <div class="invalid-feedback">يجب الموافقة على الشروط والأحكام</div>
+      </div>
+
+      <button type="submit" class="btn btn-success w-100 mb-3" id="submitBtn">
+        <i class="bi bi-person-plus-fill me-2"></i> إنشاء الحساب
+      </button>
+
+      <!-- تسجيل الدخول بـ Google -->
+      <div class="text-center mb-3">
+        <span class="text-muted">أو</span>
+      </div>
+      
+      <button type="button" class="btn google-btn w-100" onclick="window.location.href='/auth/google'">
+        <i class="bi bi-google me-2"></i> المتابعة بحساب Google
+      </button>
+    </form>
+
+    <!-- رابط تسجيل الدخول -->
+    <div class="text-center mt-4">
+      <p class="mb-0">
+        لديك حساب بالفعل؟ 
+        <a href="/login.html" class="text-success text-decoration-none fw-bold">سجل الدخول الآن</a>
+      </p>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // 🆕 دالة لعرض التنبيهات
+    function showAlert(message, type = 'info') {
+      const alertsContainer = document.getElementById('alertsContainer');
+      const alertId = 'alert-' + Date.now();
+      
+      const alertHTML = `
+        <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show" role="alert">
+          ${message}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      `;
+      
+      alertsContainer.innerHTML = alertHTML;
+      
+      // إزالة التنبيه تلقائياً بعد 5 ثواني
+      setTimeout(() => {
+        const alertElement = document.getElementById(alertId);
+        if (alertElement) {
+          alertElement.remove();
+        }
+      }, 5000);
+    }
+
+    // جلب CSRF token
+    fetch('/csrf-token')
+      .then(r => {
+        if (r.ok) return r.json();
+        throw new Error('Network response was not ok');
+      })
+      .then(d => {
+        if (d?.csrfToken) {
+          document.getElementById('csrfToken').value = d.csrfToken;
+        }
+      })
+      .catch(err => {
+        console.error('Failed to fetch CSRF token:', err);
+        showAlert('⚠️ تعذر تحميل رمز الأمان', 'warning');
+      });
+
+    // عناصر DOM
+    const form = document.getElementById('signupForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const originalBtnText = submitBtn.innerHTML;
+
+    // 🆕 التحقق من قوة كلمة المرور المحسّن
+    function checkPasswordStrength() {
+      const password = document.getElementById('password').value;
+      const strengthBar = document.getElementById('passwordStrength');
+      const lengthIcon = document.getElementById('lengthIcon');
+      const upperLowerIcon = document.getElementById('upperLowerIcon');
+      const numberIcon = document.getElementById('numberIcon');
+      
+      let strength = 0;
+      const requirements = {
+        length: password.length >= 6,
+        upperLower: /(?=.*[a-z])(?=.*[A-Z])/.test(password),
+        number: /(?=.*\d)/.test(password)
+      };
+      
+      // تحديث الأيقونات
+      lengthIcon.className = requirements.length ? 'bi bi-check-circle-fill valid' : 'bi bi-x-circle-fill invalid';
+      upperLowerIcon.className = requirements.upperLower ? 'bi bi-check-circle-fill valid' : 'bi bi-x-circle-fill invalid';
+      numberIcon.className = requirements.number ? 'bi bi-check-circle-fill valid' : 'bi bi-x-circle-fill invalid';
+      
+      // حساب القوة
+      if (requirements.length) strength++;
+      if (requirements.upperLower) strength++;
+      if (requirements.number) strength++;
+      
+      // تحديث شريط القوة
+      strengthBar.className = 'strength-bar';
+      if (password.length > 0) {
+        if (strength === 1) {
+          strengthBar.classList.add('strength-weak');
+        } else if (strength === 2) {
+          strengthBar.classList.add('strength-medium');
+        } else if (strength === 3) {
+          strengthBar.classList.add('strength-strong');
+        }
+      }
+      
+      return strength;
+    }
+
+    // التحقق من تطابق كلمات المرور
+    function checkPasswordMatch() {
+      const password = document.getElementById('password').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+      const confirmInput = document.getElementById('confirmPassword');
+      
+      if (confirmPassword.length > 0) {
+        if (password !== confirmPassword) {
+          confirmInput.classList.add('is-invalid');
+          confirmInput.classList.remove('is-valid');
+        } else {
+          confirmInput.classList.remove('is-invalid');
+          confirmInput.classList.add('is-valid');
+        }
+      } else {
+        confirmInput.classList.remove('is-invalid', 'is-valid');
+      }
+    }
+
+    // 🆕 التحقق من صحة النموذج المحسّن
+    function validateForm() {
+      const inputs = form.querySelectorAll('input, select');
+      let isValid = true;
+      
+      inputs.forEach(input => {
+        if (!input.checkValidity()) {
+          input.classList.add('is-invalid');
+          isValid = false;
+        } else {
+          input.classList.remove('is-invalid');
+          input.classList.add('is-valid');
+        }
+      });
+      
+      // التحقق من تطابق كلمات المرور
+      const password = document.getElementById('password').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+      if (password !== confirmPassword) {
+        document.getElementById('confirmPassword').classList.add('is-invalid');
+        isValid = false;
+      }
+      
+      // التحقق من قوة كلمة المرور
+      const strength = checkPasswordStrength();
+      if (strength < 2 && password.length > 0) {
+        showAlert('⚠️ كلمة المرور ضعيفة. يرجى استخدام مزيج من الأحرف الكبيرة والصغيرة والأرقام', 'warning');
+        isValid = false;
+      }
+      
+      return isValid;
+    }
+
+    // 🆕 إرسال النموذج المحسّن
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      if (!validateForm()) {
+        showAlert('❌ يرجى تصحيح الأخطاء في النموذج', 'danger');
+        return;
+      }
+
+      const username = document.getElementById('username').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const phone = document.getElementById('phone').value.trim();
+      const password = document.getElementById('password').value;
+      const role = document.getElementById('role').value;
+      const _csrf = document.getElementById('csrfToken').value;
+
+      // تعطيل الزر وعرض loading
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="bi bi-arrow-repeat spinner me-2"></i> جاري إنشاء الحساب...';
+
+      try {
+        const res = await fetch('/signup', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': _csrf
+          },
+          body: JSON.stringify({ username, email, phone, password, role, _csrf })
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          showAlert('✅ ' + data.message, 'success');
+          form.reset();
+          
+          // إعادة تعيين التصميم
+          form.querySelectorAll('.is-valid').forEach(el => {
+            el.classList.remove('is-valid');
+          });
+          
+          // إعادة توجيه بعد 3 ثواني
+          setTimeout(() => {
+            window.location.href = '/login.html';
+          }, 3000);
+        } else {
+          showAlert('❌ ' + (data.message || 'حدث خطأ أثناء التسجيل. يرجى المحاولة مرة أخرى.'), 'danger');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        showAlert('❌ تعذر الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت.', 'danger');
+      } finally {
+        // إعادة تمكين الزر
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnText;
+      }
+    });
+
+    // 🆕 التحقق الفوري المحسّن
+    form.querySelectorAll('input').forEach(input => {
+      input.addEventListener('blur', () => {
+        if (input.checkValidity()) {
+          input.classList.remove('is-invalid');
+          input.classList.add('is-valid');
+        } else {
+          input.classList.add('is-invalid');
+          input.classList.remove('is-valid');
+        }
+        
+        // تحقق إضافي للبريد الإلكتروني
+        if (input.type === 'email' && input.value) {
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(input.value)) {
+            input.classList.add('is-invalid');
+            input.classList.remove('is-valid');
+          }
+        }
+      });
+      
+      input.addEventListener('input', () => {
+        if (input.checkValidity()) {
+          input.classList.remove('is-invalid');
+        }
+      });
+    });
+
+    // 🆕 تأثيرات للعناصر
+    document.querySelectorAll('.form-control, .form-select').forEach(element => {
+      element.addEventListener('focus', function() {
+        this.parentElement.classList.add('focused');
+      });
+      
+      element.addEventListener('blur', function() {
+        if (this.value === '') {
+          this.parentElement.classList.remove('focused');
+        }
+      });
+    });
+
+    // 🆕 منع إرسال النموذج بالزر Enter في الحقول غير النصية
+    form.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        const target = e.target;
+        if (target.tagName === 'SELECT' || target.type === 'checkbox') {
+          e.preventDefault();
+        }
+      }
+    });
+
+    // 🆕 تحسين تجربة المستخدم على الأجهزة المحمولة
+    if ('ontouchstart' in window) {
+      document.querySelectorAll('.form-control').forEach(input => {
+        input.addEventListener('focus', function() {
+          setTimeout(() => {
+            this.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 300);
+        });
+      });
+    }
+  </script>
+</body>
+</html>

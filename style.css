@@ -1,0 +1,21 @@
+body {
+  direction: rtl;
+  font-family: Tahoma, sans-serif;
+  margin: 20px;
+  background: #f9f9f9;
+}
+.navbar a {
+  margin: 0 10px;
+  text-decoration: none;
+  color: #333;
+}
+.navbar a:hover {
+  text-decoration: underline;
+}
+form label {
+  display: block;
+  margin: 10px 0;
+}
+button {
+  padding: 6px 12px;
+}

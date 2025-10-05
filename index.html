@@ -1,0 +1,1672 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>احجزلي - حجز ملاعب كرة القدم</title>
+  
+  <!-- Bootstrap + Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --primary-color: #1a7f46;
+      --secondary-color: #2ecc71;
+      --accent-color: #f39c12;
+      --dark-color: #2c3e50;
+      --light-color: #ecf0f1;
+    }
+    
+    body {
+      font-family: 'Cairo', sans-serif;
+      background-color: #f8f9fa;
+      color: #333;
+      overflow-x: hidden;
+    }
+    
+    /* Loading Screen */
+    #loadingOverlay {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      transition: opacity 0.4s ease;
+    }
+    
+    #loadingOverlay.fade-out {
+      opacity: 0;
+      visibility: hidden;
+    }
+    
+    .football-loader {
+      width: 100px;
+      height: 100px;
+      position: relative;
+      animation: bounce 1.5s infinite ease-in-out;
+    }
+    
+    .football {
+      width: 80px;
+      height: 80px;
+      background: radial-gradient(circle at 30% 30%, #fff, #333 60%);
+      border-radius: 50%;
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.3);
+    }
+    
+    .football::before {
+      content: "";
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border: 4px solid #fff;
+      border-radius: 50%;
+      box-sizing: border-box;
+    }
+    
+    .football::after {
+      content: "";
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border: 4px solid #fff;
+      border-radius: 50%;
+      transform: rotate(45deg);
+      box-sizing: border-box;
+    }
+    
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-30px); }
+    }
+    
+    /* Navigation */
+    .navbar {
+      background: rgba(255, 255, 255, 0.95) !important;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+    }
+    
+    .navbar.scrolled {
+      background: rgba(255, 255, 255, 0.98) !important;
+      padding: 0.5rem 0;
+    }
+    
+    .navbar-brand {
+      font-weight: 700;
+      color: var(--primary-color) !important;
+      font-size: 1.5rem;
+    }
+    
+    .nav-link {
+      font-weight: 500;
+      margin: 0 0.5rem;
+      color: var(--dark-color) !important;
+      transition: color 0.3s ease;
+    }
+    
+    .nav-link:hover, .nav-link.active {
+      color: var(--primary-color) !important;
+    }
+    
+    /* Hero Section */
+    .hero-section {
+      background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), 
+                  url('/images/hero-bg.jpg') center/cover no-repeat;
+      min-height: 80vh;
+      display: flex;
+      align-items: center;
+      color: white;
+      position: relative;
+      margin-top: 76px;
+    }
+    
+    .hero-content {
+      text-align: center;
+    }
+    
+    .hero-title {
+      font-size: 3.5rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+    }
+    
+    .hero-subtitle {
+      font-size: 1.3rem;
+      margin-bottom: 2rem;
+      opacity: 0.9;
+    }
+    
+    /* مناطق الحجز */
+    .areas-section {
+      padding: 4rem 0;
+      background: white;
+    }
+    
+    .area-card {
+      border: none;
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+    
+    .area-card:hover {
+      transform: translateY(-10px);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+    }
+    
+    .area-image {
+      height: 200px;
+      background-size: cover;
+      background-position: center;
+      position: relative;
+    }
+    
+    .area-title {
+      padding: 1.5rem;
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--dark-color);
+    }
+    
+    /* Search Section */
+    .search-section {
+      background: white;
+      padding: 2rem 0;
+      box-shadow: 0 5px 25px rgba(0,0,0,0.1);
+    }
+    
+    .search-card {
+      background: white;
+      border-radius: 15px;
+      padding: 2rem;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      border: none;
+    }
+    
+    /* Date Modal */
+    .date-modal .modal-content {
+      border-radius: 15px;
+      overflow: hidden;
+    }
+    
+    .date-modal .modal-header {
+      background: var(--primary-color);
+      color: white;
+    }
+    
+    .date-options {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      padding: 15px 0;
+    }
+    
+    .date-option {
+      padding: 15px 10px;
+      border: 2px solid #e9ecef;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: white;
+      text-align: center;
+    }
+    
+    .date-option:hover {
+      border-color: var(--primary-color);
+      background: rgba(26, 127, 70, 0.05);
+    }
+    
+    .date-option.selected {
+      background: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+    }
+    
+    .date-day {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+    
+    .date-month {
+      font-size: 0.9rem;
+      color: inherit;
+      opacity: 0.9;
+    }
+    
+    /* Period Selector */
+    .period-selector {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    
+    .period-btn {
+      flex: 1;
+      padding: 12px;
+      border: 2px solid #e9ecef;
+      border-radius: 10px;
+      background: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-align: center;
+      font-weight: 600;
+    }
+    
+    .period-btn:hover {
+      border-color: var(--primary-color);
+      background: rgba(26, 127, 70, 0.05);
+    }
+    
+    .period-btn.selected {
+      background: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+    }
+    
+    /* Pitch Cards */
+    .pitch-card {
+      border: none;
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+      margin-bottom: 2rem;
+    }
+    
+    .pitch-card:hover {
+      transform: translateY(-10px);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+    }
+    
+    .pitch-image {
+      height: 200px;
+      background-size: cover;
+      background-position: center;
+      position: relative;
+    }
+    
+    .pitch-badge {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      background: var(--primary-color);
+      color: white;
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    
+    .pitch-price {
+      position: absolute;
+      bottom: 15px;
+      left: 15px;
+      background: rgba(0,0,0,0.8);
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 25px;
+      font-weight: 600;
+    }
+    
+    .pitch-info {
+      padding: 1.5rem;
+    }
+    
+    .pitch-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--dark-color);
+      margin-bottom: 0.5rem;
+    }
+    
+    .pitch-location {
+      color: #666;
+      margin-bottom: 1rem;
+    }
+    
+    .pitch-features {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    .feature {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.8rem;
+      color: #666;
+      background: #f8f9fa;
+      padding: 0.3rem 0.6rem;
+      border-radius: 12px;
+    }
+    
+    .feature i {
+      color: var(--primary-color);
+    }
+    
+    /* Rating Stars */
+    .rating-stars {
+      display: flex;
+      gap: 2px;
+      margin-bottom: 5px;
+    }
+    
+    .star {
+      color: #ddd;
+      cursor: pointer;
+      transition: color 0.2s ease;
+    }
+    
+    .star.active {
+      color: #f39c12;
+    }
+    
+    .star:hover {
+      color: #f39c12;
+    }
+    
+    .rating-text {
+      font-size: 0.9rem;
+      color: #666;
+    }
+    
+    /* Time Slots */
+    .time-slots {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    
+    .time-slot {
+      flex: 1;
+      min-width: 100px;
+      padding: 0.8rem 0.5rem;
+      border: 2px solid #e9ecef;
+      border-radius: 8px;
+      background: white;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+    
+    .time-slot:hover {
+      border-color: var(--primary-color);
+      background: rgba(26, 127, 70, 0.05);
+    }
+    
+    .time-slot.selected {
+      background: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+    }
+    
+    .time-slot.booked {
+      background: #e74c3c;
+      color: white;
+      border-color: #e74c3c;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+    
+    .time-slot.unavailable {
+      background: #f8f9fa;
+      color: #999;
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+    
+    /* Buttons */
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      border: none;
+      padding: 0.8rem 2rem;
+      font-weight: 600;
+      border-radius: 25px;
+      transition: all 0.3s ease;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(26, 127, 70, 0.3);
+    }
+    
+    .btn-outline-primary {
+      border: 2px solid var(--primary-color);
+      color: var(--primary-color);
+      padding: 0.6rem 1.5rem;
+      font-weight: 600;
+      border-radius: 25px;
+      transition: all 0.3s ease;
+    }
+    
+    .btn-outline-primary:hover {
+      background: var(--primary-color);
+      color: white;
+    }
+    
+    /* Sections */
+    .section-title {
+      font-size: 2.5rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 3rem;
+      color: var(--dark-color);
+      position: relative;
+    }
+    
+    .section-title::after {
+      content: '';
+      position: absolute;
+      bottom: -10px;
+      right: 50%;
+      transform: translateX(50%);
+      width: 80px;
+      height: 4px;
+      background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+      border-radius: 2px;
+    }
+    
+    /* Features Section */
+    .features-section {
+      padding: 5rem 0;
+      background: white;
+    }
+    
+    .feature-card {
+      text-align: center;
+      padding: 2rem 1rem;
+      border-radius: 15px;
+      transition: all 0.3s ease;
+    }
+    
+    .feature-card:hover {
+      transform: translateY(-5px);
+    }
+    
+    .feature-icon {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.5rem;
+    }
+    
+    .feature-icon i {
+      font-size: 2rem;
+      color: white;
+    }
+    
+    /* Admin Panel */
+    .admin-panel {
+      background: white;
+      border-radius: 15px;
+      padding: 2rem;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      margin-bottom: 2rem;
+    }
+    
+    .code-card {
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-left: 4px solid var(--primary-color);
+    }
+    
+    .code-compensation {
+      border-left-color: #e74c3c;
+    }
+    
+    .code-premium {
+      border-left-color: #f39c12;
+    }
+    
+    /* Footer */
+    .footer {
+      background: var(--dark-color);
+      color: white;
+      padding: 3rem 0 1rem;
+    }
+    
+    .footer h5 {
+      color: var(--secondary-color);
+      margin-bottom: 1.5rem;
+    }
+    
+    .footer-links a {
+      color: #bdc3c7;
+      text-decoration: none;
+      display: block;
+      margin-bottom: 0.5rem;
+      transition: color 0.3s ease;
+    }
+    
+    .footer-links a:hover {
+      color: var(--secondary-color);
+    }
+    
+    .social-links {
+      display: flex;
+      gap: 1rem;
+    }
+    
+    .social-links a {
+      width: 40px;
+      height: 40px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      text-decoration: none;
+      transition: all 0.3s ease;
+    }
+    
+    .social-links a:hover {
+      background: var(--primary-color);
+      transform: translateY(-3px);
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      .hero-title {
+        font-size: 2.5rem;
+      }
+      
+      .section-title {
+        font-size: 2rem;
+      }
+      
+      .search-card {
+        padding: 1.5rem;
+      }
+      
+      .time-slot {
+        min-width: 80px;
+        font-size: 0.8rem;
+        padding: 0.6rem 0.4rem;
+      }
+      
+      .date-options {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    /* Animation Classes */
+    .fade-in {
+      animation: fadeIn 0.8s ease-in;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- شاشة التحميل -->
+<div id="loadingOverlay">
+  <div class="football-loader">
+    <div class="football"></div>
+  </div>
+</div>
+
+<!-- شريط التنقل -->
+<nav class="navbar navbar-expand-lg navbar-light fixed-top">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <i class="bi bi-calendar-check me-2"></i>احجزلي
+    </a>
+    
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+        <li class="nav-item">
+          <a class="nav-link active" href="/">الرئيسية</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#areas">المناطق</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#pitches">الملاعب</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#features">المميزات</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/admin.html">لوحة التحكم</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/login.html">
+            <i class="bi bi-box-arrow-in-left me-1"></i>تسجيل الدخول
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/signup.html">
+            <i class="bi bi-person-plus me-1"></i>إنشاء حساب
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero Section -->
+<section class="hero-section">
+  <div class="container">
+    <div class="hero-content fade-in">
+      <h1 class="hero-title">احجز ملعبك في المقطم والهضبة والسبعين فدان</h1>
+      <p class="hero-subtitle">أفضل الملاعب في شرق القاهرة. اختر وادفع واحجز في دقائق</p>
+      <a href="#areas" class="btn btn-primary btn-lg">
+        <i class="bi bi-search me-2"></i>استعرض المناطق
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- مناطق الحجز -->
+<section class="areas-section" id="areas">
+  <div class="container">
+    <h2 class="section-title">المناطق المتاحة للحجز</h2>
+    <div class="row">
+      <div class="col-md-4 mb-4">
+        <div class="area-card">
+          <div class="area-image" style="background-image: url('/images/mokatam-area.jpg')"></div>
+          <div class="area-title">المقطم</div>
+        </div>
+      </div>
+      <div class="col-md-4 mb-4">
+        <div class="area-card">
+          <div class="area-image" style="background-image: url('/images/hedaba-area.jpg')"></div>
+          <div class="area-title">الهضبة الوسطي</div>
+        </div>
+      </div>
+      <div class="col-md-4 mb-4">
+        <div class="area-card">
+          <div class="area-image" style="background-image: url('/images/70-feddan-area.jpg')"></div>
+          <div class="area-title">السبعين فدان</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Search Section -->
+<section class="search-section" id="search">
+  <div class="container">
+    <div class="search-card">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">المنطقة</label>
+          <select class="form-select" id="areaFilter">
+            <option value="">جميع المناطق</option>
+            <option value="mokatam">المقطم</option>
+            <option value="hedaba">الهضبة الوسطي</option>
+            <option value="70feddan">السبعين فدان</option>
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">ترتيب حسب</label>
+          <select class="form-select" id="sortFilter">
+            <option value="default">الافتراضي</option>
+            <option value="price_low">السعر: من الأقل للأعلى</option>
+            <option value="price_high">السعر: من الأعلى للأقل</option>
+            <option value="rating">التقييم</option>
+          </select>
+        </div>
+      </div>
+      <div class="row mt-3">
+        <div class="col-12">
+          <button class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#dateModal">
+            <i class="bi bi-calendar3 me-2"></i>اختر تاريخ الحجز
+          </button>
+        </div>
+      </div>
+      <div class="row mt-3">
+        <div class="col-12">
+          <div class="period-selector">
+            <div class="period-btn selected" data-period="morning">الفترة الصباحية</div>
+            <div class="period-btn" data-period="evening">الفترة المسائية</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Pitches Section -->
+<section class="py-5" id="pitches">
+  <div class="container">
+    <h2 class="section-title">الملاعب المتاحة</h2>
+    <div class="row" id="pitchesContainer">
+      <!-- Pitches will be loaded here -->
+    </div>
+  </div>
+</section>
+
+<!-- Features Section -->
+<section class="features-section" id="features">
+  <div class="container">
+    <h2 class="section-title">لماذا تختار احجزلي؟</h2>
+    <div class="row">
+      <div class="col-md-4 mb-4">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i class="bi bi-geo-alt"></i>
+          </div>
+          <h4>تركيز على شرق القاهرة</h4>
+          <p>نغطي أفضل الملاعب في المقطم، الهضبة الوسطي، والسبعين فدان</p>
+        </div>
+      </div>
+      <div class="col-md-4 mb-4">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i class="bi bi-clock"></i>
+          </div>
+          <h4>حجز فوري</h4>
+          <p>احجز ملعبك في دقائق بدون تعقيد. تأكيد فوري للحجز.</p>
+        </div>
+      </div>
+      <div class="col-md-4 mb-4">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i class="bi bi-credit-card"></i>
+          </div>
+          <h4>دفع آمن</h4>
+          <p>أنظمة دفع متعددة وآمنة. فودافون كاش، أورنج، إتصالات، وإنستاباي.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-4 col-md-6 mb-4">
+        <h5>احجزلي</h5>
+        <p>المنصة الأولى لحجز الملاعب في شرق القاهرة. نغطي مناطق المقطم، الهضبة الوسطي، والسبعين فدان.</p>
+        <div class="social-links">
+          <a href="#"><i class="bi bi-facebook"></i></a>
+          <a href="#"><i class="bi bi-whatsapp"></i></a>
+          <a href="#"><i class="bi bi-instagram"></i></a>
+        </div>
+      </div>
+      <div class="col-lg-2 col-md-6 mb-4">
+        <h5>المناطق</h5>
+        <div class="footer-links">
+          <a href="#areas">المقطم</a>
+          <a href="#areas">الهضبة الوسطي</a>
+          <a href="#areas">السبعين فدان</a>
+        </div>
+      </div>
+      <div class="col-lg-3 col-md-6 mb-4">
+        <h5>طرق الدفع</h5>
+        <div class="footer-links">
+          <a href="#">فودافون كاش</a>
+          <a href="#">أورنج كاش</a>
+          <a href="#">اتصالات كاش</a>
+          <a href="#">إنستاباي</a>
+        </div>
+      </div>
+      <div class="col-lg-3 col-md-6 mb-4">
+        <h5>اتصل بنا</h5>
+        <div class="footer-links">
+          <a href="tel:+201000000000"><i class="bi bi-phone me-2"></i>+20 100 000 0000</a>
+          <a href="mailto:info@ehgzly.com"><i class="bi bi-envelope me-2"></i>info@ehgzly.com</a>
+          <a href="#"><i class="bi bi-geo-alt me-2"></i>شرق القاهرة</a>
+        </div>
+      </div>
+    </div>
+    <hr>
+    <div class="text-center py-3">
+      <p class="mb-0">&copy; 2024 احجزلي. جميع الحقوق محفوظة.</p>
+    </div>
+  </div>
+</footer>
+
+<!-- Date Modal -->
+<div class="modal fade date-modal" id="dateModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">اختر تاريخ الحجز</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="date-options" id="dateOptions">
+          <!-- سيتم تعبئة الأيام السبعة القادمة هنا -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary w-100" data-bs-dismiss="modal">تأكيد التاريخ</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Booking Modal -->
+<div class="modal fade" id="bookingModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title">تأكيد الحجز</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="bookingDetails" class="mb-3"></div>
+        <form id="bookingForm">
+          <input type="hidden" name="_csrf" id="csrfToken">
+          <input type="hidden" name="pitchId" id="pitchId">
+          <input type="hidden" name="selectedTime" id="selectedTime">
+          <input type="hidden" name="selectedDate" id="selectedDate">
+          
+          <div class="mb-3">
+            <label class="form-label">الاسم الكامل</label>
+            <input type="text" class="form-control" id="customerName" name="name" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">رقم الهاتف</label>
+            <input type="tel" class="form-control" id="customerPhone" name="phone" pattern="^01[0-2,5]{1}[0-9]{8}$" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">البريد الإلكتروني</label>
+            <input type="email" class="form-control" id="customerEmail" name="email">
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">كود الخصم (اختياري)</label>
+            <input type="text" class="form-control" id="discountCode" name="discountCode" placeholder="أدخل الكود إذا كان لديك">
+          </div>
+          
+          <div class="alert alert-info">
+            <h6 class="alert-heading">معلومات الدفع</h6>
+            <p class="mb-0">سيتم تحويلك لصفحة الدفع بعد تأكيد الحجز</p>
+          </div>
+          
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-check-circle me-2"></i>تأكيد الحجز والمتابعة للدفع
+          </button>
+        </form>
+        <div id="bookingStatus" class="mt-3"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Rating Modal -->
+<div class="modal fade" id="ratingModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-warning text-white">
+        <h5 class="modal-title">تقييم الملعب</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="ratingDetails" class="mb-3"></div>
+        <form id="ratingForm">
+          <input type="hidden" name="_csrf" id="ratingCsrfToken">
+          <input type="hidden" name="pitchId" id="ratingPitchId">
+          <input type="hidden" name="bookingId" id="ratingBookingId">
+          
+          <div class="mb-3">
+            <label class="form-label">تقييمك للملعب</label>
+            <div class="rating-stars" id="ratingStars">
+              <i class="bi bi-star star" data-rating="1"></i>
+              <i class="bi bi-star star" data-rating="2"></i>
+              <i class="bi bi-star star" data-rating="3"></i>
+              <i class="bi bi-star star" data-rating="4"></i>
+              <i class="bi bi-star star" data-rating="5"></i>
+            </div>
+            <input type="hidden" name="rating" id="selectedRating" required>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">تعليقك (اختياري)</label>
+            <textarea class="form-control" name="comment" id="ratingComment" rows="3" placeholder="اكتب تعليقك عن تجربتك..."></textarea>
+          </div>
+          
+          <button type="submit" class="btn btn-warning w-100 text-white">
+            <i class="bi bi-star-fill me-2"></i>إرسال التقييم
+          </button>
+        </form>
+        <div id="ratingStatus" class="mt-3"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  let pitches = [];
+  let selectedDate = '';
+  let selectedPeriod = 'morning';
+  let selectedPitchId = null;
+  let selectedTime = '';
+  let discountCodes = [];
+
+  // تحميل بيانات الملاعب من السيرفر
+  async function loadPitchesData() {
+    try {
+      const response = await fetch('/api/pitches');
+      pitches = await response.json();
+      setupDateModal();
+      loadPitches(pitches);
+      loadDiscountCodes();
+    } catch (error) {
+      console.error('Error loading pitches:', error);
+      // استخدام بيانات افتراضية إذا فشل الاتصال
+      pitches = getDefaultPitches();
+      setupDateModal();
+      loadPitches(pitches);
+      loadDiscountCodes();
+    }
+  }
+
+  // بيانات افتراضية للملاعب
+  function getDefaultPitches() {
+    return [
+      {
+        id: 1,
+        name: "نادي الطيارة - الملعب الرئيسي",
+        location: "المقطم - شارع التسعين",
+        area: "mokatam",
+        image: "/images/tyara-1.jpg",
+        price: 250,
+        features: ["نجيلة صناعية", "كشافات ليلية", "غرف تبديل"],
+        rating: 4.7,
+        totalRatings: 128,
+        googleMaps: "https://maps.app.goo.gl/v6tj8pxhG5FHfoSj9"
+      },
+      {
+        id: 2,
+        name: "نادي الطيارة - الملعب الثاني",
+        location: "المقطم - شارع التسعين",
+        area: "mokatam",
+        image: "/images/tyara-2.jpg",
+        price: 220,
+        features: ["نجيلة صناعية", "إضاءة ليلية", "غرف تبديل"],
+        rating: 4.5,
+        totalRatings: 95,
+        googleMaps: "https://maps.app.goo.gl/v6tj8pxhG5FHfoSj9"
+      },
+      {
+        id: 3,
+        name: "الراعي الصالح",
+        location: "المقطم - شارع 9",
+        area: "mokatam",
+        image: "/images/raei.jpg",
+        price: 300,
+        features: ["نجيلة طبيعية", "مقاعد جماهير", "كافيتريا"],
+        rating: 4.8,
+        totalRatings: 156,
+        googleMaps: "https://maps.app.goo.gl/hUUReW3ZDQM9wwEj7"
+      },
+      {
+        id: 4,
+        name: "نادي الهضبة الوسطي",
+        location: "الهضبة الوسطي - شارع الهرم",
+        area: "hedaba",
+        image: "/images/hedaba-club.jpg",
+        price: 200,
+        features: ["نجيلة صناعية", "إضاءة ليلية", "مواقف سيارات"],
+        rating: 4.3,
+        totalRatings: 87,
+        googleMaps: "https://maps.app.goo.gl/example1"
+      },
+      {
+        id: 5,
+        name: "نادي السبعين فدان",
+        location: "السبعين فدان - شارع الثورة",
+        area: "70feddan",
+        image: "/images/70feddan-club.jpg",
+        price: 180,
+        features: ["نجيلة صناعية", "كشافات", "صالة ألعاب"],
+        rating: 4.2,
+        totalRatings: 73,
+        googleMaps: "https://maps.app.goo.gl/example2"
+      },
+      {
+        id: 6,
+        name: "نادي المقطم الرياضي",
+        location: "المقطم - المنطقة السياحية",
+        area: "mokatam",
+        image: "/images/mokatam-club.jpg",
+        price: 280,
+        features: ["نجيلة صناعية", "إضاءة ليلية", "غرف تبديل"],
+        rating: 4.6,
+        totalRatings: 112,
+        googleMaps: "https://maps.app.goo.gl/d1txNjQ5BXwBkfZn7"
+      }
+    ];
+  }
+
+  // تحميل أكواد الخصم
+  async function loadDiscountCodes() {
+    try {
+      const response = await fetch('/api/discount-codes');
+      discountCodes = await response.json();
+    } catch (error) {
+      console.error('Error loading discount codes:', error);
+      discountCodes = generateSampleCodes();
+    }
+  }
+
+  // إنشاء أكواد عينة
+  function generateSampleCodes() {
+    return [
+      {
+        id: 1,
+        code: "TYARA50",
+        value: 50,
+        type: "pitch",
+        pitchId: 1,
+        source: "pitch",
+        status: "active",
+        expiresAt: "2024-12-31"
+      },
+      {
+        id: 2,
+        code: "EHGZLY100",
+        value: 100,
+        type: "premium",
+        source: "owner",
+        status: "active",
+        expiresAt: "2024-12-31"
+      },
+      {
+        id: 3,
+        code: "COMP50",
+        value: 50,
+        type: "compensation",
+        source: "cancellation",
+        status: "active",
+        expiresAt: "2024-11-30",
+        message: "هذا الكود التعويضي صالح لمدة 14 يوم من تاريخ الإلغاء"
+      }
+    ];
+  }
+
+  // إعداد نافذة اختيار التاريخ
+  function setupDateModal() {
+    const dateOptions = document.getElementById('dateOptions');
+    dateOptions.innerHTML = '';
+    
+    const today = new Date();
+    const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+    
+    for (let i = 0; i < 7; i++) {
+      const date = new Date();
+      date.setDate(today.getDate() + i);
+      
+      const dateOption = document.createElement('div');
+      dateOption.className = i === 0 ? 'date-option selected' : 'date-option';
+      dateOption.dataset.date = date.toISOString().split('T')[0];
+      
+      dateOption.innerHTML = `
+        <div class="date-day">${date.getDate()}</div>
+        <div class="date-month">${months[date.getMonth()]}</div>
+        <div style="font-size: 0.8rem; margin-top: 5px;">${days[date.getDay()]}</div>
+      `;
+      
+      dateOption.addEventListener('click', function() {
+        document.querySelectorAll('.date-option').forEach(opt => opt.classList.remove('selected'));
+        this.classList.add('selected');
+        selectedDate = this.dataset.date;
+      });
+      
+      dateOptions.appendChild(dateOption);
+      
+      // تعيين التاريخ الأول كافتراضي
+      if (i === 0) {
+        selectedDate = dateOption.dataset.date;
+      }
+    }
+  }
+
+  // تحميل الأوقات المتاحة
+  async function loadAvailableSlots(pitchId, date, period) {
+    try {
+      const response = await fetch(`/api/pitches/${pitchId}/available-slots?date=${date}&period=${period}`);
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error loading available slots:', error);
+      // استخدام بيانات افتراضية إذا فشل الاتصال
+      return generateAvailableSlots(period);
+    }
+  }
+
+  // توليد الأوقات المتاحة بناءً على الفترة
+  function generateAvailableSlots(period) {
+    const availableSlots = [];
+    const bookedSlots = [];
+    
+    if (period === 'morning') {
+      // الفترة الصباحية: من 8 صباحاً إلى 4 عصراً
+      for (let hour = 8; hour <= 16; hour++) {
+        availableSlots.push(hour);
+      }
+      
+      // محاكاة بعض الأوقات المحجوزة عشوائياً
+      const randomBookedCount = Math.floor(Math.random() * 3);
+      for (let i = 0; i < randomBookedCount; i++) {
+        if (availableSlots.length > 0) {
+          const randomIndex = Math.floor(Math.random() * availableSlots.length);
+          const bookedSlot = availableSlots.splice(randomIndex, 1)[0];
+          bookedSlots.push(bookedSlot);
+        }
+      }
+    } else {
+      // الفترة المسائية: من 5 مساءً إلى 2 فجراً
+      for (let hour = 17; hour <= 24; hour++) {
+        availableSlots.push(hour);
+      }
+      for (let hour = 1; hour <= 2; hour++) {
+        availableSlots.push(hour);
+      }
+      
+      // محاكاة بعض الأوقات المحجوزة عشوائياً
+      const randomBookedCount = Math.floor(Math.random() * 4);
+      for (let i = 0; i < randomBookedCount; i++) {
+        if (availableSlots.length > 0) {
+          const randomIndex = Math.floor(Math.random() * availableSlots.length);
+          const bookedSlot = availableSlots.splice(randomIndex, 1)[0];
+          bookedSlots.push(bookedSlot);
+        }
+      }
+    }
+    
+    return { availableSlots, bookedSlots };
+  }
+
+  // تحويل الساعة إلى نص عربي
+  function formatTime(hour) {
+    if (hour === 0) return '12 منتصف الليل';
+    if (hour < 12) return `${hour} صباحاً`;
+    if (hour === 12) return '12 ظهراً';
+    if (hour <= 16) return `${hour - 12} عصراً`;
+    if (hour <= 23) return `${hour - 12} مساءً`;
+    return `${hour - 12} منتصف الليل`;
+  }
+
+  // تحديث واجهة الأوقات المتاحة
+  async function updatePitchCard(pitchId, date, period) {
+    const slotsData = await loadAvailableSlots(pitchId, date, period);
+    const card = document.querySelector(`[data-pitch-id="${pitchId}"]`);
+    
+    if (card) {
+      const timeSlotsContainer = card.querySelector('.time-slots');
+      if (timeSlotsContainer) {
+        timeSlotsContainer.innerHTML = '';
+        
+        // إضافة الأوقات المتاحة
+        slotsData.availableSlots.forEach(hour => {
+          const slotElement = document.createElement('div');
+          slotElement.className = 'time-slot';
+          slotElement.textContent = formatTime(hour);
+          slotElement.dataset.hour = hour;
+          slotElement.onclick = () => selectTimeSlot(slotElement, pitchId, hour);
+          timeSlotsContainer.appendChild(slotElement);
+        });
+        
+        // إضافة الأوقات المحجوزة
+        slotsData.bookedSlots.forEach(hour => {
+          const slotElement = document.createElement('div');
+          slotElement.className = 'time-slot booked';
+          slotElement.textContent = formatTime(hour);
+          slotElement.title = 'محجوز';
+          timeSlotsContainer.appendChild(slotElement);
+        });
+      }
+    }
+  }
+
+  // تحديث جميع البطاقات
+  async function updateAllPitchCards(date, period) {
+    if (!date) return;
+    
+    for (const pitch of pitches) {
+      await updatePitchCard(pitch.id, date, period);
+    }
+  }
+
+  // تحميل وعرض الملاعب
+  function loadPitches(pitchesData) {
+    const container = document.getElementById('pitchesContainer');
+    container.innerHTML = '';
+
+    if (pitchesData.length === 0) {
+      container.innerHTML = `
+        <div class="col-12 text-center">
+          <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            لا توجد ملاعب متاحة حسب معايير البحث المحددة
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    pitchesData.forEach(pitch => {
+      const col = document.createElement('div');
+      col.className = 'col-lg-4 col-md-6 fade-in';
+      col.setAttribute('data-pitch-id', pitch.id);
+      
+      col.innerHTML = `
+        <div class="pitch-card">
+          <div class="pitch-image" style="background-image: url('${pitch.image}')">
+            <span class="pitch-badge">${getAreaText(pitch.area)}</span>
+            <span class="pitch-price">${pitch.price} ج.م/ساعة</span>
+          </div>
+          <div class="pitch-info">
+            <h4 class="pitch-title">${pitch.name}</h4>
+            <p class="pitch-location">
+              <i class="bi bi-geo-alt"></i> ${pitch.location}
+            </p>
+            <div class="pitch-features">
+              ${pitch.features.slice(0, 3).map(feature => `
+                <span class="feature">
+                  <i class="bi bi-check-circle"></i> ${feature}
+                </span>
+              `).join('')}
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <div>
+                <div class="rating-stars">
+                  ${generateStarRating(pitch.rating)}
+                </div>
+                <div class="rating-text">
+                  ${pitch.rating.toFixed(1)} (${pitch.totalRatings} تقييم)
+                </div>
+              </div>
+              <div>
+                <a href="${pitch.googleMaps}" target="_blank" class="btn btn-outline-primary btn-sm me-2">
+                  <i class="bi bi-geo-alt me-1"></i>اتجاهات
+                </a>
+                <button class="btn btn-outline-warning btn-sm" onclick="ratePitch(${pitch.id})">
+                  <i class="bi bi-star me-1"></i>قيم
+                </button>
+              </div>
+            </div>
+            <div class="time-slots">
+              <!-- سيتم تعبئة الأوقات المتاحة هنا -->
+            </div>
+            <button class="btn btn-primary w-100 mt-3" onclick="bookPitch(${pitch.id})">
+              <i class="bi bi-calendar-check me-2"></i>احجز الآن
+            </button>
+          </div>
+        </div>
+      `;
+      
+      container.appendChild(col);
+    });
+    
+    // تحديث الأوقات المتاحة للتاريخ والفترة المحددين
+    if (selectedDate) {
+      setTimeout(() => updateAllPitchCards(selectedDate, selectedPeriod), 500);
+    }
+  }
+
+  // توليد نجوم التقييم
+  function generateStarRating(rating) {
+    let stars = '';
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+    
+    for (let i = 1; i <= 5; i++) {
+      if (i <= fullStars) {
+        stars += '<i class="bi bi-star-fill text-warning"></i>';
+      } else if (i === fullStars + 1 && hasHalfStar) {
+        stars += '<i class="bi bi-star-half text-warning"></i>';
+      } else {
+        stars += '<i class="bi bi-star text-warning"></i>';
+      }
+    }
+    
+    return stars;
+  }
+
+  // وظائف المساعدة
+  function getAreaText(area) {
+    const areas = {
+      'mokatam': 'المقطم',
+      'hedaba': 'الهضبة الوسطي',
+      '70feddan': 'السبعين فدان'
+    };
+    return areas[area] || area;
+  }
+
+  function selectTimeSlot(element, pitchId, hour) {
+    // إلغاء تحديد جميع الأوقات في هذه البطاقة
+    const card = element.closest('.pitch-card');
+    card.querySelectorAll('.time-slot').forEach(slot => {
+      slot.classList.remove('selected');
+    });
+    
+    // تحديد الوقت المختار
+    element.classList.add('selected');
+    selectedPitchId = pitchId;
+    selectedTime = hour;
+  }
+
+  // فتح نافذة تقييم الملعب
+  function ratePitch(pitchId) {
+    const pitch = pitches.find(p => p.id === pitchId);
+    
+    document.getElementById('ratingPitchId').value = pitchId;
+    document.getElementById('ratingDetails').innerHTML = `
+      <div class="alert alert-warning">
+        <h6>تقييم: ${pitch.name}</h6>
+        <p class="mb-0">شاركنا تجربتك في هذا الملعب</p>
+      </div>
+    `;
+    
+    // إعادة تعيين النجوم
+    document.querySelectorAll('#ratingStars .star').forEach(star => {
+      star.classList.remove('active');
+      star.classList.remove('bi-star-fill');
+      star.classList.add('bi-star');
+    });
+    
+    document.getElementById('selectedRating').value = '';
+    document.getElementById('ratingComment').value = '';
+    
+    // إعداد أحداث النجوم
+    document.querySelectorAll('#ratingStars .star').forEach(star => {
+      star.addEventListener('click', function() {
+        const rating = parseInt(this.dataset.rating);
+        document.getElementById('selectedRating').value = rating;
+        
+        // تحديث مظهر النجوم
+        document.querySelectorAll('#ratingStars .star').forEach(s => {
+          const starRating = parseInt(s.dataset.rating);
+          if (starRating <= rating) {
+            s.classList.add('active', 'bi-star-fill');
+            s.classList.remove('bi-star');
+          } else {
+            s.classList.remove('active', 'bi-star-fill');
+            s.classList.add('bi-star');
+          }
+        });
+      });
+    });
+    
+    const ratingModal = new bootstrap.Modal(document.getElementById('ratingModal'));
+    ratingModal.show();
+  }
+
+  async function bookPitch(pitchId) {
+    const pitch = pitches.find(p => p.id === pitchId);
+    
+    if (!selectedTime) {
+      alert('يرجى اختيار وقت الحجز أولاً');
+      return;
+    }
+
+    if (!selectedDate) {
+      alert('يرجى اختيار تاريخ الحجز');
+      return;
+    }
+
+    // تعبئة بيانات الحجز في المودال
+    document.getElementById('pitchId').value = pitchId;
+    document.getElementById('selectedTime').value = selectedTime;
+    document.getElementById('selectedDate').value = selectedDate;
+    
+    document.getElementById('bookingDetails').innerHTML = `
+      <div class="alert alert-success">
+        <h6>تفاصيل الحجز:</h6>
+        <p class="mb-1"><strong>الملعب:</strong> ${pitch.name}</p>
+        <p class="mb-1"><strong>الموقع:</strong> ${pitch.location}</p>
+        <p class="mb-1"><strong>التاريخ:</strong> ${formatDate(selectedDate)}</p>
+        <p class="mb-1"><strong>الوقت:</strong> ${formatTime(selectedTime)}</p>
+        <p class="mb-0"><strong>السعر:</strong> ${pitch.price} جنيه</p>
+      </div>
+    `;
+
+    // تعبئة بيانات المستخدم إذا كان مسجل دخول
+    try {
+      const userResponse = await fetch('/api/current-user');
+      const userData = await userResponse.json();
+      if (userData && userData.username) {
+        document.getElementById('customerName').value = userData.username;
+        if (userData.phone) {
+          document.getElementById('customerPhone').value = userData.phone;
+        }
+        if (userData.email) {
+          document.getElementById('customerEmail').value = userData.email;
+        }
+      }
+    } catch (error) {
+      console.log('User not logged in or error fetching user data');
+    }
+
+    // عرض المودال
+    const bookingModal = new bootstrap.Modal(document.getElementById('bookingModal'));
+    bookingModal.show();
+  }
+
+  function formatDate(dateString) {
+    const date = new Date(dateString);
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    return date.toLocaleDateString('ar-EG', options);
+  }
+
+  function filterPitches() {
+    const area = document.getElementById('areaFilter').value;
+    const sort = document.getElementById('sortFilter').value;
+
+    let filteredPitches = [...pitches];
+
+    // التصفية حسب المنطقة
+    if (area) {
+      filteredPitches = filteredPitches.filter(pitch => pitch.area === area);
+    }
+
+    // الترتيب
+    if (sort === 'price_low') {
+      filteredPitches.sort((a, b) => a.price - b.price);
+    } else if (sort === 'price_high') {
+      filteredPitches.sort((a, b) => b.price - a.price);
+    } else if (sort === 'rating') {
+      filteredPitches.sort((a, b) => b.rating - a.rating);
+    }
+
+    loadPitches(filteredPitches);
+  }
+
+  // التهيئة
+  document.addEventListener('DOMContentLoaded', function() {
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        document.getElementById('loadingOverlay').classList.add('fade-out');
+      }, 1000);
+    });
+
+    fetch('/csrf-token')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.csrfToken) {
+          document.getElementById('csrfToken').value = d.csrfToken;
+          document.getElementById('ratingCsrfToken').value = d.csrfToken;
+        }
+      })
+      .catch(() => {});
+
+    window.addEventListener('scroll', function() {
+      if (window.scrollY > 100) {
+        document.querySelector('.navbar').classList.add('scrolled');
+      } else {
+        document.querySelector('.navbar').classList.remove('scrolled');
+      }
+    });
+
+    // إعداد أحداث الفترات
+    document.querySelectorAll('.period-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('selected'));
+        this.classList.add('selected');
+        selectedPeriod = this.dataset.period;
+        if (selectedDate) {
+          updateAllPitchCards(selectedDate, selectedPeriod);
+        }
+      });
+    });
+
+    // تحديث الأوقات عند إغلاق نافذة التاريخ
+    document.getElementById('dateModal').addEventListener('hidden.bs.modal', function() {
+      if (selectedDate) {
+        updateAllPitchCards(selectedDate, selectedPeriod);
+      }
+    });
+
+    // تحميل بيانات الملاعب
+    loadPitchesData();
+  });
+
+  // إرسال نموذج الحجز
+  document.getElementById('bookingForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData);
+    
+    try {
+      const response = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': document.getElementById('csrfToken').value
+        },
+        body: JSON.stringify({
+          pitchId: data.pitchId,
+          date: data.selectedDate,
+          time: data.selectedTime,
+          name: data.name,
+          phone: data.phone,
+          email: data.email,
+          discountCode: data.discountCode
+        })
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        document.getElementById('bookingStatus').innerHTML = `
+          <div class="alert alert-success">
+            <i class="bi bi-check-circle me-2"></i>${result.message}
+          </div>
+        `;
+        
+        // تحديث الواجهة وإعادة التوجيه
+        setTimeout(() => {
+          updatePitchCard(data.pitchId, data.selectedDate, selectedPeriod);
+          bootstrap.Modal.getInstance(document.getElementById('bookingModal')).hide();
+          window.location.href = '/payment.html';
+        }, 2000);
+      } else {
+        document.getElementById('bookingStatus').innerHTML = `
+          <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle me-2"></i>${result.message}
+          </div>
+        `;
+      }
+    } catch (error) {
+      document.getElementById('bookingStatus').innerHTML = `
+        <div class="alert alert-danger">
+          <i class="bi bi-exclamation-triangle me-2"></i>حدث خطأ في الاتصال بالخادم
+        </div>
+      `;
+    }
+  });
+
+  // إرسال نموذج التقييم
+  document.getElementById('ratingForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData);
+    
+    try {
+      const response = await fetch('/api/ratings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': document.getElementById('ratingCsrfToken').value
+        },
+        body: JSON.stringify({
+          pitchId: data.pitchId,
+          rating: data.rating,
+          comment: data.comment,
+          bookingId: data.bookingId
+        })
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        document.getElementById('ratingStatus').innerHTML = `
+          <div class="alert alert-success">
+            <i class="bi bi-check-circle me-2"></i>${result.message}
+          </div>
+        `;
+        
+        // تحديث الواجهة وإغلاق النافذة
+        setTimeout(() => {
+          bootstrap.Modal.getInstance(document.getElementById('ratingModal')).hide();
+          // إعادة تحميل بيانات الملاعب لتحديث التقييمات
+          loadPitchesData();
+        }, 2000);
+      } else {
+        document.getElementById('ratingStatus').innerHTML = `
+          <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle me-2"></i>${result.message}
+          </div>
+        `;
+      }
+    } catch (error) {
+      document.getElementById('ratingStatus').innerHTML = `
+        <div class="alert alert-danger">
+          <i class="bi bi-exclamation-triangle me-2"></i>حدث خطأ في الاتصال بالخادم
+        </div>
+      `;
+    }
+  });
+</script>
+</body>
+</html>

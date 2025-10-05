@@ -1,0 +1,8 @@
+{
+  "username": "Ali",
+  "email": "ali@example.com",
+  "password": "hashed",
+  "emailVerified": false,
+  "role": "user",
+  "verificationToken": "uuid-generated"
+}

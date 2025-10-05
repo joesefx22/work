@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تسجيل الدخول - احجزلي</title>
+  
+  <!-- Bootstrap + Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Cairo', sans-serif;
+      background: linear-gradient(135deg, #1a7f46 0%, #2ecc71 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #333;
+      padding: 20px;
+    }
+    
+    .login-container {
+      background: #fff;
+      padding: 2.5rem;
+      border-radius: 16px;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 450px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .login-container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, #1a7f46, #2ecc71);
+    }
+    
+    .logo {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    
+    .logo i {
+      font-size: 2.5rem;
+      color: #1a7f46;
+      margin-bottom: 0.5rem;
+    }
+    
+    .form-floating {
+      margin-bottom: 1rem;
+    }
+    
+    .form-floating label {
+      right: 0.75rem !important;
+      left: auto !important;
+    }
+    
+    .form-control:focus {
+      border-color: #1a7f46;
+      box-shadow: 0 0 0 0.25rem rgba(26, 127, 70, 0.25);
+    }
+    
+    .btn-success {
+      background: linear-gradient(135deg, #1a7f46, #2ecc71);
+      border: none;
+      padding: 12px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    
+    .btn-success:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(26, 127, 70, 0.3);
+    }
+    
+    .google-btn {
+      background: #fff;
+      color: #757575;
+      border: 2px solid #ddd;
+      padding: 12px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    
+    .google-btn:hover {
+      border-color: #db4437;
+      color: #db4437;
+      transform: translateY(-2px);
+    }
+    
+    .nav-links {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+    }
+    
+    .nav-links a {
+      color: #fff;
+      text-decoration: none;
+      margin-left: 15px;
+      font-weight: 600;
+      transition: color 0.3s ease;
+    }
+    
+    .nav-links a:hover {
+      color: #e8f5e8;
+    }
+    
+    .alert {
+      border: none;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 1rem;
+    }
+    
+    .step-2 {
+      display: none;
+    }
+    
+    .otp-inputs {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 1.5rem 0;
+    }
+    
+    .otp-input {
+      width: 50px;
+      height: 60px;
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: bold;
+      border: 2px solid #e9ecef;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+      background: #f8f9fa;
+    }
+    
+    .otp-input:focus {
+      border-color: #1a7f46;
+      box-shadow: 0 0 0 0.25rem rgba(26, 127, 70, 0.25);
+      transform: scale(1.05);
+      background: white;
+    }
+    
+    .otp-input.valid {
+      border-color: #2ecc71;
+      background: #f0fff4;
+    }
+    
+    .otp-input.invalid {
+      border-color: #e74c3c;
+      background: #fff5f5;
+    }
+    
+    .resend-otp {
+      color: #1a7f46;
+      cursor: pointer;
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    
+    .resend-otp:hover {
+      text-decoration: underline;
+      color: #156c3d;
+    }
+    
+    .resend-otp.disabled {
+      color: #6c757d;
+      cursor: not-allowed;
+      text-decoration: none;
+    }
+    
+    .password-toggle {
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: #6c757d;
+      cursor: pointer;
+      z-index: 10;
+    }
+    
+    .password-container {
+      position: relative;
+    }
+    
+    .security-badge {
+      background: linear-gradient(135deg, #1a7f46, #2ecc71);
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    
+    .countdown {
+      color: #e74c3c;
+      font-weight: 600;
+    }
+    
+    .forgot-password {
+      text-align: left;
+    }
+    
+    .forgot-password a {
+      color: #666;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    
+    .forgot-password a:hover {
+      color: #1a7f46;
+    }
+    
+    @media (max-width: 576px) {
+      .login-container {
+        padding: 2rem 1.5rem;
+      }
+      
+      .nav-links {
+        position: relative;
+        top: 0;
+        left: 0;
+        text-align: center;
+        margin-bottom: 1rem;
+      }
+      
+      .otp-input {
+        width: 45px;
+        height: 55px;
+        font-size: 1.3rem;
+      }
+      
+      body {
+        padding: 10px;
+      }
+    }
+    
+    /* Dark mode support */
+    @media (prefers-color-scheme: dark) {
+      .login-container {
+        background: #2d3748;
+        color: #e2e8f0;
+      }
+      
+      .form-control {
+        background: #4a5568;
+        border-color: #718096;
+        color: #e2e8f0;
+      }
+      
+      .form-control:focus {
+        background: #4a5568;
+        color: #e2e8f0;
+      }
+      
+      .form-control::placeholder {
+        color: #a0aec0;
+      }
+      
+      .otp-input {
+        background: #4a5568;
+        border-color: #718096;
+        color: #e2e8f0;
+      }
+    }
+    
+    .spinner {
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
+    .fade-in {
+      animation: fadeIn 0.5s ease-in;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="nav-links">
+    <a href="/index.html">
+      <i class="bi bi-house-fill"></i> الرئيسية
+    </a>
+    <a href="/signup.html">
+      <i class="bi bi-person-plus"></i> إنشاء حساب
+    </a>
+  </nav>
+
+  <main class="login-container">
+    <div class="logo">
+      <i class="bi bi-soccer-ball"></i>
+      <h2 class="h4 mb-3">تسجيل الدخول</h2>
+    </div>
+
+    <!-- نظام التنبيهات -->
+    <div id="alertsContainer"></div>
+
+    <!-- الخطوة 1: البريد وكلمة المرور -->
+    <form id="loginStep1" novalidate class="fade-in">
+      <input type="hidden" name="_csrf" id="csrfToken">
+      
+      <!-- البريد الإلكتروني -->
+      <div class="form-floating">
+        <input type="email" class="form-control" id="email" 
+               placeholder="البريد الإلكتروني" required
+               autocomplete="username"
+               pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}">
+        <label for="email">
+          <i class="bi bi-envelope me-1"></i> البريد الإلكتروني
+        </label>
+        <div class="invalid-feedback">يرجى إدخال بريد إلكتروني صحيح</div>
+      </div>
+
+      <!-- كلمة المرور -->
+      <div class="form-floating password-container">
+        <input type="password" class="form-control" id="password" 
+               placeholder="كلمة المرور" required minlength="6"
+               autocomplete="current-password">
+        <label for="password">
+          <i class="bi bi-lock me-1"></i> كلمة المرور
+        </label>
+        <button type="button" class="password-toggle" id="passwordToggle">
+          <i class="bi bi-eye"></i>
+        </button>
+        <div class="invalid-feedback">كلمة المرور يجب أن تكون 6 أحرف على الأقل</div>
+      </div>
+
+      <!-- تذكرني ونسيت كلمة المرور -->
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="rememberMe">
+          <label class="form-check-label" for="rememberMe">
+            تذكرني
+          </label>
+        </div>
+        <div class="forgot-password">
+          <a href="/forgot-password.html" class="text-muted text-decoration-none">
+            <i class="bi bi-question-circle me-1"></i> نسيت كلمة المرور؟
+          </a>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-success w-100 mb-3" id="loginStep1Btn">
+        <i class="bi bi-box-arrow-in-right me-2"></i> تسجيل الدخول
+      </button>
+    </form>
+
+    <!-- الخطوة 2: التحقق بخطوتين -->
+    <div id="loginStep2" class="step-2 fade-in">
+      <div class="text-center mb-4">
+        <i class="bi bi-shield-check text-success" style="font-size: 2.5rem;"></i>
+        <h5 class="mt-2 mb-1">التحقق بخطوتين</h5>
+        <p class="text-muted mb-3">تم إرسال رمز التحقق إلى بريدك الإلكتروني</p>
+        <div class="security-badge d-inline-block">
+          <i class="bi bi-shield-check me-1"></i> حماية إضافية
+        </div>
+      </div>
+
+      <form id="otpForm">
+        <input type="hidden" id="pendingEmail">
+        
+        <div class="otp-inputs">
+          <input type="text" class="otp-input" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="one-time-code">
+          <input type="text" class="otp-input" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="one-time-code">
+          <input type="text" class="otp-input" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="one-time-code">
+          <input type="text" class="otp-input" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="one-time-code">
+          <input type="text" class="otp-input" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="one-time-code">
+          <input type="text" class="otp-input" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="one-time-code">
+        </div>
+
+        <div class="text-center mb-3">
+          <a href="#" class="resend-otp" id="resendOtp">
+            <i class="bi bi-arrow-clockwise me-1"></i> إعادة إرسال الرمز
+          </a>
+          <div id="countdown" class="text-muted small mt-1"></div>
+        </div>
+
+        <button type="submit" class="btn btn-success w-100 mb-2" id="verifyOtpBtn">
+          <i class="bi bi-check-circle me-2"></i> تأكيد الرمز
+        </button>
+
+        <button type="button" class="btn btn-outline-secondary w-100" id="backToStep1">
+          <i class="bi bi-arrow-right me-2"></i> العودة للبريد وكلمة المرور
+        </button>
+      </form>
+    </div>
+
+    <!-- تسجيل الدخول بـ Google -->
+    <div class="text-center mb-3">
+      <span class="text-muted">أو</span>
+    </div>
+    
+    <button type="button" class="btn google-btn w-100 mb-3" onclick="window.location.href='/auth/google'">
+      <i class="bi bi-google me-2"></i> تسجيل الدخول بـ Google
+    </button>
+
+    <!-- روابط إضافية -->
+    <div class="text-center mt-4">
+      <p class="mb-2">
+        <a href="/signup.html" class="text-success text-decoration-none fw-bold">
+          <i class="bi bi-person-plus me-1"></i> إنشاء حساب جديد
+        </a>
+      </p>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // 🆕 دالة لعرض التنبيهات
+    function showAlert(message, type = 'info') {
+      const alertsContainer = document.getElementById('alertsContainer');
+      const alertId = 'alert-' + Date.now();
+      
+      const alertHTML = `
+        <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show" role="alert">
+          ${message}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      `;
+      
+      alertsContainer.innerHTML = alertHTML;
+      
+      setTimeout(() => {
+        const alertElement = document.getElementById(alertId);
+        if (alertElement) {
+          alertElement.remove();
+        }
+      }, 5000);
+    }
+
+    // جلب CSRF token
+    fetch('/csrf-token')
+      .then(r => {
+        if (r.ok) return r.json();
+        throw new Error('Network response was not ok');
+      })
+      .then(d => {
+        if (d?.csrfToken) {
+          document.getElementById('csrfToken').value = d.csrfToken;
+        }
+      })
+      .catch(err => {
+        console.error('Failed to fetch CSRF token:', err);
+        showAlert('⚠️ تعذر تحميل رمز الأمان', 'warning');
+      });
+
+    // عناصر DOM
+    const loginStep1 = document.getElementById('loginStep1');
+    const loginStep2 = document.getElementById('loginStep2');
+    const loginStep1Btn = document.getElementById('loginStep1Btn');
+    const verifyOtpBtn = document.getElementById('verifyOtpBtn');
+    const passwordToggle = document.getElementById('passwordToggle');
+    const resendOtp = document.getElementById('resendOtp');
+    const countdown = document.getElementById('countdown');
+    const backToStep1 = document.getElementById('backToStep1');
+
+    const originalStep1Text = loginStep1Btn.innerHTML;
+    const originalOtpText = verifyOtpBtn.innerHTML;
+
+    let resendTimer = null;
+    let resendTime = 60;
+
+    // 🆕 تبديل عرض كلمة المرور
+    passwordToggle.addEventListener('click', function() {
+      const passwordInput = document.getElementById('password');
+      const icon = this.querySelector('i');
+      
+      if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        icon.className = 'bi bi-eye-slash';
+      } else {
+        passwordInput.type = 'password';
+        icon.className = 'bi bi-eye';
+      }
+    });
+
+    // 🆕 إدارة إدخال OTP
+    const otpInputs = document.querySelectorAll('.otp-input');
+    otpInputs.forEach((input, index) => {
+      input.addEventListener('input', (e) => {
+        const value = e.target.value;
+        
+        // التحقق من صحة الإدخال (أرقام فقط)
+        if (!/^[0-9]$/.test(value)) {
+          e.target.value = '';
+          e.target.classList.remove('valid');
+          e.target.classList.add('invalid');
+          return;
+        }
+        
+        // تحديث التصميم
+        e.target.classList.remove('invalid');
+        e.target.classList.add('valid');
+        
+        // الانتقال للحقل التالي عند الإدخال
+        if (value.length === 1 && index < otpInputs.length - 1) {
+          otpInputs[index + 1].focus();
+        }
+      });
+      
+      input.addEventListener('keydown', (e) => {
+        // الانتقال للحقل السابق عند الضغط على backspace
+        if (e.key === 'Backspace' && e.target.value === '' && index > 0) {
+          otpInputs[index - 1].focus();
+        }
+        
+        // الانتقال للحقل التالي عند الضغط على السهم الأيمن
+        if (e.key === 'ArrowRight' && index < otpInputs.length - 1) {
+          otpInputs[index + 1].focus();
+        }
+        
+        // الانتقال للحقل السابق عند الضغط على السهم الأيسر
+        if (e.key === 'ArrowLeft' && index > 0) {
+          otpInputs[index - 1].focus();
+        }
+      });
+      
+      input.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const pasteData = e.clipboardData.getData('text');
+        const numbers = pasteData.replace(/\D/g, '').split('');
+        
+        numbers.forEach((num, i) => {
+          if (otpInputs[i]) {
+            otpInputs[i].value = num;
+            otpInputs[i].classList.add('valid');
+            otpInputs[i].classList.remove('invalid');
+          }
+        });
+        
+        // التركيز على آخر حقل مملوء
+        const lastIndex = Math.min(numbers.length - 1, otpInputs.length - 1);
+        otpInputs[lastIndex].focus();
+      });
+      
+      input.addEventListener('focus', () => {
+        input.classList.add('focus');
+      });
+      
+      input.addEventListener('blur', () => {
+        input.classList.remove('focus');
+      });
+    });
+
+    // 🆕 الخطوة 1: إرسال البريد وكلمة المرور
+    loginStep1.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const rememberMe = document.getElementById('rememberMe').checked;
+      const _csrf = document.getElementById('csrfToken').value;
+
+      if (!email || !password) {
+        showAlert('❌ يرجى ملء جميع الحقول', 'danger');
+        return;
+      }
+
+      // تعطيل الزر وعرض loading
+      loginStep1Btn.disabled = true;
+      loginStep1Btn.innerHTML = '<i class="bi bi-arrow-repeat spinner me-2"></i> جاري التحقق...';
+
+      try {
+        const res = await fetch('/login-step1', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': _csrf
+          },
+          body: JSON.stringify({ email, password, rememberMe, _csrf })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          showAlert('✅ تم إرسال رمز التحقق إلى بريدك الإلكتروني', 'success');
+          
+          // الانتقال للخطوة 2
+          document.getElementById('pendingEmail').value = email;
+          loginStep1.style.display = 'none';
+          loginStep2.style.display = 'block';
+          startResendTimer();
+          otpInputs[0].focus();
+          
+          // حفظ البريد إذا تم اختيار تذكرني
+          if (rememberMe) {
+            localStorage.setItem('rememberedEmail', email);
+          }
+        } else {
+          showAlert('❌ ' + (data.message || 'خطأ في تسجيل الدخول'), 'danger');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        showAlert('❌ تعذر الاتصال بالخادم', 'danger');
+      } finally {
+        // إعادة تمكين الزر
+        loginStep1Btn.disabled = false;
+        loginStep1Btn.innerHTML = originalStep1Text;
+      }
+    });
+
+    // 🆕 الخطوة 2: التحقق من OTP
+    document.getElementById('otpForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const otp = Array.from(otpInputs).map(input => input.value).join('');
+      const email = document.getElementById('pendingEmail').value;
+      const _csrf = document.getElementById('csrfToken').value;
+
+      if (otp.length !== 6) {
+        showAlert('❌ يرجى إدخال رمز التحقق المكون من 6 أرقام', 'danger');
+        return;
+      }
+
+      // تعطيل الزر وعرض loading
+      verifyOtpBtn.disabled = true;
+      verifyOtpBtn.innerHTML = '<i class="bi bi-arrow-repeat spinner me-2"></i> جاري التحقق...';
+
+      try {
+        const res = await fetch('/verify-otp', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': _csrf
+          },
+          body: JSON.stringify({ otp, _csrf })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          showAlert('✅ تم تسجيل الدخول بنجاح!', 'success');
+          
+          // إعادة توجيه حسب صلاحية المستخدم
+          setTimeout(() => {
+            if (data.role === 'admin') {
+              window.location.href = '/admin.html';
+            } else {
+              window.location.href = '/index.html';
+            }
+          }, 1500);
+        } else {
+          showAlert('❌ ' + (data.message || 'رمز التحقق غير صحيح'), 'danger');
+          // مسح حقول OTP وإعادة التركيز
+          resetOtpInputs();
+          otpInputs[0].focus();
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        showAlert('❌ تعذر الاتصال بالخادم', 'danger');
+      } finally {
+        // إعادة تمكين الزر
+        verifyOtpBtn.disabled = false;
+        verifyOtpBtn.innerHTML = originalOtpText;
+      }
+    });
+
+    // 🆕 إعادة إرسال OTP
+    resendOtp.addEventListener('click', async (e) => {
+      e.preventDefault();
+      
+      if (resendOtp.classList.contains('disabled')) return;
+      
+      const email = document.getElementById('pendingEmail').value;
+      const _csrf = document.getElementById('csrfToken').value;
+
+      // تعطيل الزر مؤقتاً
+      resendOtp.classList.add('disabled');
+      resendOtp.innerHTML = '<i class="bi bi-arrow-repeat spinner me-2"></i> جاري الإرسال...';
+
+      try {
+        const res = await fetch('/login-step1', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': _csrf
+          },
+          body: JSON.stringify({ email, password: 'resend', _csrf })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          showAlert('✅ تم إعادة إرسال رمز التحقق إلى بريدك الإلكتروني', 'success');
+          startResendTimer();
+          resetOtpInputs();
+          otpInputs[0].focus();
+        } else {
+          showAlert('❌ ' + (data.message || 'فشل إعادة الإرسال'), 'danger');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        showAlert('❌ تعذر الاتصال بالخادم', 'danger');
+      } finally {
+        // إعادة تمكين الزر
+        resendOtp.classList.remove('disabled');
+        resendOtp.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i> إعادة إرسال الرمز';
+      }
+    });
+
+    // 🆕 العودة للخطوة 1
+    backToStep1.addEventListener('click', () => {
+      loginStep2.style.display = 'none';
+      loginStep1.style.display = 'block';
+      clearTimeout(resendTimer);
+      resetOtpInputs();
+      document.getElementById('email').focus();
+    });
+
+    // 🆕 مؤقت إعادة الإرسال
+    function startResendTimer() {
+      resendOtp.classList.add('disabled');
+      resendTime = 60;
+      
+      updateCountdown();
+      
+      resendTimer = setInterval(() => {
+        resendTime--;
+        updateCountdown();
+        
+        if (resendTime <= 0) {
+          clearInterval(resendTimer);
+          resendOtp.classList.remove('disabled');
+          countdown.textContent = '';
+        }
+      }, 1000);
+    }
+
+    function updateCountdown() {
+      const minutes = Math.floor(resendTime / 60);
+      const seconds = resendTime % 60;
+      countdown.innerHTML = `<span class="countdown">${minutes}:${seconds.toString().padStart(2, '0')}</span> متبقي حتى إعادة الإرسال`;
+    }
+
+    // 🆕 إعادة تعيين حقول OTP
+    function resetOtpInputs() {
+      otpInputs.forEach(input => {
+        input.value = '';
+        input.classList.remove('valid', 'invalid');
+      });
+    }
+
+    // 🆕 التحقق الفوري من صحة البيانات
+    loginStep1.querySelectorAll('input').forEach(input => {
+      input.addEventListener('blur', () => {
+        if (input.checkValidity()) {
+          input.classList.remove('is-invalid');
+          input.classList.add('is-valid');
+        } else {
+          input.classList.add('is-invalid');
+          input.classList.remove('is-valid');
+        }
+      });
+      
+      input.addEventListener('input', () => {
+        if (input.checkValidity()) {
+          input.classList.remove('is-invalid');
+        }
+      });
+    });
+
+    // 🆕 تأثيرات للعناصر
+    document.querySelectorAll('.form-control').forEach(element => {
+      element.addEventListener('focus', function() {
+        this.parentElement.classList.add('focused');
+      });
+      
+      element.addEventListener('blur', function() {
+        if (this.value === '') {
+          this.parentElement.classList.remove('focused');
+        }
+      });
+    });
+
+    // 🆕 تحميل بيانات تذكرني من localStorage
+    document.addEventListener('DOMContentLoaded', function() {
+      const savedEmail = localStorage.getItem('rememberedEmail');
+      if (savedEmail) {
+        document.getElementById('email').value = savedEmail;
+        document.getElementById('rememberMe').checked = true;
+      }
+      
+      // التركيز التلقائي على حقل البريد
+      document.getElementById('email').focus();
+      
+      // إضافة تأثيرات تحسين تجربة المستخدم
+      if ('ontouchstart' in window) {
+        document.body.style.padding = '10px';
+      }
+
+      // 🆕 إدخال سريع للبيانات للتجربة (للتطوير فقط)
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        console.log('🛠️ Development mode: Quick login available');
+        // يمكن إضافة بيانات تجريبية هنا للتطوير
+        // document.getElementById('email').value = 'test@example.com';
+        // document.getElementById('password').value = '123456';
+      }
+    });
+  </script>
+</body>
+</html>
