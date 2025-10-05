@@ -22,6 +22,31 @@ const csrf          = require('csurf');
 // ⭐ رفع صورة الإيصال
 const multer        = require('multer');
 
+// 🆕 الثوابت الجديدة
+const BOOKING_STATUS = {
+  PENDING: 'pending',
+  CONFIRMED: 'confirmed',
+  CANCELLED: 'cancelled',
+  COMPLETED: 'completed'
+};
+
+const PAYMENT_TYPES = {
+  DEPOSIT: 'deposit',
+  FULL: 'full'
+};
+
+const CODE_TYPES = {
+  PITCH: 'pitch',
+  PREMIUM: 'premium',
+  COMPENSATION: 'compensation'
+};
+
+const CODE_SOURCES = {
+  PITCH: 'pitch',
+  OWNER: 'owner',
+  CANCELLATION: 'cancellation'
+};
+
 // 🆕 إعداد تخزين الملفات
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -75,7 +100,7 @@ const paymentConfig = {
   }
 };
 
-// 🆕 بيانات الملاعب الحقيقية
+// 🆕 بيانات الملاعب الحقيقية مع العربون
 const pitchesData = [
   {
     id: 1,
@@ -85,6 +110,8 @@ const pitchesData = [
     type: "artificial",
     image: "/images/tyara-1.jpg",
     price: 250,
+    deposit: 75, // 30% عربون
+    depositRequired: true,
     features: ["نجيلة صناعية", "كشافات ليلية", "غرف تبديل", "موقف سيارات", "كافتيريا"],
     rating: 4.7,
     totalRatings: 128,
@@ -100,6 +127,8 @@ const pitchesData = [
     type: "artificial",
     image: "/images/tyara-2.jpg",
     price: 220,
+    deposit: 66, // 30% عربون
+    depositRequired: true,
     features: ["نجيلة صناعية", "إضاءة ليلية", "غرف تبديل", "تدفئة"],
     rating: 4.5,
     totalRatings: 95,
@@ -115,6 +144,8 @@ const pitchesData = [
     type: "natural",
     image: "/images/raei.jpg",
     price: 300,
+    deposit: 90, // 30% عربون
+    depositRequired: true,
     features: ["نجيلة طبيعية", "مقاعد جماهير", "كافيتريا", "تدفئة", "ملحق طبي"],
     rating: 4.8,
     totalRatings: 156,
@@ -130,6 +161,8 @@ const pitchesData = [
     type: "natural",
     image: "/images/gazira.jpg",
     price: 400,
+    deposit: 120, // 30% عربون
+    depositRequired: true,
     features: ["نجيلة طبيعية", "مقاعد جماهير", "مسبح", "كافتيريا فاخرة", "تدفئة"],
     rating: 4.9,
     totalRatings: 89,
@@ -145,6 +178,8 @@ const pitchesData = [
     type: "artificial",
     image: "/images/mokatam-club.jpg",
     price: 280,
+    deposit: 84, // 30% عربون
+    depositRequired: true,
     features: ["نجيلة صناعية", "إضاءة ليلية", "غرف تبديل", "كافتيريا", "تدفئة"],
     rating: 4.6,
     totalRatings: 112,
@@ -160,6 +195,8 @@ const pitchesData = [
     type: "artificial",
     image: "/images/insurance.jpg",
     price: 270,
+    deposit: 81, // 30% عربون
+    depositRequired: true,
     features: ["نجيلة صناعية", "كشافات قوية", "صالة ألعاب", "كافتيريا", "تدفئة"],
     rating: 4.4,
     totalRatings: 76,
@@ -228,6 +265,7 @@ const usersFile    = path.join(__dirname, 'data', 'users.json');
 const paymentsFile = path.join(__dirname, 'data', 'payments.json');
 const discountCodesFile = path.join(__dirname, 'data', 'discount-codes.json');
 const ratingsFile = path.join(__dirname, 'data', 'ratings.json');
+const userProfilesFile = path.join(__dirname, 'data', 'user-profiles.json'); // 🆕 ملف جديد
 
 // تأكد من وجود مجلد data
 const dataDir = path.join(__dirname, 'data');
@@ -266,6 +304,7 @@ ensureFileExists(bookingsFile);
 ensureFileExists(paymentsFile);
 ensureFileExists(discountCodesFile);
 ensureFileExists(ratingsFile);
+ensureFileExists(userProfilesFile); // 🆕
 
 // إنشاء مجلد uploads
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -329,19 +368,33 @@ function generateDiscountCode(length = 8) {
   return result;
 }
 
-// 🆕 أنواع الأكواد
-const CODE_TYPES = {
-  PITCH: 'pitch',        // كود خاص بملعب
-  PREMIUM: 'premium',     // كود عام من المالك
-  COMPENSATION: 'compensation' // كود تعويض عن إلغاء
-};
+// 🆕 تحديث إحصائيات المستخدم
+function updateUserStats(userId, booking, action) {
+  const users = readJSON(usersFile);
+  const user = users.find(u => u.id === userId);
+  
+  if (!user) return;
 
-// 🆕 مصادر الأكواد
-const CODE_SOURCES = {
-  PITCH: 'pitch',         // من الملعب
-  OWNER: 'owner',         // من المالك
-  CANCELLATION: 'cancellation' // من إلغاء حجز
-};
+  if (!user.stats) {
+    user.stats = {
+      totalBookings: 0,
+      successfulBookings: 0,
+      cancelledBookings: 0,
+      totalSpent: 0
+    };
+  }
+
+  if (action === 'booking') {
+    user.stats.totalBookings++;
+  } else if (action === 'confirmation') {
+    user.stats.successfulBookings++;
+    user.stats.totalSpent += (booking.finalAmount || booking.amount);
+  } else if (action === 'cancellation') {
+    user.stats.cancelledBookings++;
+  }
+
+  writeJSON(usersFile, users);
+}
 
 /* ========= Routes الأساسية ========= */
 
@@ -360,62 +413,957 @@ app.get('/api/pitches', (req, res) => {
   res.json(pitchesData);
 });
 
-// الأوقات المتاحة
-app.get('/api/pitches/:id/available-slots', (req, res) => {
-  const pitchId = parseInt(req.params.id);
-  const { date, period } = req.query;
-  
-  const pitch = pitchesData.find(p => p.id === pitchId);
-  if (!pitch) {
-    return res.status(404).json({ message: 'الملعب غير موجود' });
-  }
-
-  if (!date) {
-    return res.status(400).json({ message: 'التاريخ مطلوب' });
-  }
-
-  const bookings = readJSON(bookingsFile);
-  const pitchBookings = bookings.filter(booking => 
-    booking.pitchId === pitchId && 
-    booking.date === date && 
-    booking.status === 'confirmed'
-  );
-
-  // تحديد الفترة الزمنية بناءً على الاختيار
-  let startHour, endHour;
-  if (period === 'morning') {
-    startHour = 8;
-    endHour = 16;
-  } else if (period === 'evening') {
-    startHour = 17;
-    endHour = 24;
-  } else {
-    // استخدام ساعات العمل الافتراضية للملعب
-    startHour = pitch.workingHours.start;
-    endHour = pitch.workingHours.end;
-  }
-
-  const availableSlots = [];
-  const bookedSlots = pitchBookings.map(booking => {
-    const hour = parseInt(booking.time.split(':')[0]);
-    return hour;
-  });
-
-  // توليد الأوقات المتاحة
-  for (let hour = startHour; hour < endHour; hour++) {
-    if (!bookedSlots.includes(hour)) {
-      availableSlots.push(hour);
+// تفاصيل الملعب
+app.get('/api/pitches/:id', (req, res) => {
+  try {
+    const pitchId = parseInt(req.params.id);
+    const pitch = pitchesData.find(p => p.id === pitchId);
+    
+    if (!pitch) {
+      return res.status(404).json({ message: 'الملعب غير موجود' });
     }
+    
+    res.json(pitch);
+  } catch (error) {
+    console.error('Get pitch error:', error);
+    res.status(500).json({ message: 'حدث خطأ في جلب بيانات الملعب' });
+  }
+});
+
+// الأوقات المتاحة - النظام المطور
+app.get('/api/pitches/:id/available-slots', (req, res) => {
+  try {
+    const pitchId = parseInt(req.params.id);
+    const { date, period } = req.query;
+    
+    const pitch = pitchesData.find(p => p.id === pitchId);
+    if (!pitch) {
+      return res.status(404).json({ message: 'الملعب غير موجود' });
+    }
+
+    if (!date) {
+      return res.status(400).json({ message: 'التاريخ مطلوب' });
+    }
+
+    const bookings = readJSON(bookingsFile);
+    const pitchBookings = bookings.filter(booking => 
+      booking.pitchId === pitchId && 
+      booking.date === date && 
+      (booking.status === BOOKING_STATUS.CONFIRMED || booking.status === BOOKING_STATUS.PENDING)
+    );
+
+    // تحديد الفترة الزمنية
+    let startHour, endHour;
+    if (period === 'morning') {
+      startHour = 8;
+      endHour = 16;
+    } else if (period === 'evening') {
+      startHour = 17;
+      endHour = 24;
+    } else {
+      startHour = pitch.workingHours.start;
+      endHour = pitch.workingHours.end;
+    }
+
+    const availableSlots = [];
+    const bookedSlots = pitchBookings.map(booking => {
+      const hour = parseInt(booking.time.split(':')[0]);
+      return hour;
+    });
+
+    // توليد الأوقات المتاحة فقط
+    for (let hour = startHour; hour < endHour; hour++) {
+      if (!bookedSlots.includes(hour)) {
+        availableSlots.push(hour);
+      }
+    }
+
+    res.json({
+      pitch: pitch.name,
+      date,
+      period,
+      availableSlots,
+      bookedSlots,
+      totalSlots: (endHour - startHour),
+      availableCount: availableSlots.length
+    });
+
+  } catch (error) {
+    console.error('Get available slots error:', error);
+    res.status(500).json({ message: 'حدث خطأ في جلب الأوقات المتاحة' });
+  }
+});
+
+/* ========= نظام الملفات الشخصية ========= */
+
+// الحصول على الملف الشخصي
+app.get('/api/user/profile', requireLogin, (req, res) => {
+  try {
+    const userProfiles = readJSON(userProfilesFile);
+    const userProfile = userProfiles.find(profile => profile.userId === req.session.user.id);
+    
+    if (!userProfile) {
+      return res.status(404).json({ message: 'الملف الشخصي غير موجود' });
+    }
+
+    // إحصائيات المستخدم
+    const bookings = readJSON(bookingsFile);
+    const userBookings = bookings.filter(booking => booking.userId === req.session.user.id);
+    
+    const stats = {
+      totalBookings: userBookings.length,
+      successfulBookings: userBookings.filter(b => b.status === 'confirmed').length,
+      cancelledBookings: userBookings.filter(b => b.status === 'cancelled').length,
+      totalSpent: userBookings
+        .filter(b => b.status === 'confirmed')
+        .reduce((total, booking) => total + (booking.finalAmount || booking.amount), 0)
+    };
+
+    res.json({
+      profile: userProfile,
+      stats: stats
+    });
+
+  } catch (error) {
+    console.error('Get user profile error:', error);
+    res.status(500).json({ message: 'حدث خطأ في جلب الملف الشخصي' });
+  }
+});
+
+// تحديث الملف الشخصي
+app.put('/api/user/profile', requireLogin, upload.single('avatar'), csrfProtection, (req, res) => {
+  try {
+    const { nickname, age, bio } = req.body;
+    
+    const userProfiles = readJSON(userProfilesFile);
+    const userProfile = userProfiles.find(profile => profile.userId === req.session.user.id);
+    
+    if (!userProfile) {
+      return res.status(404).json({ message: 'الملف الشخصي غير موجود' });
+    }
+
+    // تحديث البيانات
+    if (nickname) userProfile.nickname = nickname;
+    if (age) userProfile.age = parseInt(age);
+    if (bio !== undefined) userProfile.bio = bio;
+    
+    if (req.file) {
+      userProfile.avatar = `/uploads/${req.file.filename}`;
+    }
+    
+    userProfile.lastUpdated = new Date().toISOString();
+
+    writeJSON(userProfilesFile, userProfiles);
+
+    res.json({
+      message: 'تم تحديث الملف الشخصي بنجاح',
+      profile: userProfile
+    });
+
+  } catch (error) {
+    console.error('Update user profile error:', error);
+    res.status(500).json({ message: 'حدث خطأ أثناء تحديث الملف الشخصي' });
+  }
+});
+
+// 🆕 الحصول على أكواد التعويض للمستخدم
+app.get('/api/user/compensation-codes', requireLogin, (req, res) => {
+  try {
+    const discountCodes = readJSON(discountCodesFile);
+    const userCompensationCodes = discountCodes.filter(dc => 
+      dc.userId === req.session.user.id && 
+      dc.type === CODE_TYPES.COMPENSATION &&
+      dc.status === 'active'
+    );
+
+    // إزالة الأكواد المنتهية الصلاحية
+    const now = new Date();
+    const validCodes = userCompensationCodes.filter(dc => {
+      const expiresAt = new Date(dc.expiresAt);
+      return expiresAt > now;
+    });
+
+    res.json(validCodes);
+
+  } catch (error) {
+    console.error('Get compensation codes error:', error);
+    res.status(500).json({ message: 'حدث خطأ في جلب أكواد التعويض' });
+  }
+});
+
+/* ========= Authentication ========= */
+
+// Signup - المحدث
+app.post('/signup', csrfProtection, async (req, res) => {
+  try {
+    const { username, email, phone, password, role, nickname, age, bio } = req.body;
+    
+    if (!username || !email || !phone || !password || !role) {
+      return res.status(400).json({ message: 'جميع الحقول مطلوبة' });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: 'البريد الإلكتروني غير صالح' });
+    }
+
+    const egyptPhoneRegex = /^01[0-2,5]{1}[0-9]{8}$/;
+    if (!egyptPhoneRegex.test(phone)) {
+      return res.status(400).json({ message: 'رقم الهاتف غير صالح' });
+    }
+
+    const users = readJSON(usersFile);
+    
+    if (users.find(u => u.username === username)) {
+      return res.status(400).json({ message: 'اسم المستخدم موجود بالفعل' });
+    }
+    if (users.find(u => u.email === email)) {
+      return res.status(400).json({ message: 'البريد الإلكتروني مستخدم بالفعل' });
+    }
+    if (users.find(u => u.phone === phone)) {
+      return res.status(400).json({ message: 'رقم الهاتف مستخدم بالفعل' });
+    }
+
+    const hash = await bcrypt.hash(password, 12);
+    const verificationToken = uuidv4();
+
+    const newUser = {
+      id: uuidv4(),
+      username,
+      email,
+      phone,
+      password: hash,
+      role: role === 'admin' ? 'admin' : 'user',
+      approved: role === 'admin' ? false : true,
+      provider: 'local',
+      emailVerified: false,
+      verificationToken,
+      createdAt: new Date().toISOString(),
+      lastLogin: null,
+      stats: {
+        totalBookings: 0,
+        successfulBookings: 0,
+        cancelledBookings: 0,
+        totalSpent: 0
+      }
+    };
+
+    users.push(newUser);
+    writeJSON(usersFile, users);
+
+    // 🆕 إنشاء ملف شخصي للمستخدم
+    const userProfiles = readJSON(userProfilesFile);
+    const userProfile = {
+      userId: newUser.id,
+      nickname: nickname || username,
+      age: age || null,
+      bio: bio || '',
+      avatar: null,
+      joinDate: new Date().toISOString(),
+      lastUpdated: new Date().toISOString()
+    };
+
+    userProfiles.push(userProfile);
+    writeJSON(userProfilesFile, userProfiles);
+
+    // إرسال بريد التفعيل
+    const verificationLink = `${APP_URL}/verify-email?token=${verificationToken}`;
+    
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER || 'noreply@ehgzly.com',
+      to: email,
+      subject: 'تفعيل حسابك - احجزلي',
+      html: `
+        <div style="font-family: 'Cairo', Arial, sans-serif; text-align: center; direction: rtl; padding: 20px; background: #f8f9fa;">
+          <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <h2 style="color: #1a7f46; margin-bottom: 20px;">مرحباً ${username}!</h2>
+            <p style="color: #666; margin-bottom: 20px;">شكراً لتسجيلك في احجزلي. يرجى تفعيل حسابك بالضغط على الرابط أدناه:</p>
+            <a href="${verificationLink}" style="background: #1a7f46; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">
+              تفعيل الحساب
+            </a>
+            <p style="color: #999; margin-top: 20px; font-size: 14px;">إذا لم تطلب هذا الرابط، يمكنك تجاهل هذه الرسالة.</p>
+          </div>
+        </div>
+      `
+    }).catch(err => {
+      console.log('❌ Failed to send email:', err);
+    });
+
+    res.json({ 
+      message: 'تم إنشاء الحساب بنجاح. يرجى فحص بريدك الإلكتروني للتفعيل.',
+      success: true 
+    });
+
+  } catch (error) {
+    console.error('Signup error:', error);
+    res.status(500).json({ message: 'حدث خطأ أثناء إنشاء الحساب' });
+  }
+});
+
+// تفعيل البريد
+app.get('/verify-email', (req, res) => {
+  const { token } = req.query;
+  
+  if (!token) {
+    return res.status(400).send(`
+      <div style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
+        <h2 style="color: #dc3545;">رابط غير صالح</h2>
+        <p>رابط التفعيل غير صالح.</p>
+        <a href="/login" style="color: #1a7f46;">العودة لتسجيل الدخول</a>
+      </div>
+    `);
   }
 
-  res.json({
-    pitch: pitch.name,
-    date,
-    period,
-    availableSlots,
-    bookedSlots
+  const users = readJSON(usersFile);
+  const user = users.find(u => u.verificationToken === token);
+  
+  if (!user) {
+    return res.status(400).send(`
+      <div style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
+        <h2 style="color: #dc3545;">رابط غير صالح أو منتهي</h2>
+        <p>رابط التفعيل غير صالح أو انتهت صلاحيته.</p>
+        <a href="/login" style="color: #1a7f46;">العودة لتسجيل الدخول</a>
+      </div>
+    `);
+  }
+  
+  user.emailVerified = true;
+  user.verificationToken = null;
+  writeJSON(usersFile, users);
+  
+  res.send(`
+    <div style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
+      <h2 style="color: #1a7f46;">تم تفعيل حسابك بنجاح! 🎉</h2>
+      <p>يمكنك الآن تسجيل الدخول إلى حسابك.</p>
+      <a href="/login" style="background: #1a7f46; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+        تسجيل الدخول
+      </a>
+    </div>
+  `);
+});
+
+// Login
+app.post('/login', loginLimiter, csrfProtection, async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ message: 'يرجى إدخال البريد وكلمة المرور' });
+    }
+
+    const users = readJSON(usersFile);
+    const user = users.find(u => u.email === email && u.provider === 'local');
+    
+    if (!user) {
+      return res.status(401).json({ message: 'البريد أو كلمة المرور غير صحيحة' });
+    }
+
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
+      return res.status(401).json({ message: 'البريد أو كلمة المرور غير صحيحة' });
+    }
+
+    if (!user.emailVerified) {
+      return res.status(403).json({ message: 'لم يتم تفعيل البريد الإلكتروني بعد' });
+    }
+
+    if (!user.approved) {
+      return res.status(403).json({ message: 'حسابك ينتظر الموافقة من الإدارة' });
+    }
+
+    // تحديث آخر دخول
+    user.lastLogin = new Date().toISOString();
+    writeJSON(usersFile, users);
+
+    req.session.user = {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      phone: user.phone,
+      role: user.role
+    };
+
+    res.json({ 
+      message: 'تم تسجيل الدخول بنجاح',
+      user: req.session.user
+    });
+
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ message: 'حدث خطأ أثناء تسجيل الدخول' });
+  }
+});
+
+// Logout
+app.post('/logout', (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      return res.status(500).json({ message: 'خطأ في تسجيل الخروج' });
+    }
+    res.json({ message: 'تم تسجيل الخروج' });
   });
 });
+
+/* ========= Booking System - النظام المطور ========= */
+
+// الحجز الجديد - المطور
+app.post('/api/bookings', requireLogin, csrfProtection, (req, res) => {
+  try {
+    const { pitchId, date, time, name, phone, email, discountCode } = req.body;
+    
+    if (!pitchId || !date || !time || !name || !phone) {
+      return res.status(400).json({ message: 'جميع الحقول مطلوبة' });
+    }
+
+    const pitch = pitchesData.find(p => p.id === parseInt(pitchId));
+    if (!pitch) {
+      return res.status(404).json({ message: 'الملعب غير موجود' });
+    }
+
+    // التحقق من التاريخ والوقت
+    const selectedDate = new Date(date);
+    const now = new Date();
+    
+    if (selectedDate < now) {
+      return res.status(400).json({ message: 'لا يمكن الحجز في تاريخ ماضي' });
+    }
+
+    const bookings = readJSON(bookingsFile);
+    
+    // التحقق من عدم وجود حجز مسبق
+    const existingBooking = bookings.find(booking => 
+      booking.pitchId === parseInt(pitchId) &&
+      booking.date === date &&
+      booking.time === time &&
+      (booking.status === BOOKING_STATUS.CONFIRMED || booking.status === BOOKING_STATUS.PENDING)
+    );
+
+    if (existingBooking) {
+      return res.status(400).json({ message: 'هذا الوقت محجوز بالفعل' });
+    }
+
+    let finalAmount = pitch.deposit; // الدفع الأولي هو العربون فقط
+    let appliedDiscount = null;
+    let remainingAmount = pitch.price - pitch.deposit;
+
+    // تطبيق الكود الخصم إذا كان موجوداً
+    if (discountCode) {
+      const discountCodes = readJSON(discountCodesFile);
+      const validCode = discountCodes.find(dc => 
+        dc.code === discountCode.toUpperCase() && 
+        dc.status === 'active'
+      );
+
+      if (validCode) {
+        // تطبيق الخصم على المبلغ المتبقي فقط
+        const discountOnRemaining = Math.min(validCode.value, remainingAmount);
+        remainingAmount = Math.max(0, remainingAmount - discountOnRemaining);
+        appliedDiscount = {
+          code: validCode.code,
+          value: discountOnRemaining,
+          originalPrice: pitch.price,
+          finalPrice: pitch.price - discountOnRemaining,
+          remainingAmount: remainingAmount
+        };
+      }
+    }
+
+    const newBooking = {
+      id: uuidv4(),
+      pitchId: parseInt(pitchId),
+      pitchName: pitch.name,
+      pitchLocation: pitch.location,
+      pitchPrice: pitch.price,
+      depositAmount: pitch.deposit,
+      date,
+      time,
+      customerName: name,
+      customerPhone: phone,
+      customerEmail: email || req.session.user.email,
+      userId: req.session.user.id,
+      status: BOOKING_STATUS.PENDING,
+      amount: pitch.price,
+      paidAmount: 0,
+      remainingAmount: pitch.price,
+      finalAmount: finalAmount,
+      appliedDiscount: appliedDiscount,
+      discountCode: discountCode || null,
+      paymentType: PAYMENT_TYPES.DEPOSIT,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      paymentDeadline: new Date(selectedDate.getTime() - 48 * 60 * 60 * 1000).toISOString() // 48 ساعة قبل الحجز
+    };
+
+    bookings.push(newBooking);
+    writeJSON(bookingsFile, bookings);
+
+    // تحديث إحصائيات المستخدم
+    updateUserStats(req.session.user.id, newBooking, 'booking');
+
+    // حفظ الحجز في الجلسة للدفع
+    req.session.pendingBooking = newBooking;
+
+    res.json({ 
+      message: 'تم إنشاء الحجز بنجاح. يرجى دفع العربون لتأكيد الحجز.',
+      booking: newBooking,
+      paymentRequired: true,
+      depositAmount: pitch.deposit,
+      remainingAmount: remainingAmount
+    });
+
+  } catch (error) {
+    console.error('Booking error:', error);
+    res.status(500).json({ message: 'حدث خطأ أثناء الحجز' });
+  }
+});
+
+// 🆕 الحصول على حجوزات المستخدم
+app.get('/api/user/bookings', requireLogin, (req, res) => {
+  try {
+    const bookings = readJSON(bookingsFile);
+    const userBookings = bookings.filter(booking => booking.userId === req.session.user.id);
+    res.json(userBookings);
+  } catch (error) {
+    console.error('Get user bookings error:', error);
+    res.status(500).json({ message: 'حدث خطأ في جلب الحجوزات' });
+  }
+});
+
+// 🆕 نظام الإلغاء المطور
+app.put('/api/bookings/:id/cancel', requireLogin, csrfProtection, (req, res) => {
+  try {
+    const bookingId = req.params.id;
+    const { cancellationReason } = req.body;
+    
+    const bookings = readJSON(bookingsFile);
+    const booking = bookings.find(b => b.id === bookingId);
+    
+    if (!booking) {
+      return res.status(404).json({ message: 'الحجز غير موجود' });
+    }
+
+    const isOwner = booking.userId === req.session.user.id;
+    const isAdmin = req.session.user.role === 'admin';
+    
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ message: 'غير مسموح لك بإلغاء هذا الحجز' });
+    }
+
+    // حساب الوقت المتبقي للحجز
+    const bookingDate = new Date(booking.date);
+    const now = new Date();
+    const timeDiff = bookingDate.getTime() - now.getTime();
+    const hoursDiff = timeDiff / (1000 * 60 * 60);
+
+    let compensationCode = null;
+    let refundAmount = 0;
+
+    // تحديد سياسة الإلغاء
+    if (hoursDiff > 48) {
+      // إلغاء قبل 48 ساعة - استرداد كامل + كود تعويض
+      refundAmount = booking.paidAmount;
+      compensationCode = generateCompensationCode(booking, 'full_refund');
+    } else if (hoursDiff > 24) {
+      // إلغاء قبل 24 ساعة - كود تعويض فقط
+      compensationCode = generateCompensationCode(booking, 'partial_refund');
+    } else {
+      // إلغاء أقل من 24 ساعة - لا يوجد تعويض
+      refundAmount = 0;
+    }
+
+    // تحديث حالة الحجز
+    booking.status = BOOKING_STATUS.CANCELLED;
+    booking.updatedAt = new Date().toISOString();
+    booking.cancellationTime = new Date().toISOString();
+    booking.cancellationReason = cancellationReason;
+    booking.refundAmount = refundAmount;
+    booking.compensationCode = compensationCode ? compensationCode.code : null;
+    
+    writeJSON(bookingsFile, bookings);
+
+    // تحديث إحصائيات المستخدم
+    updateUserStats(req.session.user.id, booking, 'cancellation');
+
+    // إرسال بريد بالإلغاء والتعويض
+    sendCancellationEmail(booking, compensationCode, refundAmount);
+
+    res.json({ 
+      message: 'تم إلغاء الحجز بنجاح',
+      booking,
+      refundAmount,
+      compensationCode,
+      policy: hoursDiff > 48 ? 'استرداد كامل + كود تعويض' : 
+              hoursDiff > 24 ? 'كود تعويض فقط' : 'لا يوجد تعويض'
+    });
+
+  } catch (error) {
+    console.error('Cancel booking error:', error);
+    res.status(500).json({ message: 'حدث خطأ أثناء إلغاء الحجز' });
+  }
+});
+
+// 🆕 دالة إنشاء كود التعويض
+function generateCompensationCode(booking, type) {
+  const discountCodes = readJSON(discountCodesFile);
+  
+  let compensationValue = 0;
+  let message = '';
+
+  if (type === 'full_refund') {
+    compensationValue = Math.floor(booking.paidAmount * 0.8); // 80% من العربون
+    message = 'كود تعويض عن إلغاء الحجز مع استرداد كامل المبلغ. صالح لمدة 14 يوم.';
+  } else {
+    compensationValue = Math.floor(booking.paidAmount * 0.5); // 50% من العربون
+    message = 'كود تعويض عن إلغاء الحجز. صالح لمدة 14 يوم.';
+  }
+
+  const compensationCode = {
+    id: uuidv4(),
+    code: generateDiscountCode(10),
+    value: compensationValue,
+    type: CODE_TYPES.COMPENSATION,
+    source: CODE_SOURCES.CANCELLATION,
+    status: 'active',
+    createdAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+    originalBookingId: booking.id,
+    originalAmount: booking.paidAmount,
+    cancellationType: type,
+    message: message,
+    userId: booking.userId
+  };
+
+  discountCodes.push(compensationCode);
+  writeJSON(discountCodesFile, discountCodes);
+
+  return compensationCode;
+}
+
+// 🆕 إرسال بريد الإلغاء
+async function sendCancellationEmail(booking, compensationCode, refundAmount) {
+  const user = booking.customerEmail;
+  
+  let emailContent = '';
+  
+  if (refundAmount > 0 && compensationCode) {
+    emailContent = `
+      <div style="background: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0; border-right: 4px solid #28a745;">
+        <h3 style="color: #155724; margin-bottom: 15px;">تم استرداد المبلغ وكود التعويض</h3>
+        <p style="color: #155724;"><strong>المبلغ المسترد:</strong> ${refundAmount} جنيه</p>
+        <div style="background: white; padding: 15px; border-radius: 5px; text-align: center; border: 2px dashed #28a745;">
+          <span style="font-size: 20px; font-weight: bold; color: #28a745;">${compensationCode.code}</span>
+        </div>
+        <p style="color: #155724; margin-top: 15px;">${compensationCode.message}</p>
+      </div>
+    `;
+  } else if (compensationCode) {
+    emailContent = `
+      <div style="background: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border-right: 4px solid #ffc107;">
+        <h3 style="color: #856404; margin-bottom: 15px;">كود التعويض</h3>
+        <div style="background: white; padding: 15px; border-radius: 5px; text-align: center; border: 2px dashed #ffc107;">
+          <span style="font-size: 20px; font-weight: bold; color: #856404;">${compensationCode.code}</span>
+        </div>
+        <p style="color: #856404; margin-top: 15px;">${compensationCode.message}</p>
+      </div>
+    `;
+  } else {
+    emailContent = `
+      <div style="background: #f8d7da; padding: 20px; border-radius: 8px; margin: 20px 0; border-right: 4px solid #dc3545;">
+        <h3 style="color: #721c24; margin-bottom: 15px;">ملاحظة مهمة</h3>
+        <p style="color: #721c24;">نظرًا للإلغاء في وقت متأخر، لا يمكن استرداد المبلغ أو تقديم كود تعويض حسب سياسة الإلغاء.</p>
+      </div>
+    `;
+  }
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_USER || 'noreply@ehgzly.com',
+    to: user,
+    subject: 'إلغاء الحجز - احجزلي',
+    html: `
+      <div style="font-family: 'Cairo', Arial, sans-serif; direction: rtl; padding: 20px; background: #f8f9fa;">
+        <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          <h2 style="color: #e74c3c; text-align: center; margin-bottom: 20px;">تم إلغاء حجزك</h2>
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #333; margin-bottom: 15px;">تفاصيل الحجز الملغي:</h3>
+            <p><strong>الملعب:</strong> ${booking.pitchName}</p>
+            <p><strong>التاريخ:</strong> ${booking.date}</p>
+            <p><strong>الوقت:</strong> ${booking.time}</p>
+            <p><strong>سبب الإلغاء:</strong> ${booking.cancellationReason || 'غير محدد'}</p>
+          </div>
+          ${emailContent}
+          <p style="text-align: center; color: #666; margin-top: 20px;">نأمل أن نراك قريباً في حجز آخر!</p>
+        </div>
+      </div>
+    `
+  }).catch(err => {
+    console.log('Failed to send cancellation email:', err);
+  });
+}
+
+/* ========= Payment System - النظام المطور ========= */
+
+// مزودي الدفع
+app.get('/api/providers', (req, res) => {
+  const providersList = Object.keys(paymentConfig).map(key => ({
+    id: key,
+    name: paymentConfig[key].name,
+    number: paymentConfig[key].number,
+    icon: paymentConfig[key].icon
+  }));
+  res.json(providersList);
+});
+
+// QR Code
+app.get('/api/qr/:wallet', async (req, res) => {
+  try {
+    const url = await QRCode.toDataURL(req.params.wallet);
+    res.json({ qr: url });
+  } catch(err) { 
+    console.error('QR generation error:', err);
+    res.status(500).json({ error: 'خطأ في توليد QR code' }); 
+  }
+});
+
+// معلومات الحجز للدفع
+app.get('/api/booking-info', requireLogin, (req, res) => {
+  const pendingBooking = req.session.pendingBooking;
+  
+  if (!pendingBooking) {
+    return res.json({});
+  }
+  
+  res.json({
+    field: pendingBooking.pitchName,
+    date: pendingBooking.date,
+    time: pendingBooking.time,
+    hours: 1,
+    amount: pendingBooking.finalAmount,
+    originalAmount: pendingBooking.amount,
+    discount: pendingBooking.appliedDiscount
+  });
+});
+
+// معالجة الدفع - المطور (العربون فقط)
+app.post('/api/payment', requireLogin, paymentLimiter, upload.single('receipt'), csrfProtection, async (req, res) => {
+  try {
+    const { provider, transactionId, amount } = req.body;
+    
+    if (!provider || !transactionId || !amount) {
+      return res.status(400).json({ message: 'البيانات غير مكتملة' });
+    }
+
+    if (!paymentConfig[provider]) {
+      return res.status(400).json({ message: 'مزود الدفع غير صحيح' });
+    }
+
+    const pendingBooking = req.session.pendingBooking;
+    if (!pendingBooking) {
+      return res.status(400).json({ message: 'لا يوجد حجز معلق للدفع' });
+    }
+
+    const userData = req.session.user;
+    const payments = readJSON(paymentsFile);
+
+    // التحقق من أن المبلغ المدفوع هو العربون فقط
+    if (parseInt(amount) !== pendingBooking.depositAmount) {
+      return res.status(400).json({ 
+        message: `المبلغ المطلوب للعربون هو ${pendingBooking.depositAmount} جنيه فقط` 
+      });
+    }
+
+    // تحديث حالة الكود إذا كان مستخدماً
+    if (pendingBooking.discountCode) {
+      const discountCodes = readJSON(discountCodesFile);
+      const usedCode = discountCodes.find(dc => dc.code === pendingBooking.discountCode);
+      
+      if (usedCode && usedCode.status === 'active') {
+        usedCode.status = 'used';
+        usedCode.usedBy = userData.id;
+        usedCode.usedAt = new Date().toISOString();
+        usedCode.usedForBooking = pendingBooking.id;
+        writeJSON(discountCodesFile, discountCodes);
+      }
+    }
+
+    const paymentRecord = {
+      id: uuidv4(),
+      bookingId: pendingBooking.id,
+      payerName: userData.username,
+      email: userData.email,
+      phone: userData.phone,
+      field: pendingBooking.pitchName,
+      hours: 1,
+      transactionId,
+      amount: parseInt(amount),
+      paymentType: PAYMENT_TYPES.DEPOSIT,
+      originalAmount: pendingBooking.amount,
+      remainingAmount: pendingBooking.remainingAmount,
+      discountApplied: pendingBooking.appliedDiscount ? pendingBooking.appliedDiscount.value : 0,
+      provider: provider,
+      providerName: paymentConfig[provider].name,
+      receiptPath: req.file ? `/uploads/${req.file.filename}` : null,
+      date: new Date().toISOString(),
+      status: 'confirmed'
+    };
+    
+    payments.push(paymentRecord);
+    writeJSON(paymentsFile, payments);
+
+    // تحديث حالة الحجز إلى confirmed
+    const bookings = readJSON(bookingsFile);
+    const booking = bookings.find(b => b.id === pendingBooking.id);
+    if (booking) {
+      booking.status = BOOKING_STATUS.CONFIRMED;
+      booking.paidAmount = parseInt(amount);
+      booking.remainingAmount = booking.amount - parseInt(amount);
+      booking.updatedAt = new Date().toISOString();
+      writeJSON(bookingsFile, bookings);
+    }
+
+    // تحديث إحصائيات المستخدم
+    updateUserStats(userData.id, booking, 'confirmation');
+
+    // مسح الحجز المعلق من الجلسة
+    delete req.session.pendingBooking;
+
+    // إرسال بريد التأكيد
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER || 'noreply@ehgzly.com',
+      to: userData.email,
+      subject: 'تم تأكيد حجزك - احجزلي',
+      html: `
+        <div style="font-family: 'Cairo', Arial, sans-serif; direction: rtl; padding: 20px; background: #f8f9fa;">
+          <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <h2 style="color: #1a7f46; text-align: center; margin-bottom: 20px;">تم تأكيد حجزك بنجاح! 🎉</h2>
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="color: #333; margin-bottom: 15px;">تفاصيل الحجز:</h3>
+              <p><strong>الملعب:</strong> ${pendingBooking.pitchName}</p>
+              <p><strong>الموقع:</strong> ${pendingBooking.pitchLocation}</p>
+              <p><strong>التاريخ:</strong> ${pendingBooking.date}</p>
+              <p><strong>الوقت:</strong> ${pendingBooking.time}</p>
+              <p><strong>السعر الكامل:</strong> ${pendingBooking.amount} جنيه</p>
+              <p><strong>العربون المدفوع:</strong> ${amount} جنيه</p>
+              <p><strong>المبلغ المتبقي:</strong> ${pendingBooking.remainingAmount} جنيه</p>
+              ${pendingBooking.appliedDiscount ? `
+                <p><strong>الخصم:</strong> ${pendingBooking.appliedDiscount.value} جنيه</p>
+                <p><strong>كود الخصم:</strong> ${pendingBooking.appliedDiscount.code}</p>
+              ` : ''}
+              <p><strong>طريقة الدفع:</strong> ${paymentConfig[provider].name}</p>
+              <p style="color: #e74c3c; font-weight: bold;">يرجى دفع المبلغ المتبقي قبل 48 ساعة من موعد الحجز</p>
+            </div>
+            <p style="text-align: center; color: #666; margin-top: 20px;">نتمنى لك وقتاً ممتعاً!</p>
+          </div>
+        </div>
+      `
+    }).catch(err => {
+      console.log('Failed to send confirmation email:', err);
+    });
+
+    res.json({ 
+      message: 'تم دفع العربون بنجاح وتأكيد الحجز', 
+      paymentId: paymentRecord.id,
+      success: true,
+      booking: booking
+    });
+
+  } catch (error) {
+    console.error('Payment error:', error);
+    res.status(500).json({ message: 'حدث خطأ أثناء معالجة الدفع' });
+  }
+});
+
+/* ========= نظام التقييمات ========= */
+
+// إضافة تقييم جديد
+app.post('/api/ratings', requireLogin, csrfProtection, (req, res) => {
+  try {
+    const { pitchId, rating, comment, bookingId } = req.body;
+    
+    if (!pitchId || !rating) {
+      return res.status(400).json({ message: 'معرف الملعب والتقييم مطلوبان' });
+    }
+
+    const pitch = pitchesData.find(p => p.id === parseInt(pitchId));
+    if (!pitch) {
+      return res.status(404).json({ message: 'الملعب غير موجود' });
+    }
+
+    const ratings = readJSON(ratingsFile);
+    
+    // التحقق من عدم وجود تقييم سابق لنفس المستخدم والملعب
+    const existingRating = ratings.find(r => 
+      r.pitchId === parseInt(pitchId) && 
+      r.userId === req.session.user.id
+    );
+
+    if (existingRating) {
+      return res.status(400).json({ message: 'لقد قمت بتقييم هذا الملعب من قبل' });
+    }
+
+    const newRating = {
+      id: uuidv4(),
+      pitchId: parseInt(pitchId),
+      userId: req.session.user.id,
+      username: req.session.user.username,
+      rating: parseInt(rating),
+      comment: comment || '',
+      bookingId: bookingId || null,
+      createdAt: new Date().toISOString(),
+      status: 'active'
+    };
+
+    ratings.push(newRating);
+    writeJSON(ratingsFile, ratings);
+
+    // تحديث متوسط التقييم في بيانات الملعب
+    updatePitchRating(parseInt(pitchId));
+
+    res.json({
+      message: 'تم إضافة التقييم بنجاح',
+      rating: newRating
+    });
+
+  } catch (error) {
+    console.error('Add rating error:', error);
+    res.status(500).json({ message: 'حدث خطأ أثناء إضافة التقييم' });
+  }
+});
+
+// الحصول على تقييمات ملعب
+app.get('/api/pitches/:id/ratings', (req, res) => {
+  try {
+    const pitchId = parseInt(req.params.id);
+    const ratings = readJSON(ratingsFile);
+    
+    const pitchRatings = ratings.filter(r => 
+      r.pitchId === pitchId && 
+      r.status === 'active'
+    );
+
+    res.json(pitchRatings);
+
+  } catch (error) {
+    console.error('Get ratings error:', error);
+    res.status(500).json({ message: 'حدث خطأ في جلب التقييمات' });
+  }
+});
+
+// تحديث متوسط تقييم الملعب
+function updatePitchRating(pitchId) {
+  const ratings = readJSON(ratingsFile);
+  const pitchRatings = ratings.filter(r => r.pitchId === pitchId && r.status === 'active');
+  
+  if (pitchRatings.length > 0) {
+    const totalRating = pitchRatings.reduce((sum, r) => sum + r.rating, 0);
+    const averageRating = parseFloat((totalRating / pitchRatings.length).toFixed(1));
+    
+    const pitch = pitchesData.find(p => p.id === pitchId);
+    if (pitch) {
+      pitch.rating = averageRating;
+      pitch.totalRatings = pitchRatings.length;
+    }
+  }
+}
 
 /* ========= نظام الأكواد ========= */
 
@@ -567,681 +1515,6 @@ app.post('/api/use-discount-code', requireLogin, csrfProtection, (req, res) => {
   } catch (error) {
     console.error('Use discount code error:', error);
     res.status(500).json({ message: 'حدث خطأ أثناء استخدام الكود' });
-  }
-});
-
-// إنشاء كود تعويض تلقائي عند الإلغاء
-app.post('/api/generate-compensation-code', requireLogin, csrfProtection, (req, res) => {
-  try {
-    const { bookingId, cancellationReason } = req.body;
-    
-    if (!bookingId) {
-      return res.status(400).json({ message: 'معرف الحجز مطلوب' });
-    }
-
-    const bookings = readJSON(bookingsFile);
-    const booking = bookings.find(b => b.id === bookingId);
-    
-    if (!booking) {
-      return res.status(404).json({ message: 'الحجز غير موجود' });
-    }
-
-    // التحقق من أن المستخدم هو صاحب الحجز
-    if (booking.userId !== req.session.user.id) {
-      return res.status(403).json({ message: 'غير مسموح لك بإنشاء كود تعويض لهذا الحجز' });
-    }
-
-    const discountCodes = readJSON(discountCodesFile);
-    const compensationValue = Math.floor(booking.amount * 0.5); // 50% من قيمة الحجز
-
-    const compensationCode = {
-      id: uuidv4(),
-      code: generateDiscountCode(8),
-      value: compensationValue,
-      type: CODE_TYPES.COMPENSATION,
-      source: CODE_SOURCES.CANCELLATION,
-      status: 'active',
-      createdAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(), // 14 يوم
-      originalBookingId: bookingId,
-      originalAmount: booking.amount,
-      cancellationReason: cancellationReason,
-      message: 'هذا الكود التعويضي صالح لمدة 14 يوم من تاريخ الإلغاء. يمكن استخدامه لأي حجز جديد.'
-    };
-
-    discountCodes.push(compensationCode);
-    writeJSON(discountCodesFile, discountCodes);
-
-    // إرسال بريد بالكود التعويضي
-    const user = req.session.user;
-    transporter.sendMail({
-      from: process.env.EMAIL_USER || 'noreply@ehgzly.com',
-      to: user.email,
-      subject: 'كود تعويض عن إلغاء الحجز - احجزلي',
-      html: `
-        <div style="font-family: 'Cairo', Arial, sans-serif; direction: rtl; padding: 20px; background: #f8f9fa;">
-          <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-            <h2 style="color: #e74c3c; text-align: center; margin-bottom: 20px;">كود تعويض عن إلغاء الحجز</h2>
-            <div style="background: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border-right: 4px solid #ffc107;">
-              <h3 style="color: #856404; margin-bottom: 15px;">كود التعويض الخاص بك:</h3>
-              <div style="background: white; padding: 15px; border-radius: 5px; text-align: center; border: 2px dashed #e74c3c;">
-                <span style="font-size: 24px; font-weight: bold; color: #e74c3c; letter-spacing: 2px;">${compensationCode.code}</span>
-              </div>
-              <p style="color: #856404; margin-top: 15px;"><strong>قيمة الكود:</strong> ${compensationValue} جنيه</p>
-              <p style="color: #856404;"><strong>صالح حتى:</strong> ${new Date(compensationCode.expiresAt).toLocaleDateString('ar-EG')}</p>
-            </div>
-            <p style="color: #666; text-align: center; margin-top: 20px;">
-              يمكنك استخدام هذا الكود في أي حجز جديد خلال 14 يوم من الآن.
-            </p>
-            <p style="color: #999; text-align: center; font-size: 14px; margin-top: 20px;">
-              نأسف لإلغاء حجزك ونتطلع لرؤيتك قريباً!
-            </p>
-          </div>
-        </div>
-      `
-    }).catch(err => {
-      console.log('Failed to send compensation code email:', err);
-    });
-
-    res.json({
-      message: 'تم إنشاء كود تعويض بنجاح',
-      code: compensationCode.code,
-      value: compensationValue,
-      expiresAt: compensationCode.expiresAt
-    });
-
-  } catch (error) {
-    console.error('Generate compensation code error:', error);
-    res.status(500).json({ message: 'حدث خطأ أثناء إنشاء كود التعويض' });
-  }
-});
-
-/* ========= نظام التقييمات ========= */
-
-// إضافة تقييم جديد
-app.post('/api/ratings', requireLogin, csrfProtection, (req, res) => {
-  try {
-    const { pitchId, rating, comment, bookingId } = req.body;
-    
-    if (!pitchId || !rating) {
-      return res.status(400).json({ message: 'معرف الملعب والتقييم مطلوبان' });
-    }
-
-    const pitch = pitchesData.find(p => p.id === parseInt(pitchId));
-    if (!pitch) {
-      return res.status(404).json({ message: 'الملعب غير موجود' });
-    }
-
-    const ratings = readJSON(ratingsFile);
-    
-    // التحقق من عدم وجود تقييم سابق لنفس المستخدم والملعب
-    const existingRating = ratings.find(r => 
-      r.pitchId === parseInt(pitchId) && 
-      r.userId === req.session.user.id
-    );
-
-    if (existingRating) {
-      return res.status(400).json({ message: 'لقد قمت بتقييم هذا الملعب من قبل' });
-    }
-
-    const newRating = {
-      id: uuidv4(),
-      pitchId: parseInt(pitchId),
-      userId: req.session.user.id,
-      username: req.session.user.username,
-      rating: parseInt(rating),
-      comment: comment || '',
-      bookingId: bookingId || null,
-      createdAt: new Date().toISOString(),
-      status: 'active'
-    };
-
-    ratings.push(newRating);
-    writeJSON(ratingsFile, ratings);
-
-    // تحديث متوسط التقييم في بيانات الملعب
-    updatePitchRating(parseInt(pitchId));
-
-    res.json({
-      message: 'تم إضافة التقييم بنجاح',
-      rating: newRating
-    });
-
-  } catch (error) {
-    console.error('Add rating error:', error);
-    res.status(500).json({ message: 'حدث خطأ أثناء إضافة التقييم' });
-  }
-});
-
-// الحصول على تقييمات ملعب
-app.get('/api/pitches/:id/ratings', (req, res) => {
-  try {
-    const pitchId = parseInt(req.params.id);
-    const ratings = readJSON(ratingsFile);
-    
-    const pitchRatings = ratings.filter(r => 
-      r.pitchId === pitchId && 
-      r.status === 'active'
-    );
-
-    res.json(pitchRatings);
-
-  } catch (error) {
-    console.error('Get ratings error:', error);
-    res.status(500).json({ message: 'حدث خطأ في جلب التقييمات' });
-  }
-});
-
-// تحديث متوسط تقييم الملعب
-function updatePitchRating(pitchId) {
-  const ratings = readJSON(ratingsFile);
-  const pitchRatings = ratings.filter(r => r.pitchId === pitchId && r.status === 'active');
-  
-  if (pitchRatings.length > 0) {
-    const totalRating = pitchRatings.reduce((sum, r) => sum + r.rating, 0);
-    const averageRating = parseFloat((totalRating / pitchRatings.length).toFixed(1));
-    
-    const pitch = pitchesData.find(p => p.id === pitchId);
-    if (pitch) {
-      pitch.rating = averageRating;
-      pitch.totalRatings = pitchRatings.length;
-    }
-  }
-}
-
-/* ========= Authentication ========= */
-
-// Signup
-app.post('/signup', csrfProtection, async (req, res) => {
-  try {
-    const { username, email, phone, password, role } = req.body;
-    
-    if (!username || !email || !phone || !password || !role) {
-      return res.status(400).json({ message: 'جميع الحقول مطلوبة' });
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({ message: 'البريد الإلكتروني غير صالح' });
-    }
-
-    const egyptPhoneRegex = /^01[0-2,5]{1}[0-9]{8}$/;
-    if (!egyptPhoneRegex.test(phone)) {
-      return res.status(400).json({ message: 'رقم الهاتف غير صالح' });
-    }
-
-    const users = readJSON(usersFile);
-    
-    if (users.find(u => u.username === username)) {
-      return res.status(400).json({ message: 'اسم المستخدم موجود بالفعل' });
-    }
-    if (users.find(u => u.email === email)) {
-      return res.status(400).json({ message: 'البريد الإلكتروني مستخدم بالفعل' });
-    }
-    if (users.find(u => u.phone === phone)) {
-      return res.status(400).json({ message: 'رقم الهاتف مستخدم بالفعل' });
-    }
-
-    const hash = await bcrypt.hash(password, 12);
-    const verificationToken = uuidv4();
-
-    const newUser = {
-      id: uuidv4(),
-      username,
-      email,
-      phone,
-      password: hash,
-      role: role === 'admin' ? 'admin' : 'user',
-      approved: role === 'admin' ? false : true,
-      provider: 'local',
-      emailVerified: false,
-      verificationToken,
-      createdAt: new Date().toISOString(),
-      lastLogin: null
-    };
-
-    users.push(newUser);
-    writeJSON(usersFile, users);
-
-    // إرسال بريد التفعيل
-    const verificationLink = `${APP_URL}/verify-email?token=${verificationToken}`;
-    
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER || 'noreply@ehgzly.com',
-      to: email,
-      subject: 'تفعيل حسابك - احجزلي',
-      html: `
-        <div style="font-family: 'Cairo', Arial, sans-serif; text-align: center; direction: rtl; padding: 20px; background: #f8f9fa;">
-          <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-            <h2 style="color: #1a7f46; margin-bottom: 20px;">مرحباً ${username}!</h2>
-            <p style="color: #666; margin-bottom: 20px;">شكراً لتسجيلك في احجزلي. يرجى تفعيل حسابك بالضغط على الرابط أدناه:</p>
-            <a href="${verificationLink}" style="background: #1a7f46; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">
-              تفعيل الحساب
-            </a>
-            <p style="color: #999; margin-top: 20px; font-size: 14px;">إذا لم تطلب هذا الرابط، يمكنك تجاهل هذه الرسالة.</p>
-          </div>
-        </div>
-      `
-    }).catch(err => {
-      console.log('❌ Failed to send email:', err);
-    });
-
-    res.json({ 
-      message: 'تم إنشاء الحساب بنجاح. يرجى فحص بريدك الإلكتروني للتفعيل.',
-      success: true 
-    });
-
-  } catch (error) {
-    console.error('Signup error:', error);
-    res.status(500).json({ message: 'حدث خطأ أثناء إنشاء الحساب' });
-  }
-});
-
-// تفعيل البريد
-app.get('/verify-email', (req, res) => {
-  const { token } = req.query;
-  
-  if (!token) {
-    return res.status(400).send(`
-      <div style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
-        <h2 style="color: #dc3545;">رابط غير صالح</h2>
-        <p>رابط التفعيل غير صالح.</p>
-        <a href="/login" style="color: #1a7f46;">العودة لتسجيل الدخول</a>
-      </div>
-    `);
-  }
-
-  const users = readJSON(usersFile);
-  const user = users.find(u => u.verificationToken === token);
-  
-  if (!user) {
-    return res.status(400).send(`
-      <div style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
-        <h2 style="color: #dc3545;">رابط غير صالح أو منتهي</h2>
-        <p>رابط التفعيل غير صالح أو انتهت صلاحيته.</p>
-        <a href="/login" style="color: #1a7f46;">العودة لتسجيل الدخول</a>
-      </div>
-    `);
-  }
-  
-  user.emailVerified = true;
-  user.verificationToken = null;
-  writeJSON(usersFile, users);
-  
-  res.send(`
-    <div style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
-      <h2 style="color: #1a7f46;">تم تفعيل حسابك بنجاح! 🎉</h2>
-      <p>يمكنك الآن تسجيل الدخول إلى حسابك.</p>
-      <a href="/login" style="background: #1a7f46; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
-        تسجيل الدخول
-      </a>
-    </div>
-  `);
-});
-
-// Login
-app.post('/login', loginLimiter, csrfProtection, async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    
-    if (!email || !password) {
-      return res.status(400).json({ message: 'يرجى إدخال البريد وكلمة المرور' });
-    }
-
-    const users = readJSON(usersFile);
-    const user = users.find(u => u.email === email && u.provider === 'local');
-    
-    if (!user) {
-      return res.status(401).json({ message: 'البريد أو كلمة المرور غير صحيحة' });
-    }
-
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) {
-      return res.status(401).json({ message: 'البريد أو كلمة المرور غير صحيحة' });
-    }
-
-    if (!user.emailVerified) {
-      return res.status(403).json({ message: 'لم يتم تفعيل البريد الإلكتروني بعد' });
-    }
-
-    if (!user.approved) {
-      return res.status(403).json({ message: 'حسابك ينتظر الموافقة من الإدارة' });
-    }
-
-    // تحديث آخر دخول
-    user.lastLogin = new Date().toISOString();
-    writeJSON(usersFile, users);
-
-    req.session.user = {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      phone: user.phone,
-      role: user.role
-    };
-
-    res.json({ 
-      message: 'تم تسجيل الدخول بنجاح',
-      user: req.session.user
-    });
-
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'حدث خطأ أثناء تسجيل الدخول' });
-  }
-});
-
-// Logout
-app.post('/logout', (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      return res.status(500).json({ message: 'خطأ في تسجيل الخروج' });
-    }
-    res.json({ message: 'تم تسجيل الخروج' });
-  });
-});
-
-/* ========= Booking System ========= */
-
-// الحجز الجديد
-app.post('/api/bookings', requireLogin, csrfProtection, (req, res) => {
-  try {
-    const { pitchId, date, time, name, phone, email, discountCode } = req.body;
-    
-    if (!pitchId || !date || !time || !name || !phone) {
-      return res.status(400).json({ message: 'جميع الحقول مطلوبة' });
-    }
-
-    const pitch = pitchesData.find(p => p.id === parseInt(pitchId));
-    if (!pitch) {
-      return res.status(404).json({ message: 'الملعب غير موجود' });
-    }
-
-    // التحقق من الوقت
-    const hour = parseInt(time.split(':')[0]);
-    if (hour < pitch.workingHours.start || hour >= pitch.workingHours.end) {
-      return res.status(400).json({ message: 'الوقت المحدد خارج ساعات العمل' });
-    }
-
-    const bookings = readJSON(bookingsFile);
-    
-    // التحقق من عدم وجود حجز مسبق
-    const existingBooking = bookings.find(booking => 
-      booking.pitchId === parseInt(pitchId) &&
-      booking.date === date &&
-      booking.time === time &&
-      booking.status === 'confirmed'
-    );
-
-    if (existingBooking) {
-      return res.status(400).json({ message: 'هذا الوقت محجوز بالفعل' });
-    }
-
-    let finalAmount = pitch.price;
-    let appliedDiscount = null;
-
-    // تطبيق الكود الخصم إذا كان موجوداً
-    if (discountCode) {
-      const discountCodes = readJSON(discountCodesFile);
-      const validCode = discountCodes.find(dc => 
-        dc.code === discountCode.toUpperCase() && 
-        dc.status === 'active'
-      );
-
-      if (validCode) {
-        finalAmount = Math.max(0, pitch.price - validCode.value);
-        appliedDiscount = {
-          code: validCode.code,
-          value: validCode.value,
-          originalPrice: pitch.price,
-          finalPrice: finalAmount
-        };
-      }
-    }
-
-    const newBooking = {
-      id: uuidv4(),
-      pitchId: parseInt(pitchId),
-      pitchName: pitch.name,
-      pitchLocation: pitch.location,
-      date,
-      time,
-      customerName: name,
-      customerPhone: phone,
-      customerEmail: email || req.session.user.email,
-      userId: req.session.user.id,
-      status: 'pending',
-      amount: pitch.price,
-      finalAmount: finalAmount,
-      appliedDiscount: appliedDiscount,
-      discountCode: discountCode || null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    bookings.push(newBooking);
-    writeJSON(bookingsFile, bookings);
-
-    // حفظ الحجز في الجلسة للدفع
-    req.session.pendingBooking = newBooking;
-
-    res.json({ 
-      message: appliedDiscount ? 
-        `تم الحجز بنجاح. تم تطبيق خصم ${appliedDiscount.value} جنيه. يرجى إتمام الدفع.` :
-        'تم الحجز بنجاح. يرجى إتمام الدفع.',
-      booking: newBooking,
-      paymentRequired: true,
-      appliedDiscount: appliedDiscount
-    });
-
-  } catch (error) {
-    console.error('Booking error:', error);
-    res.status(500).json({ message: 'حدث خطأ أثناء الحجز' });
-  }
-});
-
-// إلغاء الحجز
-app.put('/api/bookings/:id/cancel', requireLogin, csrfProtection, (req, res) => {
-  try {
-    const bookingId = req.params.id;
-    const bookings = readJSON(bookingsFile);
-    const booking = bookings.find(b => b.id === bookingId);
-    
-    if (!booking) {
-      return res.status(404).json({ message: 'الحجز غير موجود' });
-    }
-
-    const isOwner = booking.userId === req.session.user.id;
-    const isAdmin = req.session.user.role === 'admin';
-    
-    if (!isOwner && !isAdmin) {
-      return res.status(403).json({ message: 'غير مسموح لك بإلغاء هذا الحجز' });
-    }
-
-    // تحديد ما إذا كان يستحق كود تعويض
-    const bookingDate = new Date(booking.date);
-    const now = new Date();
-    const timeDiff = bookingDate.getTime() - now.getTime();
-    const hoursDiff = timeDiff / (1000 * 60 * 60);
-
-    let compensationEligible = false;
-    if (hoursDiff < 24) {
-      compensationEligible = true;
-    }
-
-    booking.status = 'cancelled';
-    booking.updatedAt = new Date().toISOString();
-    booking.cancellationTime = new Date().toISOString();
-    booking.compensationEligible = compensationEligible;
-    
-    writeJSON(bookingsFile, bookings);
-    
-    res.json({ 
-      message: 'تم إلغاء الحجز بنجاح',
-      booking,
-      compensationEligible
-    });
-
-  } catch (error) {
-    console.error('Cancel booking error:', error);
-    res.status(500).json({ message: 'حدث خطأ أثناء إلغاء الحجز' });
-  }
-});
-
-/* ========= Payment System ========= */
-
-// مزودي الدفع
-app.get('/api/providers', (req, res) => {
-  const providersList = Object.keys(paymentConfig).map(key => ({
-    id: key,
-    name: paymentConfig[key].name,
-    number: paymentConfig[key].number,
-    icon: paymentConfig[key].icon
-  }));
-  res.json(providersList);
-});
-
-// QR Code
-app.get('/api/qr/:wallet', async (req, res) => {
-  try {
-    const url = await QRCode.toDataURL(req.params.wallet);
-    res.json({ qr: url });
-  } catch(err) { 
-    console.error('QR generation error:', err);
-    res.status(500).json({ error: 'خطأ في توليد QR code' }); 
-  }
-});
-
-// معلومات الحجز للدفع
-app.get('/api/booking-info', requireLogin, (req, res) => {
-  const pendingBooking = req.session.pendingBooking;
-  
-  if (!pendingBooking) {
-    return res.json({});
-  }
-  
-  res.json({
-    field: pendingBooking.pitchName,
-    date: pendingBooking.date,
-    time: pendingBooking.time,
-    hours: 1,
-    amount: pendingBooking.finalAmount,
-    originalAmount: pendingBooking.amount,
-    discount: pendingBooking.appliedDiscount
-  });
-});
-
-// معالجة الدفع
-app.post('/api/payment', requireLogin, paymentLimiter, upload.single('receipt'), csrfProtection, async (req, res) => {
-  try {
-    const { provider, transactionId, amount } = req.body;
-    
-    if (!provider || !transactionId || !amount) {
-      return res.status(400).json({ message: 'البيانات غير مكتملة' });
-    }
-
-    if (!paymentConfig[provider]) {
-      return res.status(400).json({ message: 'مزود الدفع غير صحيح' });
-    }
-
-    const pendingBooking = req.session.pendingBooking;
-    if (!pendingBooking) {
-      return res.status(400).json({ message: 'لا يوجد حجز معلق للدفع' });
-    }
-
-    const userData = req.session.user;
-    const payments = readJSON(paymentsFile);
-
-    // تحديث حالة الكود إذا كان مستخدماً
-    if (pendingBooking.discountCode) {
-      const discountCodes = readJSON(discountCodesFile);
-      const usedCode = discountCodes.find(dc => dc.code === pendingBooking.discountCode);
-      
-      if (usedCode && usedCode.status === 'active') {
-        usedCode.status = 'used';
-        usedCode.usedBy = userData.id;
-        usedCode.usedAt = new Date().toISOString();
-        usedCode.usedForBooking = pendingBooking.id;
-        writeJSON(discountCodesFile, discountCodes);
-      }
-    }
-
-    const paymentRecord = {
-      id: uuidv4(),
-      bookingId: pendingBooking.id,
-      payerName: userData.username,
-      email: userData.email,
-      phone: userData.phone,
-      field: pendingBooking.pitchName,
-      hours: 1,
-      transactionId,
-      amount: parseInt(amount),
-      originalAmount: pendingBooking.amount,
-      discountApplied: pendingBooking.appliedDiscount ? pendingBooking.appliedDiscount.value : 0,
-      provider: provider,
-      providerName: paymentConfig[provider].name,
-      receiptPath: req.file ? `/uploads/${req.file.filename}` : null,
-      date: new Date().toISOString(),
-      status: 'pending'
-    };
-    
-    payments.push(paymentRecord);
-    writeJSON(paymentsFile, payments);
-
-    // تحديث حالة الحجز إلى confirmed
-    const bookings = readJSON(bookingsFile);
-    const booking = bookings.find(b => b.id === pendingBooking.id);
-    if (booking) {
-      booking.status = 'confirmed';
-      booking.updatedAt = new Date().toISOString();
-      writeJSON(bookingsFile, bookings);
-    }
-
-    // مسح الحجز المعلق من الجلسة
-    delete req.session.pendingBooking;
-
-    // إرسال بريد التأكيد
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER || 'noreply@ehgzly.com',
-      to: userData.email,
-      subject: 'تم تأكيد حجزك - احجزلي',
-      html: `
-        <div style="font-family: 'Cairo', Arial, sans-serif; direction: rtl; padding: 20px; background: #f8f9fa;">
-          <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-            <h2 style="color: #1a7f46; text-align: center; margin-bottom: 20px;">تم تأكيد حجزك بنجاح! 🎉</h2>
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <h3 style="color: #333; margin-bottom: 15px;">تفاصيل الحجز:</h3>
-              <p><strong>الملعب:</strong> ${pendingBooking.pitchName}</p>
-              <p><strong>الموقع:</strong> ${pendingBooking.pitchLocation}</p>
-              <p><strong>التاريخ:</strong> ${pendingBooking.date}</p>
-              <p><strong>الوقت:</strong> ${pendingBooking.time}</p>
-              <p><strong>المبلغ الأصلي:</strong> ${pendingBooking.amount} جنيه</p>
-              ${pendingBooking.appliedDiscount ? `
-                <p><strong>الخصم:</strong> ${pendingBooking.appliedDiscount.value} جنيه</p>
-                <p><strong>المبلغ النهائي:</strong> ${amount} جنيه</p>
-                <p><strong>كود الخصم:</strong> ${pendingBooking.appliedDiscount.code}</p>
-              ` : `
-                <p><strong>المبلغ:</strong> ${amount} جنيه</p>
-              `}
-              <p><strong>طريقة الدفع:</strong> ${paymentConfig[provider].name}</p>
-            </div>
-            <p style="text-align: center; color: #666; margin-top: 20px;">نتمنى لك وقتاً ممتعاً!</p>
-          </div>
-        </div>
-      `
-    }).catch(err => {
-      console.log('Failed to send confirmation email:', err);
-    });
-
-    res.json({ 
-      message: 'تم تسجيل عملية الدفع بنجاح', 
-      paymentId: paymentRecord.id,
-      success: true
-    });
-
-  } catch (error) {
-    console.error('Payment error:', error);
-    res.status(500).json({ message: 'حدث خطأ أثناء معالجة الدفع' });
   }
 });
 
@@ -1449,6 +1722,10 @@ app.get('/payment', requireLogin, csrfProtection, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'payment.html'));
 });
 
+app.get('/profile', requireLogin, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'profile.html'));
+});
+
 app.get('/verify.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'verify.html'));
 });
@@ -1480,4 +1757,6 @@ app.listen(PORT, () => {
   console.log(`🔐 Admin access: /admin`);
   console.log(`🎫 Discount codes system: Active`);
   console.log(`⭐ Ratings system: Active`);
+  console.log(`👤 User profiles system: Active`);
+  console.log(`💰 Deposit payment system: Active`);
 });
