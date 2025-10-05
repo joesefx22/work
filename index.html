@@ -19,6 +19,7 @@
       --accent-color: #f39c12;
       --dark-color: #2c3e50;
       --light-color: #ecf0f1;
+      --blue-color: #3498db;
     }
     
     body {
@@ -28,14 +29,14 @@
       overflow-x: hidden;
     }
     
-    /* Loading Screen */
+    /* Loading Screen - التحديث الجديد */
     #loadingOverlay {
       position: fixed;
       top: 0;
       right: 0;
       bottom: 0;
       left: 0;
-      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      background: linear-gradient(135deg, #1a7f46, #2ecc71);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -48,48 +49,101 @@
       visibility: hidden;
     }
     
-    .football-loader {
-      width: 100px;
-      height: 100px;
+    /* 🆕 Spinner الجديد - 5 أنصاف دوائر زرقاء */
+    .multi-circle-spinner {
       position: relative;
-      animation: bounce 1.5s infinite ease-in-out;
+      width: 120px;
+      height: 120px;
     }
     
-    .football {
-      width: 80px;
-      height: 80px;
-      background: radial-gradient(circle at 30% 30%, #fff, #333 60%);
-      border-radius: 50%;
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      box-shadow: 0 0 20px rgba(0,0,0,0.3);
-    }
-    
-    .football::before {
-      content: "";
+    .circle {
       position: absolute;
       width: 100%;
       height: 100%;
-      border: 4px solid #fff;
+      border: 8px solid transparent;
+      border-top: 8px solid var(--blue-color);
       border-radius: 50%;
-      box-sizing: border-box;
+      animation: spin 1.5s linear infinite;
     }
     
-    .football::after {
-      content: "";
+    .circle:nth-child(1) {
+      animation-delay: 0s;
+      opacity: 1;
+      border-top-color: #2980b9;
+    }
+    
+    .circle:nth-child(2) {
+      animation-delay: 0.3s;
+      opacity: 0.8;
+      border-top-color: #3498db;
+      animation-direction: reverse;
+    }
+    
+    .circle:nth-child(3) {
+      animation-delay: 0.6s;
+      opacity: 0.6;
+      border-top-color: #5dade2;
+      animation-duration: 2s;
+    }
+    
+    .circle:nth-child(4) {
+      animation-delay: 0.9s;
+      opacity: 0.4;
+      border-top-color: #85c1e9;
+      animation-direction: reverse;
+      animation-duration: 2.5s;
+    }
+    
+    .circle:nth-child(5) {
+      animation-delay: 1.2s;
+      opacity: 0.2;
+      border-top-color: #aed6f1;
+      animation-duration: 3s;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .loading-text {
       position: absolute;
-      width: 100%;
-      height: 100%;
-      border: 4px solid #fff;
-      border-radius: 50%;
-      transform: rotate(45deg);
-      box-sizing: border-box;
+      bottom: -50px;
+      right: 0;
+      left: 0;
+      text-align: center;
+      color: white;
+      font-weight: 600;
+      font-size: 1.2rem;
+    }
+
+    /* 🆕 شريط متابعة الحجز */
+    .booking-tracker {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 1rem;
+      border-radius: 10px;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      display: none;
+      position: sticky;
+      top: 80px;
+      z-index: 1000;
     }
     
-    @keyframes bounce {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-30px); }
+    .tracker-progress {
+      height: 8px;
+      background: rgba(255,255,255,0.3);
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    
+    .tracker-progress-bar {
+      height: 100%;
+      background: #fff;
+      border-radius: 4px;
+      transition: width 0.3s ease;
     }
     
     /* Navigation */
@@ -186,103 +240,7 @@
       color: var(--dark-color);
     }
     
-    /* Search Section */
-    .search-section {
-      background: white;
-      padding: 2rem 0;
-      box-shadow: 0 5px 25px rgba(0,0,0,0.1);
-    }
-    
-    .search-card {
-      background: white;
-      border-radius: 15px;
-      padding: 2rem;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-      border: none;
-    }
-    
-    /* Date Modal */
-    .date-modal .modal-content {
-      border-radius: 15px;
-      overflow: hidden;
-    }
-    
-    .date-modal .modal-header {
-      background: var(--primary-color);
-      color: white;
-    }
-    
-    .date-options {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 10px;
-      padding: 15px 0;
-    }
-    
-    .date-option {
-      padding: 15px 10px;
-      border: 2px solid #e9ecef;
-      border-radius: 12px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      background: white;
-      text-align: center;
-    }
-    
-    .date-option:hover {
-      border-color: var(--primary-color);
-      background: rgba(26, 127, 70, 0.05);
-    }
-    
-    .date-option.selected {
-      background: var(--primary-color);
-      color: white;
-      border-color: var(--primary-color);
-    }
-    
-    .date-day {
-      font-size: 1.2rem;
-      font-weight: 700;
-      margin-bottom: 5px;
-    }
-    
-    .date-month {
-      font-size: 0.9rem;
-      color: inherit;
-      opacity: 0.9;
-    }
-    
-    /* Period Selector */
-    .period-selector {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-    
-    .period-btn {
-      flex: 1;
-      padding: 12px;
-      border: 2px solid #e9ecef;
-      border-radius: 10px;
-      background: white;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      text-align: center;
-      font-weight: 600;
-    }
-    
-    .period-btn:hover {
-      border-color: var(--primary-color);
-      background: rgba(26, 127, 70, 0.05);
-    }
-    
-    .period-btn.selected {
-      background: var(--primary-color);
-      color: white;
-      border-color: var(--primary-color);
-    }
-    
-    /* Pitch Cards */
+    /* 🆕 تحسين بطاقات الملاعب */
     .pitch-card {
       border: none;
       border-radius: 15px;
@@ -290,6 +248,7 @@
       box-shadow: 0 10px 30px rgba(0,0,0,0.1);
       transition: all 0.3s ease;
       margin-bottom: 2rem;
+      position: relative;
     }
     
     .pitch-card:hover {
@@ -316,11 +275,34 @@
       font-weight: 600;
     }
     
+    .availability-low {
+      background: #e74c3c;
+    }
+    
+    .availability-medium {
+      background: #f39c12;
+    }
+    
+    .availability-high {
+      background: #27ae60;
+    }
+    
     .pitch-price {
       position: absolute;
       bottom: 15px;
       left: 15px;
       background: rgba(0,0,0,0.8);
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 25px;
+      font-weight: 600;
+    }
+    
+    .pitch-deposit {
+      position: absolute;
+      bottom: 15px;
+      right: 15px;
+      background: rgba(52, 152, 219, 0.9);
       color: white;
       padding: 0.5rem 1rem;
       border-radius: 25px;
@@ -365,6 +347,64 @@
       color: var(--primary-color);
     }
     
+    /* 🆕 Date Selector */
+    .date-selector {
+      background: #f8f9fa;
+      padding: 1rem;
+      border-radius: 10px;
+      margin-bottom: 1rem;
+    }
+    
+    /* 🆕 Time Slots المحسنة */
+    .time-slots-container {
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid #e9ecef;
+      border-radius: 10px;
+      padding: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    
+    .time-slot {
+      flex: 1;
+      min-width: 100px;
+      padding: 0.8rem 0.5rem;
+      border: 2px solid #e9ecef;
+      border-radius: 8px;
+      background: white;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+    
+    .time-slot.available {
+      border-color: var(--primary-color);
+      background: rgba(26, 127, 70, 0.05);
+    }
+    
+    .time-slot.available:hover {
+      background: var(--primary-color);
+      color: white;
+    }
+    
+    .time-slot.booked {
+      background: #e74c3c;
+      color: white;
+      border-color: #e74c3c;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+    
+    .time-slot.selected {
+      background: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+    }
+    
     /* Rating Stars */
     .rating-stars {
       display: flex;
@@ -389,54 +429,6 @@
     .rating-text {
       font-size: 0.9rem;
       color: #666;
-    }
-    
-    /* Time Slots */
-    .time-slots {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-top: 1rem;
-    }
-    
-    .time-slot {
-      flex: 1;
-      min-width: 100px;
-      padding: 0.8rem 0.5rem;
-      border: 2px solid #e9ecef;
-      border-radius: 8px;
-      background: white;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      font-weight: 500;
-      font-size: 0.9rem;
-    }
-    
-    .time-slot:hover {
-      border-color: var(--primary-color);
-      background: rgba(26, 127, 70, 0.05);
-    }
-    
-    .time-slot.selected {
-      background: var(--primary-color);
-      color: white;
-      border-color: var(--primary-color);
-    }
-    
-    .time-slot.booked {
-      background: #e74c3c;
-      color: white;
-      border-color: #e74c3c;
-      cursor: not-allowed;
-      opacity: 0.7;
-    }
-    
-    .time-slot.unavailable {
-      background: #f8f9fa;
-      color: #999;
-      cursor: not-allowed;
-      opacity: 0.5;
     }
     
     /* Buttons */
@@ -523,31 +515,6 @@
       color: white;
     }
     
-    /* Admin Panel */
-    .admin-panel {
-      background: white;
-      border-radius: 15px;
-      padding: 2rem;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-      margin-bottom: 2rem;
-    }
-    
-    .code-card {
-      background: #f8f9fa;
-      border-radius: 10px;
-      padding: 1rem;
-      margin-bottom: 1rem;
-      border-left: 4px solid var(--primary-color);
-    }
-    
-    .code-compensation {
-      border-left-color: #e74c3c;
-    }
-    
-    .code-premium {
-      border-left-color: #f39c12;
-    }
-    
     /* Footer */
     .footer {
       background: var(--dark-color);
@@ -595,6 +562,15 @@
       transform: translateY(-3px);
     }
     
+    /* 🆕 إلغاء الحجز متعدد الخطوات */
+    .cancellation-step {
+      display: none;
+    }
+    
+    .cancellation-step.active {
+      display: block;
+    }
+    
     /* Responsive */
     @media (max-width: 768px) {
       .hero-title {
@@ -605,18 +581,15 @@
         font-size: 2rem;
       }
       
-      .search-card {
-        padding: 1.5rem;
-      }
-      
       .time-slot {
         min-width: 80px;
         font-size: 0.8rem;
         padding: 0.6rem 0.4rem;
       }
       
-      .date-options {
-        grid-template-columns: 1fr;
+      .booking-tracker {
+        position: relative;
+        top: 0;
       }
     }
     
@@ -633,10 +606,41 @@
 </head>
 <body>
 
-<!-- شاشة التحميل -->
+<!-- شاشة التحميل المطورة -->
 <div id="loadingOverlay">
-  <div class="football-loader">
-    <div class="football"></div>
+  <div class="multi-circle-spinner">
+    <div class="circle"></div>
+    <div class="circle"></div>
+    <div class="circle"></div>
+    <div class="circle"></div>
+    <div class="circle"></div>
+    <div class="loading-text">جاري التحميل...</div>
+  </div>
+</div>
+
+<!-- 🆕 شريط متابعة الحجز -->
+<div class="booking-tracker" id="bookingTracker">
+  <div class="container">
+    <div class="row align-items-center">
+      <div class="col-md-8">
+        <h5 class="mb-1" id="trackerTitle">متابعة حجزك</h5>
+        <p class="mb-1" id="trackerDetails">الملعب: -- | التاريخ: -- | الوقت: --</p>
+        <div class="tracker-progress">
+          <div class="tracker-progress-bar" id="trackerProgress" style="width: 0%"></div>
+        </div>
+        <small id="trackerStatus">جاري تجهيز الحجز...</small>
+      </div>
+      <div class="col-md-4 text-left">
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-light btn-sm" onclick="viewBookingDetails()">
+            <i class="bi bi-eye me-1"></i>عرض التفاصيل
+          </button>
+          <button class="btn btn-light btn-sm" onclick="cancelCurrentBooking()">
+            <i class="bi bi-x-circle me-1"></i>إلغاء الحجز
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -666,16 +670,13 @@
           <a class="nav-link" href="#features">المميزات</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="/admin.html">لوحة التحكم</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="/login.html">
-            <i class="bi bi-box-arrow-in-left me-1"></i>تسجيل الدخول
+          <a class="nav-link" href="/profile">
+            <i class="bi bi-person me-1"></i>ملفي
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="/signup.html">
-            <i class="bi bi-person-plus me-1"></i>إنشاء حساب
+          <a class="nav-link" href="/login">
+            <i class="bi bi-box-arrow-in-left me-1"></i>تسجيل الدخول
           </a>
         </li>
       </ul>
@@ -688,9 +689,9 @@
   <div class="container">
     <div class="hero-content fade-in">
       <h1 class="hero-title">احجز ملعبك في المقطم والهضبة والسبعين فدان</h1>
-      <p class="hero-subtitle">أفضل الملاعب في شرق القاهرة. اختر وادفع واحجز في دقائق</p>
-      <a href="#areas" class="btn btn-primary btn-lg">
-        <i class="bi bi-search me-2"></i>استعرض المناطق
+      <p class="hero-subtitle">أفضل الملاعب في شرق القاهرة. اختر وادفع العربون واحجز في دقائق</p>
+      <a href="#pitches" class="btn btn-primary btn-lg">
+        <i class="bi bi-search me-2"></i>استعرض الملاعب
       </a>
     </div>
   </div>
@@ -723,55 +724,44 @@
   </div>
 </section>
 
-<!-- Search Section -->
-<section class="search-section" id="search">
-  <div class="container">
-    <div class="search-card">
-      <div class="row g-3">
-        <div class="col-md-6">
-          <label class="form-label">المنطقة</label>
-          <select class="form-select" id="areaFilter">
-            <option value="">جميع المناطق</option>
-            <option value="mokatam">المقطم</option>
-            <option value="hedaba">الهضبة الوسطي</option>
-            <option value="70feddan">السبعين فدان</option>
-          </select>
-        </div>
-        <div class="col-md-6">
-          <label class="form-label">ترتيب حسب</label>
-          <select class="form-select" id="sortFilter">
-            <option value="default">الافتراضي</option>
-            <option value="price_low">السعر: من الأقل للأعلى</option>
-            <option value="price_high">السعر: من الأعلى للأقل</option>
-            <option value="rating">التقييم</option>
-          </select>
-        </div>
-      </div>
-      <div class="row mt-3">
-        <div class="col-12">
-          <button class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#dateModal">
-            <i class="bi bi-calendar3 me-2"></i>اختر تاريخ الحجز
-          </button>
-        </div>
-      </div>
-      <div class="row mt-3">
-        <div class="col-12">
-          <div class="period-selector">
-            <div class="period-btn selected" data-period="morning">الفترة الصباحية</div>
-            <div class="period-btn" data-period="evening">الفترة المسائية</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- Pitches Section -->
 <section class="py-5" id="pitches">
   <div class="container">
     <h2 class="section-title">الملاعب المتاحة</h2>
+    
+    <!-- 🆕 فلترة متقدمة -->
+    <div class="row mb-4">
+      <div class="col-md-4">
+        <label class="form-label">المنطقة</label>
+        <select class="form-select" id="areaFilter">
+          <option value="">جميع المناطق</option>
+          <option value="mokatam">المقطم</option>
+          <option value="hedaba">الهضبة الوسطي</option>
+          <option value="70feddan">السبعين فدان</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">ترتيب حسب</label>
+        <select class="form-select" id="sortFilter">
+          <option value="default">الافتراضي</option>
+          <option value="price_low">السعر: من الأقل للأعلى</option>
+          <option value="price_high">السعر: من الأعلى للأقل</option>
+          <option value="rating">التقييم</option>
+          <option value="availability">الأكثر توفراً</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">نوع الملعب</label>
+        <select class="form-select" id="typeFilter">
+          <option value="">جميع الأنواع</option>
+          <option value="natural">نجيلة طبيعية</option>
+          <option value="artificial">نجيلة صناعية</option>
+        </select>
+      </div>
+    </div>
+
     <div class="row" id="pitchesContainer">
-      <!-- Pitches will be loaded here -->
+      <!-- سيتم تعبئة الملاعب هنا -->
     </div>
   </div>
 </section>
@@ -793,19 +783,19 @@
       <div class="col-md-4 mb-4">
         <div class="feature-card">
           <div class="feature-icon">
-            <i class="bi bi-clock"></i>
+            <i class="bi bi-credit-card"></i>
           </div>
-          <h4>حجز فوري</h4>
-          <p>احجز ملعبك في دقائق بدون تعقيد. تأكيد فوري للحجز.</p>
+          <h4>دفع العربون فقط</h4>
+          <p>ادفع 30% فقط كعربون لتأكيد الحجز والباقي قبل 48 ساعة</p>
         </div>
       </div>
       <div class="col-md-4 mb-4">
         <div class="feature-card">
           <div class="feature-icon">
-            <i class="bi bi-credit-card"></i>
+            <i class="bi bi-shield-check"></i>
           </div>
-          <h4>دفع آمن</h4>
-          <p>أنظمة دفع متعددة وآمنة. فودافون كاش، أورنج، إتصالات، وإنستاباي.</p>
+          <h4>ضمان استرداد الأموال</h4>
+          <p>استرداد كامل مع كود تعويض عند الإلغاء قبل 48 ساعة</p>
         </div>
       </div>
     </div>
@@ -883,7 +873,7 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header bg-success text-white">
-        <h5 class="modal-title">تأكيد الحجز</h5>
+        <h5 class="modal-title">تأكيد الحجز ودفع العربون</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
@@ -910,18 +900,88 @@
           <div class="mb-3">
             <label class="form-label">كود الخصم (اختياري)</label>
             <input type="text" class="form-control" id="discountCode" name="discountCode" placeholder="أدخل الكود إذا كان لديك">
+            <div class="form-text">يمكن استخدام أكواد التعويض لخصم على المبلغ المتبقي</div>
           </div>
           
           <div class="alert alert-info">
             <h6 class="alert-heading">معلومات الدفع</h6>
-            <p class="mb-0">سيتم تحويلك لصفحة الدفع بعد تأكيد الحجز</p>
+            <p class="mb-1">سيتم دفع العربون فقط الآن (30% من السعر)</p>
+            <p class="mb-0">المبلغ المتبعي يتم دفعه قبل 48 ساعة من موعد الحجز</p>
           </div>
           
           <button type="submit" class="btn btn-primary w-100">
-            <i class="bi bi-check-circle me-2"></i>تأكيد الحجز والمتابعة للدفع
+            <i class="bi bi-credit-card me-2"></i>تأكيد الحجز ودفع العربون
           </button>
         </form>
         <div id="bookingStatus" class="mt-3"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 🆕 مودال إلغاء الحجز مع التأكيد المتعدد -->
+<div class="modal fade" id="cancelBookingModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title">تأكيد إلغاء الحجز</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning">
+          <h6><i class="bi bi-exclamation-triangle me-2"></i>تنبيه مهم</h6>
+          <p class="mb-0" id="cancellationPolicy"></p>
+        </div>
+        
+        <div id="cancellationSteps">
+          <!-- الخطوة 1 -->
+          <div class="cancellation-step active" id="step1">
+            <p>هل أنت متأكد من رغبتك في إلغاء هذا الحجز؟</p>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="confirmCancellation">
+              <label class="form-check-label" for="confirmCancellation">
+                نعم، أريد إلغاء الحجز
+              </label>
+            </div>
+          </div>
+          
+          <!-- الخطوة 2 -->
+          <div class="cancellation-step" id="step2" style="display: none;">
+            <p>يرجى اختيار سبب الإلغاء:</p>
+            <select class="form-select" id="cancellationReason">
+              <option value="">اختر سبب الإلغاء</option>
+              <option value="تغيير في الخطط">تغيير في الخطط</option>
+              <option value="ظروف طارئة">ظروف طارئة</option>
+              <option value="وجدت وقت أفضل">وجدت وقت أفضل</option>
+              <option value="أسباب مالية">أسباب مالية</option>
+              <option value="آخر">سبب آخر</option>
+            </select>
+            <textarea class="form-control mt-2" id="otherReason" placeholder="اذكر السبب إذا اخترت 'سبب آخر'" style="display: none;"></textarea>
+          </div>
+          
+          <!-- الخطوة 3 -->
+          <div class="cancellation-step" id="step3" style="display: none;">
+            <p>التأكيد النهائي:</p>
+            <div class="alert alert-info">
+              <p id="finalCancellationInfo"></p>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="finalConfirm">
+              <label class="form-check-label" for="finalConfirm">
+                أقر بأني فهمت سياسة الإلغاء وأوافق عليها
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">تراجع</button>
+        <button type="button" class="btn btn-danger" id="nextCancellationStep" onclick="nextCancellationStep()">
+          التالي <i class="bi bi-arrow-left"></i>
+        </button>
+        <button type="button" class="btn btn-danger" id="confirmCancellationBtn" style="display: none;" onclick="confirmCancellation()">
+          <i class="bi bi-check-circle me-1"></i>تأكيد الإلغاء
+        </button>
       </div>
     </div>
   </div>
@@ -971,301 +1031,284 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+  // 🆕 متغيرات النظام المطور
   let pitches = [];
+  let currentBookings = [];
+  let currentCancellationBooking = null;
+  let cancellationStep = 1;
   let selectedDate = '';
   let selectedPeriod = 'morning';
   let selectedPitchId = null;
   let selectedTime = '';
   let discountCodes = [];
 
-  // تحميل بيانات الملاعب من السيرفر
+  // 🆕 تحميل بيانات الملاعب مع التوفر
   async function loadPitchesData() {
     try {
       const response = await fetch('/api/pitches');
       pitches = await response.json();
-      setupDateModal();
+      
+      // تحميل بيانات التوفر لكل ملعب
+      for (let pitch of pitches) {
+        await loadPitchAvailability(pitch.id);
+      }
+      
       loadPitches(pitches);
-      loadDiscountCodes();
+      loadCurrentBookings();
     } catch (error) {
       console.error('Error loading pitches:', error);
-      // استخدام بيانات افتراضية إذا فشل الاتصال
       pitches = getDefaultPitches();
-      setupDateModal();
       loadPitches(pitches);
-      loadDiscountCodes();
     }
   }
 
-  // بيانات افتراضية للملاعب
-  function getDefaultPitches() {
-    return [
-      {
-        id: 1,
-        name: "نادي الطيارة - الملعب الرئيسي",
-        location: "المقطم - شارع التسعين",
-        area: "mokatam",
-        image: "/images/tyara-1.jpg",
-        price: 250,
-        features: ["نجيلة صناعية", "كشافات ليلية", "غرف تبديل"],
-        rating: 4.7,
-        totalRatings: 128,
-        googleMaps: "https://maps.app.goo.gl/v6tj8pxhG5FHfoSj9"
-      },
-      {
-        id: 2,
-        name: "نادي الطيارة - الملعب الثاني",
-        location: "المقطم - شارع التسعين",
-        area: "mokatam",
-        image: "/images/tyara-2.jpg",
-        price: 220,
-        features: ["نجيلة صناعية", "إضاءة ليلية", "غرف تبديل"],
-        rating: 4.5,
-        totalRatings: 95,
-        googleMaps: "https://maps.app.goo.gl/v6tj8pxhG5FHfoSj9"
-      },
-      {
-        id: 3,
-        name: "الراعي الصالح",
-        location: "المقطم - شارع 9",
-        area: "mokatam",
-        image: "/images/raei.jpg",
-        price: 300,
-        features: ["نجيلة طبيعية", "مقاعد جماهير", "كافيتريا"],
-        rating: 4.8,
-        totalRatings: 156,
-        googleMaps: "https://maps.app.goo.gl/hUUReW3ZDQM9wwEj7"
-      },
-      {
-        id: 4,
-        name: "نادي الهضبة الوسطي",
-        location: "الهضبة الوسطي - شارع الهرم",
-        area: "hedaba",
-        image: "/images/hedaba-club.jpg",
-        price: 200,
-        features: ["نجيلة صناعية", "إضاءة ليلية", "مواقف سيارات"],
-        rating: 4.3,
-        totalRatings: 87,
-        googleMaps: "https://maps.app.goo.gl/example1"
-      },
-      {
-        id: 5,
-        name: "نادي السبعين فدان",
-        location: "السبعين فدان - شارع الثورة",
-        area: "70feddan",
-        image: "/images/70feddan-club.jpg",
-        price: 180,
-        features: ["نجيلة صناعية", "كشافات", "صالة ألعاب"],
-        rating: 4.2,
-        totalRatings: 73,
-        googleMaps: "https://maps.app.goo.gl/example2"
-      },
-      {
-        id: 6,
-        name: "نادي المقطم الرياضي",
-        location: "المقطم - المنطقة السياحية",
-        area: "mokatam",
-        image: "/images/mokatam-club.jpg",
-        price: 280,
-        features: ["نجيلة صناعية", "إضاءة ليلية", "غرف تبديل"],
-        rating: 4.6,
-        totalRatings: 112,
-        googleMaps: "https://maps.app.goo.gl/d1txNjQ5BXwBkfZn7"
-      }
-    ];
-  }
-
-  // تحميل أكواد الخصم
-  async function loadDiscountCodes() {
+  // 🆕 تحميل بيانات التوفر للملعب
+  async function loadPitchAvailability(pitchId) {
     try {
-      const response = await fetch('/api/discount-codes');
-      discountCodes = await response.json();
-    } catch (error) {
-      console.error('Error loading discount codes:', error);
-      discountCodes = generateSampleCodes();
-    }
-  }
-
-  // إنشاء أكواد عينة
-  function generateSampleCodes() {
-    return [
-      {
-        id: 1,
-        code: "TYARA50",
-        value: 50,
-        type: "pitch",
-        pitchId: 1,
-        source: "pitch",
-        status: "active",
-        expiresAt: "2024-12-31"
-      },
-      {
-        id: 2,
-        code: "EHGZLY100",
-        value: 100,
-        type: "premium",
-        source: "owner",
-        status: "active",
-        expiresAt: "2024-12-31"
-      },
-      {
-        id: 3,
-        code: "COMP50",
-        value: 50,
-        type: "compensation",
-        source: "cancellation",
-        status: "active",
-        expiresAt: "2024-11-30",
-        message: "هذا الكود التعويضي صالح لمدة 14 يوم من تاريخ الإلغاء"
-      }
-    ];
-  }
-
-  // إعداد نافذة اختيار التاريخ
-  function setupDateModal() {
-    const dateOptions = document.getElementById('dateOptions');
-    dateOptions.innerHTML = '';
-    
-    const today = new Date();
-    const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
-    const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
-    
-    for (let i = 0; i < 7; i++) {
-      const date = new Date();
-      date.setDate(today.getDate() + i);
-      
-      const dateOption = document.createElement('div');
-      dateOption.className = i === 0 ? 'date-option selected' : 'date-option';
-      dateOption.dataset.date = date.toISOString().split('T')[0];
-      
-      dateOption.innerHTML = `
-        <div class="date-day">${date.getDate()}</div>
-        <div class="date-month">${months[date.getMonth()]}</div>
-        <div style="font-size: 0.8rem; margin-top: 5px;">${days[date.getDay()]}</div>
-      `;
-      
-      dateOption.addEventListener('click', function() {
-        document.querySelectorAll('.date-option').forEach(opt => opt.classList.remove('selected'));
-        this.classList.add('selected');
-        selectedDate = this.dataset.date;
-      });
-      
-      dateOptions.appendChild(dateOption);
-      
-      // تعيين التاريخ الأول كافتراضي
-      if (i === 0) {
-        selectedDate = dateOption.dataset.date;
-      }
-    }
-  }
-
-  // تحميل الأوقات المتاحة
-  async function loadAvailableSlots(pitchId, date, period) {
-    try {
-      const response = await fetch(`/api/pitches/${pitchId}/available-slots?date=${date}&period=${period}`);
+      const today = new Date().toISOString().split('T')[0];
+      const response = await fetch(`/api/pitches/${pitchId}/available-slots?date=${today}&period=all`);
       const data = await response.json();
-      return data;
+      
+      const pitch = pitches.find(p => p.id === pitchId);
+      if (pitch) {
+        pitch.availability = data.availableCount;
+        pitch.totalSlots = data.totalSlots;
+        pitch.availabilityPercentage = (data.availableCount / data.totalSlots) * 100;
+      }
     } catch (error) {
-      console.error('Error loading available slots:', error);
-      // استخدام بيانات افتراضية إذا فشل الاتصال
-      return generateAvailableSlots(period);
+      console.error('Error loading availability:', error);
     }
   }
 
-  // توليد الأوقات المتاحة بناءً على الفترة
-  function generateAvailableSlots(period) {
-    const availableSlots = [];
-    const bookedSlots = [];
-    
-    if (period === 'morning') {
-      // الفترة الصباحية: من 8 صباحاً إلى 4 عصراً
-      for (let hour = 8; hour <= 16; hour++) {
-        availableSlots.push(hour);
-      }
-      
-      // محاكاة بعض الأوقات المحجوزة عشوائياً
-      const randomBookedCount = Math.floor(Math.random() * 3);
-      for (let i = 0; i < randomBookedCount; i++) {
-        if (availableSlots.length > 0) {
-          const randomIndex = Math.floor(Math.random() * availableSlots.length);
-          const bookedSlot = availableSlots.splice(randomIndex, 1)[0];
-          bookedSlots.push(bookedSlot);
+  // 🆕 تحميل الحجوزات الحالية للمستخدم
+  async function loadCurrentBookings() {
+    try {
+      const response = await fetch('/api/user/bookings');
+      if (response.ok) {
+        const bookings = await response.json();
+        currentBookings = bookings.filter(b => 
+          b.status === 'confirmed' && 
+          new Date(b.date) > new Date()
+        );
+        
+        if (currentBookings.length > 0) {
+          showBookingTracker(currentBookings[0]);
         }
       }
+    } catch (error) {
+      console.error('Error loading bookings:', error);
+    }
+  }
+
+  // 🆕 عرض شريط متابعة الحجز
+  function showBookingTracker(booking) {
+    const tracker = document.getElementById('bookingTracker');
+    const progress = document.getElementById('trackerProgress');
+    
+    document.getElementById('trackerTitle').textContent = `متابعة حجز: ${booking.pitchName}`;
+    document.getElementById('trackerDetails').textContent = 
+      `الملعب: ${booking.pitchName} | التاريخ: ${booking.date} | الوقت: ${booking.time}`;
+    
+    // حساب التقدم
+    const now = new Date();
+    const bookingDate = new Date(booking.date);
+    const totalTime = bookingDate - new Date(booking.createdAt);
+    const elapsedTime = now - new Date(booking.createdAt);
+    const progressPercent = Math.min((elapsedTime / totalTime) * 100, 100);
+    
+    progress.style.width = `${progressPercent}%`;
+    
+    // تحديث الحالة
+    const timeLeft = bookingDate - now;
+    const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
+    
+    if (hoursLeft > 48) {
+      document.getElementById('trackerStatus').textContent = `متبقي ${hoursLeft} ساعة للحجز - المبلغ المتبقي: ${booking.remainingAmount} جنيه`;
+    } else if (hoursLeft > 0) {
+      document.getElementById('trackerStatus').textContent = `متبقي ${hoursLeft} ساعة للحجز - يرجى دفع المبلغ المتبقي`;
     } else {
-      // الفترة المسائية: من 5 مساءً إلى 2 فجراً
-      for (let hour = 17; hour <= 24; hour++) {
-        availableSlots.push(hour);
-      }
-      for (let hour = 1; hour <= 2; hour++) {
-        availableSlots.push(hour);
-      }
-      
-      // محاكاة بعض الأوقات المحجوزة عشوائياً
-      const randomBookedCount = Math.floor(Math.random() * 4);
-      for (let i = 0; i < randomBookedCount; i++) {
-        if (availableSlots.length > 0) {
-          const randomIndex = Math.floor(Math.random() * availableSlots.length);
-          const bookedSlot = availableSlots.splice(randomIndex, 1)[0];
-          bookedSlots.push(bookedSlot);
-        }
-      }
+      document.getElementById('trackerStatus').textContent = 'تم انتهاء وقت الحجز';
     }
     
-    return { availableSlots, bookedSlots };
+    tracker.style.display = 'block';
   }
 
-  // تحويل الساعة إلى نص عربي
-  function formatTime(hour) {
-    if (hour === 0) return '12 منتصف الليل';
-    if (hour < 12) return `${hour} صباحاً`;
-    if (hour === 12) return '12 ظهراً';
-    if (hour <= 16) return `${hour - 12} عصراً`;
-    if (hour <= 23) return `${hour - 12} مساءً`;
-    return `${hour - 12} منتصف الليل`;
-  }
-
-  // تحديث واجهة الأوقات المتاحة
-  async function updatePitchCard(pitchId, date, period) {
-    const slotsData = await loadAvailableSlots(pitchId, date, period);
-    const card = document.querySelector(`[data-pitch-id="${pitchId}"]`);
+  // 🆕 نظام الحجز المطور
+  async function bookPitch(pitchId) {
+    const pitch = pitches.find(p => p.id === pitchId);
     
-    if (card) {
-      const timeSlotsContainer = card.querySelector('.time-slots');
-      if (timeSlotsContainer) {
-        timeSlotsContainer.innerHTML = '';
+    // التحقق من اختيار التاريخ والوقت
+    const dateInput = document.querySelector(`[data-pitch-id="${pitchId}"] .pitch-date`);
+    const selectedTime = document.querySelector(`[data-pitch-id="${pitchId}"] .time-slot.selected`);
+    
+    if (!dateInput || !dateInput.value) {
+      alert('يرجى اختيار تاريخ الحجز أولاً');
+      return;
+    }
+
+    if (!selectedTime) {
+      alert('يرجى اختيار وقت الحجز أولاً');
+      return;
+    }
+
+    // تعبئة بيانات الحجز
+    document.getElementById('pitchId').value = pitchId;
+    document.getElementById('selectedTime').value = selectedTime.dataset.hour;
+    document.getElementById('selectedDate').value = dateInput.value;
+    
+    // تحديث تفاصيل الحجز في المودال
+    document.getElementById('bookingDetails').innerHTML = `
+      <div class="alert alert-success">
+        <h6>تفاصيل الحجز:</h6>
+        <p class="mb-1"><strong>الملعب:</strong> ${pitch.name}</p>
+        <p class="mb-1"><strong>الموقع:</strong> ${pitch.location}</p>
+        <p class="mb-1"><strong>التاريخ:</strong> ${dateInput.value}</p>
+        <p class="mb-1"><strong>الوقت:</strong> ${formatTime(parseInt(selectedTime.dataset.hour))}</p>
+        <p class="mb-1"><strong>السعر الكامل:</strong> ${pitch.price} جنيه</p>
+        <p class="mb-1"><strong>العربون المطلوب:</strong> ${pitch.deposit} جنيه</p>
+        <p class="mb-0"><strong>المبلغ المتبقي:</strong> ${pitch.price - pitch.deposit} جنيه</p>
+      </div>
+    `;
+
+    // حفظ بيانات الحجز مؤقتاً
+    const pendingBooking = {
+      pitchId: pitchId,
+      pitchName: pitch.name,
+      date: dateInput.value,
+      time: selectedTime.dataset.hour,
+      amount: pitch.price,
+      deposit: pitch.deposit
+    };
+    sessionStorage.setItem('pendingBooking', JSON.stringify(pendingBooking));
+
+    // عرض مودال الحجز
+    const bookingModal = new bootstrap.Modal(document.getElementById('bookingModal'));
+    bookingModal.show();
+  }
+
+  // 🆕 نظام إلغاء الحجز مع التأكيد المتعدد
+  function cancelCurrentBooking() {
+    if (currentBookings.length === 0) return;
+    
+    currentCancellationBooking = currentBookings[0];
+    const bookingDate = new Date(currentCancellationBooking.date);
+    const now = new Date();
+    const hoursDiff = (bookingDate - now) / (1000 * 60 * 60);
+    
+    // تحديد سياسة الإلغاء
+    let policyText = '';
+    if (hoursDiff > 48) {
+      policyText = 'سيتم استرداد كامل المبلغ المدفوع + كود تعويض صالح لمدة 14 يوم.';
+    } else if (hoursDiff > 24) {
+      policyText = 'سيتم إصدار كود تعويض صالح لمدة 14 يوم (بدون استرداد نقدي).';
+    } else {
+      policyText = 'لا يمكن استرداد المبلغ أو إصدار كود تعويض للإلغاء في وقت متأخر.';
+    }
+    
+    document.getElementById('cancellationPolicy').textContent = policyText;
+    document.getElementById('finalCancellationInfo').textContent = policyText;
+    
+    // إعادة تعيين الخطوات
+    cancellationStep = 1;
+    resetCancellationSteps();
+    
+    const cancelModal = new bootstrap.Modal(document.getElementById('cancelBookingModal'));
+    cancelModal.show();
+  }
+
+  function nextCancellationStep() {
+    const currentStep = document.getElementById(`step${cancellationStep}`);
+    const nextStep = document.getElementById(`step${cancellationStep + 1}`);
+    
+    // التحقق من صحة الخطوة الحالية
+    if (cancellationStep === 1 && !document.getElementById('confirmCancellation').checked) {
+      alert('يرجى تأكيد رغبتك في الإلغاء');
+      return;
+    }
+    
+    if (cancellationStep === 2 && !document.getElementById('cancellationReason').value) {
+      alert('يرجى اختيار سبب الإلغاء');
+      return;
+    }
+    
+    if (currentStep && nextStep) {
+      currentStep.classList.remove('active');
+      currentStep.style.display = 'none';
+      nextStep.classList.add('active');
+      nextStep.style.display = 'block';
+      cancellationStep++;
+    }
+    
+    // تحديث الأزرار
+    if (cancellationStep === 3) {
+      document.getElementById('nextCancellationStep').style.display = 'none';
+      document.getElementById('confirmCancellationBtn').style.display = 'block';
+    }
+  }
+
+  function resetCancellationSteps() {
+    for (let i = 1; i <= 3; i++) {
+      const step = document.getElementById(`step${i}`);
+      step.classList.remove('active');
+      step.style.display = i === 1 ? 'block' : 'none';
+      if (i === 1) step.classList.add('active');
+    }
+    
+    document.getElementById('nextCancellationStep').style.display = 'block';
+    document.getElementById('confirmCancellationBtn').style.display = 'none';
+    
+    // إعادة تعيين المدخلات
+    document.getElementById('confirmCancellation').checked = false;
+    document.getElementById('cancellationReason').value = '';
+    document.getElementById('otherReason').style.display = 'none';
+    document.getElementById('finalConfirm').checked = false;
+  }
+
+  async function confirmCancellation() {
+    if (!document.getElementById('finalConfirm').checked) {
+      alert('يرجى الموافقة على سياسة الإلغاء');
+      return;
+    }
+
+    const reason = document.getElementById('cancellationReason').value === 'آخر' ? 
+                  document.getElementById('otherReason').value : 
+                  document.getElementById('cancellationReason').value;
+
+    try {
+      const response = await fetch(`/api/bookings/${currentCancellationBooking.id}/cancel`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': document.getElementById('csrfToken').value
+        },
+        body: JSON.stringify({
+          cancellationReason: reason
+        })
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alert('✅ ' + result.message);
         
-        // إضافة الأوقات المتاحة
-        slotsData.availableSlots.forEach(hour => {
-          const slotElement = document.createElement('div');
-          slotElement.className = 'time-slot';
-          slotElement.textContent = formatTime(hour);
-          slotElement.dataset.hour = hour;
-          slotElement.onclick = () => selectTimeSlot(slotElement, pitchId, hour);
-          timeSlotsContainer.appendChild(slotElement);
-        });
+        // إخفاء شريط المتابعة
+        document.getElementById('bookingTracker').style.display = 'none';
         
-        // إضافة الأوقات المحجوزة
-        slotsData.bookedSlots.forEach(hour => {
-          const slotElement = document.createElement('div');
-          slotElement.className = 'time-slot booked';
-          slotElement.textContent = formatTime(hour);
-          slotElement.title = 'محجوز';
-          timeSlotsContainer.appendChild(slotElement);
-        });
+        // إغلاق المودال
+        bootstrap.Modal.getInstance(document.getElementById('cancelBookingModal')).hide();
+        
+        // إعادة تحميل البيانات
+        loadCurrentBookings();
+      } else {
+        alert('❌ ' + result.message);
       }
+    } catch (error) {
+      console.error('Cancellation error:', error);
+      alert('❌ حدث خطأ أثناء إلغاء الحجز');
     }
   }
 
-  // تحديث جميع البطاقات
-  async function updateAllPitchCards(date, period) {
-    if (!date) return;
-    
-    for (const pitch of pitches) {
-      await updatePitchCard(pitch.id, date, period);
-    }
-  }
-
-  // تحميل وعرض الملاعب
+  // 🆕 تحميل وعرض الملاعب المطورة
   function loadPitches(pitchesData) {
     const container = document.getElementById('pitchesContainer');
     container.innerHTML = '';
@@ -1287,11 +1330,24 @@
       col.className = 'col-lg-4 col-md-6 fade-in';
       col.setAttribute('data-pitch-id', pitch.id);
       
+      // تحديد لون شارة التوفر
+      let availabilityClass = 'availability-high';
+      if (pitch.availabilityPercentage < 30) {
+        availabilityClass = 'availability-low';
+      } else if (pitch.availabilityPercentage < 60) {
+        availabilityClass = 'availability-medium';
+      }
+      
       col.innerHTML = `
         <div class="pitch-card">
           <div class="pitch-image" style="background-image: url('${pitch.image}')">
-            <span class="pitch-badge">${getAreaText(pitch.area)}</span>
+            <span class="pitch-badge ${availabilityClass}">
+              ${pitch.availability || 0}/${pitch.totalSlots || 10} متاح
+            </span>
             <span class="pitch-price">${pitch.price} ج.م/ساعة</span>
+            <span class="pitch-deposit">
+              العربون: ${pitch.deposit} ج.م
+            </span>
           </div>
           <div class="pitch-info">
             <h4 class="pitch-title">${pitch.name}</h4>
@@ -1305,6 +1361,14 @@
                 </span>
               `).join('')}
             </div>
+            
+            <!-- 🆕 اختيار التاريخ -->
+            <div class="date-selector">
+              <label class="form-label">اختر تاريخ الحجز:</label>
+              <input type="date" class="form-control pitch-date" min="${new Date().toISOString().split('T')[0]}" 
+                     onchange="loadPitchSlots(${pitch.id}, this.value)">
+            </div>
+            
             <div class="d-flex justify-content-between align-items-center mb-3">
               <div>
                 <div class="rating-stars">
@@ -1323,11 +1387,14 @@
                 </button>
               </div>
             </div>
-            <div class="time-slots">
-              <!-- سيتم تعبئة الأوقات المتاحة هنا -->
+            
+            <!-- 🆕 الأوقات المتاحة -->
+            <div class="time-slots-container" id="slots-${pitch.id}">
+              <p class="text-muted text-center">اختر تاريخاً لعرض الأوقات المتاحة</p>
             </div>
+            
             <button class="btn btn-primary w-100 mt-3" onclick="bookPitch(${pitch.id})">
-              <i class="bi bi-calendar-check me-2"></i>احجز الآن
+              <i class="bi bi-credit-card me-2"></i>احجز وادفع العربون
             </button>
           </div>
         </div>
@@ -1335,11 +1402,118 @@
       
       container.appendChild(col);
     });
-    
-    // تحديث الأوقات المتاحة للتاريخ والفترة المحددين
-    if (selectedDate) {
-      setTimeout(() => updateAllPitchCards(selectedDate, selectedPeriod), 500);
+  }
+
+  // 🆕 تحميل الأوقات المتاحة للملعب
+  async function loadPitchSlots(pitchId, date) {
+    try {
+      const response = await fetch(`/api/pitches/${pitchId}/available-slots?date=${date}&period=all`);
+      const data = await response.json();
+      
+      const slotsContainer = document.getElementById(`slots-${pitchId}`);
+      slotsContainer.innerHTML = '';
+      
+      if (data.availableSlots.length === 0) {
+        slotsContainer.innerHTML = '<p class="text-danger text-center">لا توجد أوقات متاحة في هذا التاريخ</p>';
+        return;
+      }
+      
+      data.availableSlots.forEach(hour => {
+        const slotElement = document.createElement('div');
+        slotElement.className = 'time-slot available';
+        slotElement.textContent = formatTime(hour);
+        slotElement.dataset.hour = hour;
+        slotElement.onclick = () => selectTimeSlot(slotElement, pitchId, hour);
+        slotsContainer.appendChild(slotElement);
+      });
+      
+    } catch (error) {
+      console.error('Error loading slots:', error);
+      const slotsContainer = document.getElementById(`slots-${pitchId}`);
+      slotsContainer.innerHTML = '<p class="text-danger text-center">حدث خطأ في تحميل الأوقات</p>';
     }
+  }
+
+  // 🆕 فلترة الملاعب
+  function filterPitches() {
+    const area = document.getElementById('areaFilter').value;
+    const sort = document.getElementById('sortFilter').value;
+    const type = document.getElementById('typeFilter').value;
+
+    let filteredPitches = [...pitches];
+
+    // التصفية حسب المنطقة
+    if (area) {
+      filteredPitches = filteredPitches.filter(pitch => pitch.area === area);
+    }
+
+    // التصفية حسب النوع
+    if (type) {
+      filteredPitches = filteredPitches.filter(pitch => pitch.type === type);
+    }
+
+    // الترتيب
+    if (sort === 'price_low') {
+      filteredPitches.sort((a, b) => a.price - b.price);
+    } else if (sort === 'price_high') {
+      filteredPitches.sort((a, b) => b.price - a.price);
+    } else if (sort === 'rating') {
+      filteredPitches.sort((a, b) => b.rating - a.rating);
+    } else if (sort === 'availability') {
+      filteredPitches.sort((a, b) => (b.availabilityPercentage || 0) - (a.availabilityPercentage || 0));
+    }
+
+    loadPitches(filteredPitches);
+  }
+
+  // ========= الدوال المساعدة =========
+
+  // بيانات افتراضية للملاعب
+  function getDefaultPitches() {
+    return [
+      {
+        id: 1,
+        name: "نادي الطيارة - الملعب الرئيسي",
+        location: "المقطم - شارع التسعين",
+        area: "mokatam",
+        type: "artificial",
+        image: "/images/tyara-1.jpg",
+        price: 250,
+        deposit: 75,
+        features: ["نجيلة صناعية", "كشافات ليلية", "غرف تبديل"],
+        rating: 4.7,
+        totalRatings: 128,
+        googleMaps: "https://maps.app.goo.gl/v6tj8pxhG5FHfoSj9"
+      },
+      {
+        id: 2,
+        name: "نادي الطيارة - الملعب الثاني",
+        location: "المقطم - شارع التسعين",
+        area: "mokatam",
+        type: "artificial",
+        image: "/images/tyara-2.jpg",
+        price: 220,
+        deposit: 66,
+        features: ["نجيلة صناعية", "إضاءة ليلية", "غرف تبديل"],
+        rating: 4.5,
+        totalRatings: 95,
+        googleMaps: "https://maps.app.goo.gl/v6tj8pxhG5FHfoSj9"
+      },
+      {
+        id: 3,
+        name: "الراعي الصالح",
+        location: "المقطم - شارع 9",
+        area: "mokatam",
+        type: "natural",
+        image: "/images/raei.jpg",
+        price: 300,
+        deposit: 90,
+        features: ["نجيلة طبيعية", "مقاعد جماهير", "كافيتريا"],
+        rating: 4.8,
+        totalRatings: 156,
+        googleMaps: "https://maps.app.goo.gl/hUUReW3ZDQM9wwEj7"
+      }
+    ];
   }
 
   // توليد نجوم التقييم
@@ -1361,14 +1535,14 @@
     return stars;
   }
 
-  // وظائف المساعدة
-  function getAreaText(area) {
-    const areas = {
-      'mokatam': 'المقطم',
-      'hedaba': 'الهضبة الوسطي',
-      '70feddan': 'السبعين فدان'
-    };
-    return areas[area] || area;
+  // تحويل الساعة إلى نص عربي
+  function formatTime(hour) {
+    if (hour === 0) return '12 منتصف الليل';
+    if (hour < 12) return `${hour} صباحاً`;
+    if (hour === 12) return '12 ظهراً';
+    if (hour <= 16) return `${hour - 12} عصراً`;
+    if (hour <= 23) return `${hour - 12} مساءً`;
+    return `${hour - 12} منتصف الليل`;
   }
 
   function selectTimeSlot(element, pitchId, hour) {
@@ -1384,7 +1558,55 @@
     selectedTime = hour;
   }
 
-  // فتح نافذة تقييم الملعب
+  function viewBookingDetails() {
+    if (currentBookings.length > 0) {
+      alert(`تفاصيل الحجز:\nالملعب: ${currentBookings[0].pitchName}\nالتاريخ: ${currentBookings[0].date}\nالوقت: ${currentBookings[0].time}\nالمبلغ المتبقي: ${currentBookings[0].remainingAmount} جنيه`);
+    }
+  }
+
+  // التهيئة
+  document.addEventListener('DOMContentLoaded', function() {
+    // إعداد الفلاتر
+    document.getElementById('areaFilter').addEventListener('change', filterPitches);
+    document.getElementById('sortFilter').addEventListener('change', filterPitches);
+    document.getElementById('typeFilter').addEventListener('change', filterPitches);
+    
+    // إعداد سبب الإلغاء
+    document.getElementById('cancellationReason').addEventListener('change', function() {
+      const otherReason = document.getElementById('otherReason');
+      otherReason.style.display = this.value === 'آخر' ? 'block' : 'none';
+    });
+
+    // جلب رمز CSRF
+    fetch('/csrf-token')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.csrfToken) {
+          document.getElementById('csrfToken').value = d.csrfToken;
+          document.getElementById('ratingCsrfToken').value = d.csrfToken;
+        }
+      });
+
+    window.addEventListener('scroll', function() {
+      if (window.scrollY > 100) {
+        document.querySelector('.navbar').classList.add('scrolled');
+      } else {
+        document.querySelector('.navbar').classList.remove('scrolled');
+      }
+    });
+
+    // تحميل البيانات
+    loadPitchesData();
+
+    // إخفاء شاشة التحميل
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        document.getElementById('loadingOverlay').classList.add('fade-out');
+      }, 1000);
+    });
+  });
+
+  // باقي الدوال (ratePitch, إلخ) تبقى كما هي مع التعديلات اللازمة
   function ratePitch(pitchId) {
     const pitch = pitches.find(p => p.id === pitchId);
     
@@ -1430,135 +1652,6 @@
     ratingModal.show();
   }
 
-  async function bookPitch(pitchId) {
-    const pitch = pitches.find(p => p.id === pitchId);
-    
-    if (!selectedTime) {
-      alert('يرجى اختيار وقت الحجز أولاً');
-      return;
-    }
-
-    if (!selectedDate) {
-      alert('يرجى اختيار تاريخ الحجز');
-      return;
-    }
-
-    // تعبئة بيانات الحجز في المودال
-    document.getElementById('pitchId').value = pitchId;
-    document.getElementById('selectedTime').value = selectedTime;
-    document.getElementById('selectedDate').value = selectedDate;
-    
-    document.getElementById('bookingDetails').innerHTML = `
-      <div class="alert alert-success">
-        <h6>تفاصيل الحجز:</h6>
-        <p class="mb-1"><strong>الملعب:</strong> ${pitch.name}</p>
-        <p class="mb-1"><strong>الموقع:</strong> ${pitch.location}</p>
-        <p class="mb-1"><strong>التاريخ:</strong> ${formatDate(selectedDate)}</p>
-        <p class="mb-1"><strong>الوقت:</strong> ${formatTime(selectedTime)}</p>
-        <p class="mb-0"><strong>السعر:</strong> ${pitch.price} جنيه</p>
-      </div>
-    `;
-
-    // تعبئة بيانات المستخدم إذا كان مسجل دخول
-    try {
-      const userResponse = await fetch('/api/current-user');
-      const userData = await userResponse.json();
-      if (userData && userData.username) {
-        document.getElementById('customerName').value = userData.username;
-        if (userData.phone) {
-          document.getElementById('customerPhone').value = userData.phone;
-        }
-        if (userData.email) {
-          document.getElementById('customerEmail').value = userData.email;
-        }
-      }
-    } catch (error) {
-      console.log('User not logged in or error fetching user data');
-    }
-
-    // عرض المودال
-    const bookingModal = new bootstrap.Modal(document.getElementById('bookingModal'));
-    bookingModal.show();
-  }
-
-  function formatDate(dateString) {
-    const date = new Date(dateString);
-    const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    return date.toLocaleDateString('ar-EG', options);
-  }
-
-  function filterPitches() {
-    const area = document.getElementById('areaFilter').value;
-    const sort = document.getElementById('sortFilter').value;
-
-    let filteredPitches = [...pitches];
-
-    // التصفية حسب المنطقة
-    if (area) {
-      filteredPitches = filteredPitches.filter(pitch => pitch.area === area);
-    }
-
-    // الترتيب
-    if (sort === 'price_low') {
-      filteredPitches.sort((a, b) => a.price - b.price);
-    } else if (sort === 'price_high') {
-      filteredPitches.sort((a, b) => b.price - a.price);
-    } else if (sort === 'rating') {
-      filteredPitches.sort((a, b) => b.rating - a.rating);
-    }
-
-    loadPitches(filteredPitches);
-  }
-
-  // التهيئة
-  document.addEventListener('DOMContentLoaded', function() {
-    window.addEventListener('load', () => {
-      setTimeout(() => {
-        document.getElementById('loadingOverlay').classList.add('fade-out');
-      }, 1000);
-    });
-
-    fetch('/csrf-token')
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        if (d?.csrfToken) {
-          document.getElementById('csrfToken').value = d.csrfToken;
-          document.getElementById('ratingCsrfToken').value = d.csrfToken;
-        }
-      })
-      .catch(() => {});
-
-    window.addEventListener('scroll', function() {
-      if (window.scrollY > 100) {
-        document.querySelector('.navbar').classList.add('scrolled');
-      } else {
-        document.querySelector('.navbar').classList.remove('scrolled');
-      }
-    });
-
-    // إعداد أحداث الفترات
-    document.querySelectorAll('.period-btn').forEach(btn => {
-      btn.addEventListener('click', function() {
-        document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('selected'));
-        this.classList.add('selected');
-        selectedPeriod = this.dataset.period;
-        if (selectedDate) {
-          updateAllPitchCards(selectedDate, selectedPeriod);
-        }
-      });
-    });
-
-    // تحديث الأوقات عند إغلاق نافذة التاريخ
-    document.getElementById('dateModal').addEventListener('hidden.bs.modal', function() {
-      if (selectedDate) {
-        updateAllPitchCards(selectedDate, selectedPeriod);
-      }
-    });
-
-    // تحميل بيانات الملاعب
-    loadPitchesData();
-  });
-
   // إرسال نموذج الحجز
   document.getElementById('bookingForm').addEventListener('submit', async function(e) {
     e.preventDefault();
@@ -1595,9 +1688,8 @@
         
         // تحديث الواجهة وإعادة التوجيه
         setTimeout(() => {
-          updatePitchCard(data.pitchId, data.selectedDate, selectedPeriod);
           bootstrap.Modal.getInstance(document.getElementById('bookingModal')).hide();
-          window.location.href = '/payment.html';
+          window.location.href = '/payment';
         }, 2000);
       } else {
         document.getElementById('bookingStatus').innerHTML = `
