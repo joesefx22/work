@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ملفي الشخصي - احجزلي</title>
+  
+  <!-- Bootstrap + Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --primary-color: #1a7f46;
+      --secondary-color: #2ecc71;
+      --accent-color: #f39c12;
+      --dark-color: #2c3e50;
+      --light-color: #ecf0f1;
+    }
+    
+    body {
+      font-family: 'Cairo', sans-serif;
+      background: #f8f9fa;
+    }
+    
+    .profile-card {
+      max-width: 800px;
+      margin: 2rem auto;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    
+    .profile-header {
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      padding: 3rem 2rem;
+      color: white;
+      text-align: center;
+      position: relative;
+    }
+    
+    .avatar-container {
+      position: relative;
+      display: inline-block;
+    }
+    
+    .avatar {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      border: 4px solid white;
+      background: #ddd;
+      object-fit: cover;
+    }
+    
+    .avatar-edit {
+      position: absolute;
+      bottom: 5px;
+      left: 5px;
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 35px;
+      height: 35px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin: 2rem 0;
+    }
+    
+    .stat-card {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      border: 1px solid #e9ecef;
+    }
+    
+    .stat-number {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--primary-color);
+      margin-bottom: 0.5rem;
+    }
+    
+    .stat-label {
+      color: #666;
+      font-size: 0.9rem;
+    }
+    
+    .edit-form {
+      padding: 2rem;
+    }
+    
+    .form-section {
+      background: #f8f9fa;
+      padding: 1.5rem;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+    }
+    
+    .nav-links {
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      padding: 1rem 0;
+    }
+    
+    .nav-links a {
+      color: white;
+      text-decoration: none;
+      margin: 0 15px;
+      font-weight: 600;
+    }
+
+    .compensation-code {
+      background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+      color: white;
+      padding: 1rem;
+      border-radius: 10px;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+    
+    .code-value {
+      font-size: 1.5rem;
+      font-weight: bold;
+      letter-spacing: 2px;
+      margin: 0.5rem 0;
+    }
+    
+    .countdown {
+      font-size: 0.9rem;
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="nav-links">
+    <div class="container">
+      <div class="d-flex justify-content-between align-items-center">
+        <a class="navbar-brand text-white fw-bold" href="/index.html">
+          <i class="bi bi-soccer-ball me-2"></i> احجزلي
+        </a>
+        <div>
+          <a href="/index.html">
+            <i class="bi bi-house me-1"></i> الرئيسية
+          </a>
+          <a href="/profile.html">
+            <i class="bi bi-person me-1"></i> ملفي الشخصي
+          </a>
+          <a href="#" onclick="logout()">
+            <i class="bi bi-box-arrow-left me-1"></i> تسجيل الخروج
+          </a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container my-4">
+    <div class="profile-card">
+      <!-- رأس الملف الشخصي -->
+      <div class="profile-header">
+        <div class="avatar-container">
+          <img id="avatarImage" src="/images/default-avatar.png" alt="الصورة الشخصية" class="avatar">
+          <button class="avatar-edit" onclick="document.getElementById('avatarInput').click()">
+            <i class="bi bi-camera"></i>
+          </button>
+        </div>
+        <h2 id="profileName" class="mt-3 mb-1">الاسم المستعار</h2>
+        <p id="profileAge" class="text-light mb-0">العمر: --</p>
+        <p id="memberSince" class="text-light">عضو منذ: --</p>
+      </div>
+
+      <!-- شبكة الإحصائيات -->
+      <div class="stats-grid container">
+        <div class="stat-card">
+          <div class="stat-number" id="totalBookings">0</div>
+          <div class="stat-label">إجمالي الحجوزات</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="successfulBookings">0</div>
+          <div class="stat-label">حجوزات ناجحة</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="cancelledBookings">0</div>
+          <div class="stat-label">حجوزات ملغاة</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="totalSpent">0</div>
+          <div class="stat-label">إجمالي المصروفات (ج.م)</div>
+        </div>
+      </div>
+
+      <!-- 🆕 قسم أكواد التعويض -->
+      <div class="form-section container">
+        <h5 class="mb-3"><i class="bi bi-ticket-perforated me-2"></i>أكواد التعويض</h5>
+        <div id="compensationCodes">
+          <div class="text-center py-4">
+            <i class="bi bi-ticket-perforated display-4 text-muted"></i>
+            <p class="text-muted mt-2">لا توجد أكواد تعويض نشطة</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- نموذج التعديل -->
+      <div class="edit-form">
+        <h4 class="mb-4"><i class="bi bi-pencil-square me-2"></i>تعديل الملف الشخصي</h4>
+        
+        <form id="profileForm" enctype="multipart/form-data">
+          <input type="hidden" name="_csrf" id="csrfToken">
+          <input type="file" id="avatarInput" name="avatar" accept="image/*" style="display: none;" onchange="previewAvatar(this)">
+          
+          <div class="form-section">
+            <h5 class="mb-3">المعلومات الأساسية</h5>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label">الاسم المستعار</label>
+                <input type="text" class="form-control" id="nickname" name="nickname" placeholder="اختر اسمًا مستعارًا">
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">العمر</label>
+                <input type="number" class="form-control" id="age" name="age" min="10" max="100" placeholder="أدخل عمرك">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h5 class="mb-3">نبذة عني</h5>
+            <div class="mb-3">
+              <label class="form-label">وصف قصير</label>
+              <textarea class="form-control" id="bio" name="bio" rows="4" placeholder="اكتب نبذة مختصرة عن نفسك..."></textarea>
+              <div class="form-text">يمكنك كتابة معلومات عن هواياتك أو فريقك المفضل</div>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-lg w-100">
+            <i class="bi bi-check-circle me-2"></i>حفظ التغييرات
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // جلب رمز CSRF
+    fetch('/csrf-token')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.csrfToken) {
+          document.getElementById('csrfToken').value = d.csrfToken;
+        }
+      });
+
+    // جلب بيانات الملف الشخصي
+    async function loadProfile() {
+      try {
+        const response = await fetch('/api/user/profile');
+        if (!response.ok) throw new Error('Failed to load profile');
+        
+        const data = await response.json();
+        displayProfile(data);
+        loadCompensationCodes();
+      } catch (error) {
+        console.error('Error loading profile:', error);
+        alert('حدث خطأ في تحميل الملف الشخصي');
+      }
+    }
+
+    // عرض بيانات الملف الشخصي
+    function displayProfile(data) {
+      const { profile, stats } = data;
+      
+      // المعلومات الشخصية
+      document.getElementById('profileName').textContent = profile.nickname;
+      document.getElementById('profileAge').textContent = profile.age ? `العمر: ${profile.age}` : 'العمر: غير محدد';
+      document.getElementById('memberSince').textContent = `عضو منذ: ${new Date(profile.joinDate).toLocaleDateString('ar-EG')}`;
+      
+      if (profile.avatar) {
+        document.getElementById('avatarImage').src = profile.avatar;
+      }
+      
+      // نموذج التعديل
+      document.getElementById('nickname').value = profile.nickname;
+      if (profile.age) document.getElementById('age').value = profile.age;
+      document.getElementById('bio').value = profile.bio || '';
+      
+      // الإحصائيات
+      document.getElementById('totalBookings').textContent = stats.totalBookings;
+      document.getElementById('successfulBookings').textContent = stats.successfulBookings;
+      document.getElementById('cancelledBookings').textContent = stats.cancelledBookings;
+      document.getElementById('totalSpent').textContent = stats.totalSpent;
+    }
+
+    // 🆕 تحميل أكواد التعويض
+    async function loadCompensationCodes() {
+      try {
+        const response = await fetch('/api/user/compensation-codes');
+        if (response.ok) {
+          const codes = await response.json();
+          displayCompensationCodes(codes);
+        }
+      } catch (error) {
+        console.error('Error loading compensation codes:', error);
+      }
+    }
+
+    // 🆕 عرض أكواد التعويض
+    function displayCompensationCodes(codes) {
+      const container = document.getElementById('compensationCodes');
+      
+      if (codes.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-4">
+            <i class="bi bi-ticket-perforated display-4 text-muted"></i>
+            <p class="text-muted mt-2">لا توجد أكواد تعويض نشطة</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = codes.map(code => `
+        <div class="compensation-code">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="mb-1">كود التعويض</h6>
+              <div class="code-value">${code.code}</div>
+              <p class="mb-1">قيمة الكود: ${code.value} جنيه</p>
+              <p class="mb-1">صالح حتى: ${new Date(code.expiresAt).toLocaleDateString('ar-EG')}</p>
+              <p class="mb-0"><small>${code.message}</small></p>
+            </div>
+            <div class="text-left">
+              <span class="badge bg-light text-dark">نشط</span>
+              <div class="countdown mt-2" id="countdown-${code.id}"></div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      // بدء العد التنازلي للأكواد
+      codes.forEach(code => {
+        startCountdown(code.id, code.expiresAt);
+      });
+    }
+
+    // 🆕 العد التنازلي لصلاحية الأكواد
+    function startCountdown(codeId, expiresAt) {
+      const countdownElement = document.getElementById(`countdown-${codeId}`);
+      const expiryDate = new Date(expiresAt);
+      
+      function updateCountdown() {
+        const now = new Date();
+        const timeLeft = expiryDate - now;
+        
+        if (timeLeft <= 0) {
+          countdownElement.textContent = 'منتهي الصلاحية';
+          countdownElement.className = 'countdown text-danger';
+          return;
+        }
+        
+        const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        
+        countdownElement.textContent = `متبقي: ${days} يوم و ${hours} ساعة`;
+        countdownElement.className = days < 3 ? 'countdown text-warning' : 'countdown text-light';
+      }
+      
+      updateCountdown();
+      setInterval(updateCountdown, 60000);
+    }
+
+    // معاينة الصورة الشخصية
+    function previewAvatar(input) {
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          document.getElementById('avatarImage').src = e.target.result;
+        };
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+
+    // إرسال النموذج
+    document.getElementById('profileForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const formData = new FormData(e.target);
+      
+      try {
+        const response = await fetch('/api/user/profile', {
+          method: 'PUT',
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          alert('✅ ' + data.message);
+          loadProfile();
+        } else {
+          alert('❌ ' + data.message);
+        }
+      } catch (error) {
+        console.error('Error updating profile:', error);
+        alert('❌ حدث خطأ أثناء تحديث الملف الشخصي');
+      }
+    });
+
+    // تسجيل الخروج
+    function logout() {
+      fetch('/logout', { method: 'POST' })
+        .then(() => {
+          window.location.href = '/login.html';
+        })
+        .catch(() => {
+          window.location.href = '/login.html';
+        });
+    }
+
+    // تحميل البيانات عند فتح الصفحة
+    document.addEventListener('DOMContentLoaded', function() {
+      fetch('/api/current-user')
+        .then(r => {
+          if (!r.ok) throw new Error('Not logged in');
+          return r.json();
+        })
+        .then(user => {
+          if (user) {
+            loadProfile();
+          } else {
+            window.location.href = '/login.html';
+          }
+        })
+        .catch(() => {
+          window.location.href = '/login.html';
+        });
+    });
+  </script>
+</body>
+</html>
