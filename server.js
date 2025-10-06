@@ -207,13 +207,23 @@ const pitchesData = [
 ];
 
 const app     = express();
-const PORT    = 3000;
+const PORT    = process.env.PORT || 3000;
 const APP_URL = process.env.APP_URL || `http://localhost:${PORT}`;
+const isProduction = process.env.NODE_ENV === 'production';
 
 /* ========= Middlewares ========= */
 app.use(helmet({
-  contentSecurityPolicy: false // تعطيل مؤقت للتطوير
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"]
+    }
+  }
 }));
+
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: true }));
@@ -226,9 +236,10 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: { 
-    secure: false, // تغيير لـ true في production
+    secure: isProduction,
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000
+    maxAge: 24 * 60 * 60 * 1000,
+    sameSite: 'lax'
   }
 }));
 app.use(passport.initialize());
@@ -255,7 +266,7 @@ const paymentLimiter = rateLimit({
 const csrfProtection = csrf({ 
   cookie: {
     httpOnly: true,
-    secure: false // تغيير لـ true في production
+    secure: isProduction
   }
 });
 
@@ -266,7 +277,6 @@ const paymentsFile = path.join(__dirname, 'data', 'payments.json');
 const discountCodesFile = path.join(__dirname, 'data', 'discount-codes.json');
 const ratingsFile = path.join(__dirname, 'data', 'ratings.json');
 const userProfilesFile = path.join(__dirname, 'data', 'user-profiles.json');
-// 🆕 إضافة ملف المديرين
 const managersFile = path.join(__dirname, 'data', 'managers.json');
 
 // تأكد من وجود مجلد data
@@ -307,7 +317,7 @@ ensureFileExists(paymentsFile);
 ensureFileExists(discountCodesFile);
 ensureFileExists(ratingsFile);
 ensureFileExists(userProfilesFile);
-ensureFileExists(managersFile); // 🆕
+ensureFileExists(managersFile);
 
 // إنشاء مجلد uploads
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -315,30 +325,55 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-/* ========= Nodemailer - بديل إذا لم توجد بيانات البريد ========= */
+/* ========= Nodemailer - الإصلاح الرئيسي ========= */
 let transporter;
+
+// 🔧 الإصلاح: استخدام createTransport بدلاً من createTransporter
 if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-  transporter = nodemailer.createTransporter({
+  transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: { 
       user: process.env.EMAIL_USER, 
       pass: process.env.EMAIL_PASS 
     }
   });
+  
+  // التحقق من اتصال البريد
+  transporter.verify(function(error, success) {
+    if (error) {
+      console.log('❌ Email connection error:', error);
+    } else {
+      console.log('✅ Email server is ready to take our messages');
+    }
+  });
 } else {
-  console.log('⚠️  running without email service - set EMAIL_USER and EMAIL_PASS for full functionality');
+  console.log('⚠️  Running without email service - set EMAIL_USER and EMAIL_PASS for full functionality');
   // إنشاء transporter وهمي
   transporter = {
-    sendMail: (options, callback) => {
-      console.log('📧 Mock Email:', options);
-      if (callback) callback(null, { messageId: 'mock' });
-      return Promise.resolve({ messageId: 'mock' });
+    sendMail: (options) => {
+      console.log('📧 Mock Email:', {
+        to: options.to,
+        subject: options.subject
+      });
+      return Promise.resolve({ messageId: 'mock', response: 'Email would be sent in production' });
     },
     verify: (callback) => {
       if (callback) callback(null, true);
       return Promise.resolve(true);
     }
   };
+}
+
+// 🔧 دالة مساعدة لإرسال البريد بشكل آمن
+async function sendEmailSafe(options) {
+  try {
+    const result = await transporter.sendMail(options);
+    console.log('✅ Email sent successfully to:', options.to);
+    return result;
+  } catch (error) {
+    console.error('❌ Failed to send email:', error);
+    throw error;
+  }
 }
 
 /* ========= Passport ========= */
@@ -709,42 +744,54 @@ app.post('/signup', csrfProtection, async (req, res) => {
     userProfiles.push(userProfile);
     writeJSON(userProfilesFile, userProfiles);
 
-    // إرسال بريد التفعيل
+    // 🔧 الإصلاح: إرسال بريد التفعيل بشكل صحيح
     const verificationLink = `${APP_URL}/verify-email?token=${verificationToken}`;
-    
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER || 'noreply@ehgzly.com',
-      to: email,
-      subject: role === 'manager' ? 'طلب تسجيل مدير - احجزلي' : 'تفعيل حسابك - احجزلي',
-      html: `
-        <div style="font-family: 'Cairo', Arial, sans-serif; text-align: center; direction: rtl; padding: 20px; background: #f8f9fa;">
-          <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-            <h2 style="color: #1a7f46; margin-bottom: 20px;">مرحباً ${username}!</h2>
-            ${role === 'manager' ? `
-              <p style="color: #666; margin-bottom: 20px;">شكراً لتسجيلك كمدير في احجزلي. سيتم مراجعة طلبك والموافقة عليه من قبل الإدارة.</p>
-              <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 15px 0;">
-                <p style="color: #856404; margin: 0;">سيتم إعلامك بالبريد الإلكتروني عند الموافقة على طلبك</p>
-              </div>
-            ` : `
-              <p style="color: #666; margin-bottom: 20px;">شكراً لتسجيلك في احجزلي. يرجى تفعيل حسابك بالضغط على الرابط أدناه:</p>
-              <a href="${verificationLink}" style="background: #1a7f46; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">
-                تفعيل الحساب
-              </a>
-            `}
-            <p style="color: #999; margin-top: 20px; font-size: 14px;">إذا لم تطلب هذا الرابط، يمكنك تجاهل هذه الرسالة.</p>
+    const recipientEmail = newUser.email; // 🔧 الإصلاح: استخدام newUser.email بدلاً من manager.email
+
+    const emailHtml = role === 'manager' ? `
+      <div style="font-family: 'Cairo', Arial, sans-serif; text-align: center; direction: rtl; padding: 20px; background: #f8f9fa;">
+        <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          <h2 style="color: #856404; margin-bottom: 20px;">مرحباً ${username}!</h2>
+          <p style="color: #666; margin-bottom: 20px;">شكراً لتسجيلك كمدير في احجزلي. سيتم مراجعة طلبك والموافقة عليه من قبل الإدارة.</p>
+          <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <p style="color: #856404; margin: 0;">سيتم إعلامك بالبريد الإلكتروني عند الموافقة على طلبك</p>
           </div>
         </div>
-      `
-    }).catch(err => {
-      console.log('❌ Failed to send email:', err);
-    });
+      </div>
+    ` : `
+      <div style="font-family: 'Cairo', Arial, sans-serif; text-align: center; direction: rtl; padding: 20px; background: #f8f9fa;">
+        <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          <h2 style="color: #1a7f46; margin-bottom: 20px;">مرحباً ${username}!</h2>
+          <p style="color: #666; margin-bottom: 20px;">شكراً لتسجيلك في احجزلي. يرجى تفعيل حسابك بالضغط على الرابط أدناه:</p>
+          <a href="${verificationLink}" style="background: #1a7f46; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">
+            تفعيل الحساب
+          </a>
+          <p style="color: #999; margin-top: 20px; font-size: 14px;">إذا لم تطلب هذا الرابط، يمكنك تجاهل هذه الرسالة.</p>
+        </div>
+      </div>
+    `;
 
-    res.json({ 
-      message: role === 'manager' ? 
-        'تم إرسال طلب التسجيل كمدير بنجاح. سيتم مراجعته والموافقة عليه من قبل الإدارة.' :
-        'تم إنشاء الحساب بنجاح. يرجى فحص بريدك الإلكتروني للتفعيل.',
-      success: true 
-    });
+    try {
+      await sendEmailSafe({
+        from: process.env.EMAIL_USER || 'noreply@ehgzly.com',
+        to: recipientEmail,
+        subject: role === 'manager' ? 'تم استلام طلب التسجيل كمدير' : 'تفعيل حسابك - احجزلي',
+        html: emailHtml
+      });
+
+      res.json({ 
+        message: role === 'manager' ? 
+          'تم إرسال طلب التسجيل كمدير بنجاح. سيتم مراجعته والموافقة عليه من قبل الإدارة.' :
+          'تم إنشاء الحساب بنجاح. يرجى فحص بريدك الإلكتروني للتفعيل.',
+        success: true 
+      });
+    } catch (emailError) {
+      console.error('Failed to send signup email:', emailError);
+      res.status(500).json({ 
+        message: 'تم إنشاء الحساب ولكن تعذر إرسال بريد التفعيل. يرجى التواصل مع الدعم.',
+        success: true 
+      });
+    }
 
   } catch (error) {
     console.error('Signup error:', error);
@@ -907,11 +954,11 @@ app.post('/api/bookings', requireLogin, csrfProtection, (req, res) => {
       return res.status(400).json({ message: 'هذا الوقت محجوز بالفعل' });
     }
 
-    // 🆕 حساب العربون تلقائياً
-    const depositAmount = calculateDeposit(pitch.price, date);
-    let finalAmount = depositAmount;
+    // 🔧 الإصلاح: منطق الحسابات الصحيح
+    const depositAmount = calculateDeposit(pitch.price, `${date}T${time}`);
     let appliedDiscount = null;
-    let remainingAmount = pitch.price - depositAmount;
+    const amount = pitch.price;
+    let discountValue = 0;
 
     // تطبيق الكود الخصم إذا كان موجوداً
     if (discountCode) {
@@ -922,18 +969,19 @@ app.post('/api/bookings', requireLogin, csrfProtection, (req, res) => {
       );
 
       if (validCode) {
-        // تطبيق الخصم على المبلغ المتبقي فقط
-        const discountOnRemaining = Math.min(validCode.value, remainingAmount);
-        remainingAmount = Math.max(0, remainingAmount - discountOnRemaining);
+        const discountOnRemaining = Math.min(validCode.value, pitch.price - depositAmount);
+        discountValue = discountOnRemaining;
         appliedDiscount = {
           code: validCode.code,
           value: discountOnRemaining,
           originalPrice: pitch.price,
-          finalPrice: pitch.price - discountOnRemaining,
-          remainingAmount: remainingAmount
+          finalPrice: pitch.price - discountOnRemaining
         };
       }
     }
+
+    const finalAmount = Math.max(0, amount - discountValue);
+    const remainingAmount = Math.max(0, finalAmount - depositAmount);
 
     const newBooking = {
       id: uuidv4(),
@@ -950,9 +998,9 @@ app.post('/api/bookings', requireLogin, csrfProtection, (req, res) => {
       userId: req.session.user.id,
       userType: userType || 'customer',
       status: BOOKING_STATUS.PENDING,
-      amount: pitch.price,
+      amount: amount,
       paidAmount: 0,
-      remainingAmount: pitch.price,
+      remainingAmount: remainingAmount,
       finalAmount: finalAmount,
       appliedDiscount: appliedDiscount,
       discountCode: discountCode || null,
@@ -1109,9 +1157,9 @@ function generateCompensationCode(booking, type) {
   return compensationCode;
 }
 
-// 🆕 إرسال بريد الإلغاء
+// 🆕 إرسال بريد الإلغاء - الإصلاح
 async function sendCancellationEmail(booking, compensationCode, refundAmount) {
-  const user = booking.customerEmail;
+  const userEmail = booking.customerEmail;
   
   let emailContent = '';
   
@@ -1145,29 +1193,31 @@ async function sendCancellationEmail(booking, compensationCode, refundAmount) {
     `;
   }
 
-  await transporter.sendMail({
-    from: process.env.EMAIL_USER || 'noreply@ehgzly.com',
-    to: user,
-    subject: 'إلغاء الحجز - احجزلي',
-    html: `
-      <div style="font-family: 'Cairo', Arial, sans-serif; direction: rtl; padding: 20px; background: #f8f9fa;">
-        <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-          <h2 style="color: #e74c3c; text-align: center; margin-bottom: 20px;">تم إلغاء حجزك</h2>
-          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="color: #333; margin-bottom: 15px;">تفاصيل الحجز الملغي:</h3>
-            <p><strong>الملعب:</strong> ${booking.pitchName}</p>
-            <p><strong>التاريخ:</strong> ${booking.date}</p>
-            <p><strong>الوقت:</strong> ${booking.time}</p>
-            <p><strong>سبب الإلغاء:</strong> ${booking.cancellationReason || 'غير محدد'}</p>
+  try {
+    await sendEmailSafe({
+      from: process.env.EMAIL_USER || 'noreply@ehgzly.com',
+      to: userEmail,
+      subject: 'إلغاء الحجز - احجزلي',
+      html: `
+        <div style="font-family: 'Cairo', Arial, sans-serif; direction: rtl; padding: 20px; background: #f8f9fa;">
+          <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <h2 style="color: #e74c3c; text-align: center; margin-bottom: 20px;">تم إلغاء حجزك</h2>
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="color: #333; margin-bottom: 15px;">تفاصيل الحجز الملغي:</h3>
+              <p><strong>الملعب:</strong> ${booking.pitchName}</p>
+              <p><strong>التاريخ:</strong> ${booking.date}</p>
+              <p><strong>الوقت:</strong> ${booking.time}</p>
+              <p><strong>سبب الإلغاء:</strong> ${booking.cancellationReason || 'غير محدد'}</p>
+            </div>
+            ${emailContent}
+            <p style="text-align: center; color: #666; margin-top: 20px;">نأمل أن نراك قريباً في حجز آخر!</p>
           </div>
-          ${emailContent}
-          <p style="text-align: center; color: #666; margin-top: 20px;">نأمل أن نراك قريباً في حجز آخر!</p>
         </div>
-      </div>
-    `
-  }).catch(err => {
-    console.log('Failed to send cancellation email:', err);
-  });
+      `
+    });
+  } catch (error) {
+    console.error('Failed to send cancellation email:', error);
+  }
 }
 
 /* ========= Payment System - النظام المطور ========= */
@@ -1296,38 +1346,40 @@ app.post('/api/payment', requireLogin, paymentLimiter, upload.single('receipt'),
     // مسح الحجز المعلق من الجلسة
     delete req.session.pendingBooking;
 
-    // إرسال بريد التأكيد
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER || 'noreply@ehgzly.com',
-      to: userData.email,
-      subject: 'تم تأكيد حجزك - احجزلي',
-      html: `
-        <div style="font-family: 'Cairo', Arial, sans-serif; direction: rtl; padding: 20px; background: #f8f9fa;">
-          <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-            <h2 style="color: #1a7f46; text-align: center; margin-bottom: 20px;">تم تأكيد حجزك بنجاح! 🎉</h2>
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <h3 style="color: #333; margin-bottom: 15px;">تفاصيل الحجز:</h3>
-              <p><strong>الملعب:</strong> ${pendingBooking.pitchName}</p>
-              <p><strong>الموقع:</strong> ${pendingBooking.pitchLocation}</p>
-              <p><strong>التاريخ:</strong> ${pendingBooking.date}</p>
-              <p><strong>الوقت:</strong> ${pendingBooking.time}</p>
-              <p><strong>السعر الكامل:</strong> ${pendingBooking.amount} جنيه</p>
-              <p><strong>العربون المدفوع:</strong> ${amount} جنيه</p>
-              <p><strong>المبلغ المتبقي:</strong> ${pendingBooking.remainingAmount} جنيه</p>
-              ${pendingBooking.appliedDiscount ? `
-                <p><strong>الخصم:</strong> ${pendingBooking.appliedDiscount.value} جنيه</p>
-                <p><strong>كود الخصم:</strong> ${pendingBooking.appliedDiscount.code}</p>
-              ` : ''}
-              <p><strong>طريقة الدفع:</strong> ${paymentConfig[provider].name}</p>
-              <p style="color: #e74c3c; font-weight: bold;">يرجى دفع المبلغ المتبقي قبل 48 ساعة من موعد الحجز</p>
+    // 🔧 الإصلاح: إرسال بريد التأكيد بشكل صحيح
+    try {
+      await sendEmailSafe({
+        from: process.env.EMAIL_USER || 'noreply@ehgzly.com',
+        to: userData.email,
+        subject: 'تم تأكيد حجزك - احجزلي',
+        html: `
+          <div style="font-family: 'Cairo', Arial, sans-serif; direction: rtl; padding: 20px; background: #f8f9fa;">
+            <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+              <h2 style="color: #1a7f46; text-align: center; margin-bottom: 20px;">تم تأكيد حجزك بنجاح! 🎉</h2>
+              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="color: #333; margin-bottom: 15px;">تفاصيل الحجز:</h3>
+                <p><strong>الملعب:</strong> ${pendingBooking.pitchName}</p>
+                <p><strong>الموقع:</strong> ${pendingBooking.pitchLocation}</p>
+                <p><strong>التاريخ:</strong> ${pendingBooking.date}</p>
+                <p><strong>الوقت:</strong> ${pendingBooking.time}</p>
+                <p><strong>السعر الكامل:</strong> ${pendingBooking.amount} جنيه</p>
+                <p><strong>العربون المدفوع:</strong> ${amount} جنيه</p>
+                <p><strong>المبلغ المتبقي:</strong> ${pendingBooking.remainingAmount} جنيه</p>
+                ${pendingBooking.appliedDiscount ? `
+                  <p><strong>الخصم:</strong> ${pendingBooking.appliedDiscount.value} جنيه</p>
+                  <p><strong>كود الخصم:</strong> ${pendingBooking.appliedDiscount.code}</p>
+                ` : ''}
+                <p><strong>طريقة الدفع:</strong> ${paymentConfig[provider].name}</p>
+                <p style="color: #e74c3c; font-weight: bold;">يرجى دفع المبلغ المتبقي قبل 48 ساعة من موعد الحجز</p>
+              </div>
+              <p style="text-align: center; color: #666; margin-top: 20px;">نتمنى لك وقتاً ممتعاً!</p>
             </div>
-            <p style="text-align: center; color: #666; margin-top: 20px;">نتمنى لك وقتاً ممتعاً!</p>
           </div>
-        </div>
-      `
-    }).catch(err => {
-      console.log('Failed to send confirmation email:', err);
-    });
+        `
+      });
+    } catch (emailError) {
+      console.error('Failed to send confirmation email:', emailError);
+    }
 
     res.json({ 
       message: 'تم دفع العربون بنجاح وتأكيد الحجز', 
@@ -1746,7 +1798,7 @@ app.get('/api/admin/pending-managers', requireAdmin, (req, res) => {
   }
 });
 
-app.put('/api/admin/managers/:id/approve', requireAdmin, csrfProtection, (req, res) => {
+app.put('/api/admin/managers/:id/approve', requireAdmin, csrfProtection, async (req, res) => {
   try {
     const managerId = req.params.id;
     const managers = readJSON(managersFile);
@@ -1770,29 +1822,31 @@ app.put('/api/admin/managers/:id/approve', requireAdmin, csrfProtection, (req, r
       writeJSON(usersFile, users);
     }
 
-    // إرسال بريد الموافقة
+    // 🔧 الإصلاح: إرسال بريد الموافقة بشكل صحيح
     if (user) {
-      transporter.sendMail({
-        from: process.env.EMAIL_USER || 'noreply@ehgzly.com',
-        to: user.email,
-        subject: 'تمت الموافقة على طلبك كمدير - احجزلي',
-        html: `
-          <div style="font-family: 'Cairo', Arial, sans-serif; direction: rtl; padding: 20px; background: #f8f9fa;">
-            <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-              <h2 style="color: #1a7f46; text-align: center; margin-bottom: 20px;">تمت الموافقة على طلبك! 🎉</h2>
-              <div style="background: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <h3 style="color: #155724; margin-bottom: 15px;">مبروك! تمت الموافقة على طلبك كمدير</h3>
-                <p style="color: #155724;">يمكنك الآن تسجيل الدخول والبدء في إدارة الملاعب الخاصة بك.</p>
+      try {
+        await sendEmailSafe({
+          from: process.env.EMAIL_USER || 'noreply@ehgzly.com',
+          to: user.email,
+          subject: 'تمت الموافقة على طلبك كمدير - احجزلي',
+          html: `
+            <div style="font-family: 'Cairo', Arial, sans-serif; direction: rtl; padding: 20px; background: #f8f9fa;">
+              <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                <h2 style="color: #1a7f46; text-align: center; margin-bottom: 20px;">تمت الموافقة على طلبك! 🎉</h2>
+                <div style="background: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <h3 style="color: #155724; margin-bottom: 15px;">مبروك! تمت الموافقة على طلبك كمدير</h3>
+                  <p style="color: #155724;">يمكنك الآن تسجيل الدخول والبدء في إدارة الملاعب الخاصة بك.</p>
+                </div>
+                <a href="${APP_URL}/login" style="background: #1a7f46; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">
+                  تسجيل الدخول
+                </a>
               </div>
-              <a href="${APP_URL}/login" style="background: #1a7f46; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">
-                تسجيل الدخول
-              </a>
             </div>
-          </div>
-        `
-      }).catch(err => {
-        console.log('Failed to send approval email:', err);
-      });
+          `
+        });
+      } catch (emailError) {
+        console.error('Failed to send approval email:', emailError);
+      }
     }
 
     res.json({ message: 'تمت الموافقة على المدير بنجاح' });
@@ -1804,7 +1858,7 @@ app.put('/api/admin/managers/:id/approve', requireAdmin, csrfProtection, (req, r
 });
 
 // 🆕 رفض طلب مدير
-app.put('/api/admin/managers/:id/reject', requireAdmin, csrfProtection, (req, res) => {
+app.put('/api/admin/managers/:id/reject', requireAdmin, csrfProtection, async (req, res) => {
   try {
     const managerId = req.params.id;
     const { rejectionReason } = req.body;
@@ -1828,31 +1882,33 @@ app.put('/api/admin/managers/:id/reject', requireAdmin, csrfProtection, (req, re
       writeJSON(usersFile, users);
     }
 
-    // إرسال بريد الرفض
+    // 🔧 الإصلاح: إرسال بريد الرفض بشكل صحيح
     if (user) {
-      transporter.sendMail({
-        from: process.env.EMAIL_USER || 'noreply@ehgzly.com',
-        to: user.email,
-        subject: 'قرار بشأن طلبك كمدير - احجزلي',
-        html: `
-          <div style="font-family: 'Cairo', Arial, sans-serif; direction: rtl; padding: 20px; background: #f8f9fa;">
-            <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-              <h2 style="color: #e74c3c; text-align: center; margin-bottom: 20px;">قرار بشأن طلبك</h2>
-              <div style="background: #f8d7da; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <h3 style="color: #721c24; margin-bottom: 15px;">نأسف لإبلاغك</h3>
-                <p style="color: #721c24;">لم يتم الموافقة على طلبك كمدير في الوقت الحالي.</p>
-                ${rejectionReason ? `<p style="color: #721c24;"><strong>السبب:</strong> ${rejectionReason}</p>` : ''}
-                <p style="color: #721c24;">يمكنك المحاولة مرة أخرى في وقت لاحق.</p>
+      try {
+        await sendEmailSafe({
+          from: process.env.EMAIL_USER || 'noreply@ehgzly.com',
+          to: user.email,
+          subject: 'قرار بشأن طلبك كمدير - احجزلي',
+          html: `
+            <div style="font-family: 'Cairo', Arial, sans-serif; direction: rtl; padding: 20px; background: #f8f9fa;">
+              <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                <h2 style="color: #e74c3c; text-align: center; margin-bottom: 20px;">قرار بشأن طلبك</h2>
+                <div style="background: #f8d7da; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <h3 style="color: #721c24; margin-bottom: 15px;">نأسف لإبلاغك</h3>
+                  <p style="color: #721c24;">لم يتم الموافقة على طلبك كمدير في الوقت الحالي.</p>
+                  ${rejectionReason ? `<p style="color: #721c24;"><strong>السبب:</strong> ${rejectionReason}</p>` : ''}
+                  <p style="color: #721c24;">يمكنك المحاولة مرة أخرى في وقت لاحق.</p>
+                </div>
+                <a href="${APP_URL}/login" style="background: #1a7f46; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">
+                  تسجيل الدخول
+                </a>
               </div>
-              <a href="${APP_URL}/login" style="background: #1a7f46; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">
-                تسجيل الدخول
-              </a>
             </div>
-          </div>
-        `
-      }).catch(err => {
-        console.log('Failed to send rejection email:', err);
-      });
+          `
+        });
+      } catch (emailError) {
+        console.error('Failed to send rejection email:', emailError);
+      }
     }
 
     res.json({ message: 'تم رفض طلب المدير بنجاح' });
@@ -2166,6 +2222,8 @@ app.listen(PORT, () => {
   console.log(`👤 User profiles system: Active`);
   console.log(`💰 Smart deposit system: Active`);
   console.log(`📊 Statistics system: Active`);
+  console.log(`📧 Email system: ${process.env.EMAIL_USER ? 'Active' : 'Mock Mode'}`);
+  console.log(`🌐 Environment: ${isProduction ? 'Production' : 'Development'}`);
   
   // 🆕 معلومات المديرين
   const managers = readJSON(managersFile);
