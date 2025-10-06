@@ -265,7 +265,9 @@ const usersFile    = path.join(__dirname, 'data', 'users.json');
 const paymentsFile = path.join(__dirname, 'data', 'payments.json');
 const discountCodesFile = path.join(__dirname, 'data', 'discount-codes.json');
 const ratingsFile = path.join(__dirname, 'data', 'ratings.json');
-const userProfilesFile = path.join(__dirname, 'data', 'user-profiles.json'); // 🆕 ملف جديد
+const userProfilesFile = path.join(__dirname, 'data', 'user-profiles.json');
+// 🆕 إضافة ملف المديرين
+const managersFile = path.join(__dirname, 'data', 'managers.json');
 
 // تأكد من وجود مجلد data
 const dataDir = path.join(__dirname, 'data');
@@ -304,7 +306,8 @@ ensureFileExists(bookingsFile);
 ensureFileExists(paymentsFile);
 ensureFileExists(discountCodesFile);
 ensureFileExists(ratingsFile);
-ensureFileExists(userProfilesFile); // 🆕
+ensureFileExists(userProfilesFile);
+ensureFileExists(managersFile); // 🆕
 
 // إنشاء مجلد uploads
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -394,6 +397,27 @@ function updateUserStats(userId, booking, action) {
   }
 
   writeJSON(usersFile, users);
+}
+
+// 🆕 دالة لحساب العربون بناءً على الوقت المتبقي
+function calculateDeposit(pitchPrice, bookingDate) {
+    const now = new Date();
+    const bookingDateTime = new Date(bookingDate);
+    const timeDiff = bookingDateTime.getTime() - now.getTime();
+    const hoursDiff = timeDiff / (1000 * 60 * 60);
+    
+    // إذا كان أقل من 24 ساعة، العربون صفر
+    if (hoursDiff < 24) {
+        return 0;
+    }
+    
+    // إذا كان بين 24 و48 ساعة، العربون 50%
+    if (hoursDiff < 48) {
+        return Math.floor(pitchPrice * 0.5);
+    }
+    
+    // إذا كان أكثر من 48 ساعة، العربون 30%
+    return Math.floor(pitchPrice * 0.3);
 }
 
 /* ========= Routes الأساسية ========= */
@@ -596,10 +620,15 @@ app.get('/api/user/compensation-codes', requireLogin, (req, res) => {
 // Signup - المحدث
 app.post('/signup', csrfProtection, async (req, res) => {
   try {
-    const { username, email, phone, password, role, nickname, age, bio } = req.body;
+    const { username, email, phone, password, role, nickname, age, bio, pitchIds } = req.body;
     
     if (!username || !email || !phone || !password || !role) {
       return res.status(400).json({ message: 'جميع الحقول مطلوبة' });
+    }
+
+    // إذا كان مدير، يجب اختيار ملاعب
+    if (role === 'manager' && (!pitchIds || pitchIds.length === 0)) {
+      return res.status(400).json({ message: 'يجب اختيار ملاعب للإدارة' });
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -633,8 +662,8 @@ app.post('/signup', csrfProtection, async (req, res) => {
       email,
       phone,
       password: hash,
-      role: role === 'admin' ? 'admin' : 'user',
-      approved: role === 'admin' ? false : true,
+      role: role === 'admin' ? 'admin' : (role === 'manager' ? 'manager' : 'user'),
+      approved: role === 'admin' ? false : (role === 'manager' ? false : true),
       provider: 'local',
       emailVerified: false,
       verificationToken,
@@ -650,6 +679,20 @@ app.post('/signup', csrfProtection, async (req, res) => {
 
     users.push(newUser);
     writeJSON(usersFile, users);
+
+    // 🆕 إذا كان مدير، إنشاء سجل مدير
+    if (role === 'manager') {
+      const managers = readJSON(managersFile);
+      const newManager = {
+        id: uuidv4(),
+        userId: newUser.id,
+        pitchIds: pitchIds.map(id => parseInt(id)),
+        approved: false,
+        createdAt: new Date().toISOString()
+      };
+      managers.push(newManager);
+      writeJSON(managersFile, managers);
+    }
 
     // 🆕 إنشاء ملف شخصي للمستخدم
     const userProfiles = readJSON(userProfilesFile);
@@ -672,15 +715,22 @@ app.post('/signup', csrfProtection, async (req, res) => {
     await transporter.sendMail({
       from: process.env.EMAIL_USER || 'noreply@ehgzly.com',
       to: email,
-      subject: 'تفعيل حسابك - احجزلي',
+      subject: role === 'manager' ? 'طلب تسجيل مدير - احجزلي' : 'تفعيل حسابك - احجزلي',
       html: `
         <div style="font-family: 'Cairo', Arial, sans-serif; text-align: center; direction: rtl; padding: 20px; background: #f8f9fa;">
           <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
             <h2 style="color: #1a7f46; margin-bottom: 20px;">مرحباً ${username}!</h2>
-            <p style="color: #666; margin-bottom: 20px;">شكراً لتسجيلك في احجزلي. يرجى تفعيل حسابك بالضغط على الرابط أدناه:</p>
-            <a href="${verificationLink}" style="background: #1a7f46; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">
-              تفعيل الحساب
-            </a>
+            ${role === 'manager' ? `
+              <p style="color: #666; margin-bottom: 20px;">شكراً لتسجيلك كمدير في احجزلي. سيتم مراجعة طلبك والموافقة عليه من قبل الإدارة.</p>
+              <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                <p style="color: #856404; margin: 0;">سيتم إعلامك بالبريد الإلكتروني عند الموافقة على طلبك</p>
+              </div>
+            ` : `
+              <p style="color: #666; margin-bottom: 20px;">شكراً لتسجيلك في احجزلي. يرجى تفعيل حسابك بالضغط على الرابط أدناه:</p>
+              <a href="${verificationLink}" style="background: #1a7f46; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">
+                تفعيل الحساب
+              </a>
+            `}
             <p style="color: #999; margin-top: 20px; font-size: 14px;">إذا لم تطلب هذا الرابط، يمكنك تجاهل هذه الرسالة.</p>
           </div>
         </div>
@@ -690,7 +740,9 @@ app.post('/signup', csrfProtection, async (req, res) => {
     });
 
     res.json({ 
-      message: 'تم إنشاء الحساب بنجاح. يرجى فحص بريدك الإلكتروني للتفعيل.',
+      message: role === 'manager' ? 
+        'تم إرسال طلب التسجيل كمدير بنجاح. سيتم مراجعته والموافقة عليه من قبل الإدارة.' :
+        'تم إنشاء الحساب بنجاح. يرجى فحص بريدك الإلكتروني للتفعيل.',
       success: true 
     });
 
@@ -809,7 +861,7 @@ app.post('/logout', (req, res) => {
 // الحجز الجديد - المطور
 app.post('/api/bookings', requireLogin, csrfProtection, (req, res) => {
   try {
-    const { pitchId, date, time, name, phone, email, discountCode } = req.body;
+    const { pitchId, date, time, name, phone, email, discountCode, userType } = req.body;
     
     if (!pitchId || !date || !time || !name || !phone) {
       return res.status(400).json({ message: 'جميع الحقول مطلوبة' });
@@ -830,6 +882,19 @@ app.post('/api/bookings', requireLogin, csrfProtection, (req, res) => {
 
     const bookings = readJSON(bookingsFile);
     
+    // 🆕 التحقق من عدد الحجوزات للعميل العادي
+    if (userType !== 'manager') {
+      const userBookingsToday = bookings.filter(booking => 
+        booking.userId === req.session.user.id &&
+        booking.date === date &&
+        booking.status === BOOKING_STATUS.CONFIRMED
+      );
+      
+      if (userBookingsToday.length >= 3) {
+        return res.status(400).json({ message: 'لا يمكنك الحجز أكثر من 3 ساعات في اليوم' });
+      }
+    }
+
     // التحقق من عدم وجود حجز مسبق
     const existingBooking = bookings.find(booking => 
       booking.pitchId === parseInt(pitchId) &&
@@ -842,9 +907,11 @@ app.post('/api/bookings', requireLogin, csrfProtection, (req, res) => {
       return res.status(400).json({ message: 'هذا الوقت محجوز بالفعل' });
     }
 
-    let finalAmount = pitch.deposit; // الدفع الأولي هو العربون فقط
+    // 🆕 حساب العربون تلقائياً
+    const depositAmount = calculateDeposit(pitch.price, date);
+    let finalAmount = depositAmount;
     let appliedDiscount = null;
-    let remainingAmount = pitch.price - pitch.deposit;
+    let remainingAmount = pitch.price - depositAmount;
 
     // تطبيق الكود الخصم إذا كان موجوداً
     if (discountCode) {
@@ -874,13 +941,14 @@ app.post('/api/bookings', requireLogin, csrfProtection, (req, res) => {
       pitchName: pitch.name,
       pitchLocation: pitch.location,
       pitchPrice: pitch.price,
-      depositAmount: pitch.deposit,
+      depositAmount: depositAmount,
       date,
       time,
       customerName: name,
       customerPhone: phone,
       customerEmail: email || req.session.user.email,
       userId: req.session.user.id,
+      userType: userType || 'customer',
       status: BOOKING_STATUS.PENDING,
       amount: pitch.price,
       paidAmount: 0,
@@ -891,7 +959,7 @@ app.post('/api/bookings', requireLogin, csrfProtection, (req, res) => {
       paymentType: PAYMENT_TYPES.DEPOSIT,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      paymentDeadline: new Date(selectedDate.getTime() - 48 * 60 * 60 * 1000).toISOString() // 48 ساعة قبل الحجز
+      paymentDeadline: new Date(selectedDate.getTime() - 24 * 60 * 60 * 1000).toISOString() // 24 ساعة قبل الحجز
     };
 
     bookings.push(newBooking);
@@ -904,10 +972,12 @@ app.post('/api/bookings', requireLogin, csrfProtection, (req, res) => {
     req.session.pendingBooking = newBooking;
 
     res.json({ 
-      message: 'تم إنشاء الحجز بنجاح. يرجى دفع العربون لتأكيد الحجز.',
+      message: depositAmount === 0 ? 
+        'تم إنشاء الحجز بنجاح. لا يوجد عربون مطلوب.' :
+        'تم إنشاء الحجز بنجاح. يرجى دفع العربون لتأكيد الحجز.',
       booking: newBooking,
-      paymentRequired: true,
-      depositAmount: pitch.deposit,
+      paymentRequired: depositAmount > 0,
+      depositAmount: depositAmount,
       remainingAmount: remainingAmount
     });
 
@@ -1518,6 +1588,281 @@ app.post('/api/use-discount-code', requireLogin, csrfProtection, (req, res) => {
   }
 });
 
+/* ========= 🆕 APIs خاصة بالمديرين ========= */
+
+// الحصول على الملاعب التي يديرها المستخدم
+app.get('/api/manager/pitches', requireLogin, (req, res) => {
+  try {
+    if (req.session.user.role !== 'manager') {
+      return res.status(403).json({ message: 'مسموح للمديرين فقط' });
+    }
+
+    const managers = readJSON(managersFile);
+    const userManager = managers.find(m => m.userId === req.session.user.id && m.approved);
+    
+    if (!userManager) {
+      return res.status(403).json({ message: 'لم يتم الموافقة على حسابك كمدير بعد' });
+    }
+
+    const managedPitches = pitchesData.filter(pitch => 
+      userManager.pitchIds.includes(pitch.id)
+    );
+
+    res.json(managedPitches);
+
+  } catch (error) {
+    console.error('Get manager pitches error:', error);
+    res.status(500).json({ message: 'حدث خطأ في جلب الملاعب' });
+  }
+});
+
+// الحصول على حجوزات الملاعب التي يديرها
+app.get('/api/manager/bookings', requireLogin, (req, res) => {
+  try {
+    if (req.session.user.role !== 'manager') {
+      return res.status(403).json({ message: 'مسموح للمديرين فقط' });
+    }
+
+    const managers = readJSON(managersFile);
+    const userManager = managers.find(m => m.userId === req.session.user.id && m.approved);
+    
+    if (!userManager) {
+      return res.status(403).json({ message: 'لم يتم الموافقة على حسابك كمدير بعد' });
+    }
+
+    const bookings = readJSON(bookingsFile);
+    const managerBookings = bookings.filter(booking => 
+      userManager.pitchIds.includes(booking.pitchId)
+    );
+
+    res.json(managerBookings);
+
+  } catch (error) {
+    console.error('Get manager bookings error:', error);
+    res.status(500).json({ message: 'حدث خطأ في جلب الحجوزات' });
+  }
+});
+
+// 🆕 إلغاء حجز بواسطة المدير
+app.put('/api/manager/bookings/:id/cancel', requireLogin, csrfProtection, (req, res) => {
+  try {
+    if (req.session.user.role !== 'manager') {
+      return res.status(403).json({ message: 'مسموح للمديرين فقط' });
+    }
+
+    const managers = readJSON(managersFile);
+    const userManager = managers.find(m => m.userId === req.session.user.id && m.approved);
+    
+    if (!userManager) {
+      return res.status(403).json({ message: 'لم يتم الموافقة على حسابك كمدير بعد' });
+    }
+
+    const bookingId = req.params.id;
+    const { cancellationReason } = req.body;
+    
+    const bookings = readJSON(bookingsFile);
+    const booking = bookings.find(b => b.id === bookingId);
+    
+    if (!booking) {
+      return res.status(404).json({ message: 'الحجز غير موجود' });
+    }
+
+    // التحقق من أن المدير يملك صلاحية إلغاء هذا الحجز
+    if (!userManager.pitchIds.includes(booking.pitchId)) {
+      return res.status(403).json({ message: 'غير مسموح لك بإلغاء هذا الحجز' });
+    }
+
+    // حساب الوقت المتبقي للحجز
+    const bookingDate = new Date(booking.date);
+    const now = new Date();
+    const timeDiff = bookingDate.getTime() - now.getTime();
+    const hoursDiff = timeDiff / (1000 * 60 * 60);
+
+    let compensationCode = null;
+    let refundAmount = 0;
+
+    // تحديد سياسة الإلغاء
+    if (hoursDiff > 48) {
+      refundAmount = booking.paidAmount;
+      compensationCode = generateCompensationCode(booking, 'full_refund');
+    } else if (hoursDiff > 24) {
+      compensationCode = generateCompensationCode(booking, 'partial_refund');
+    }
+
+    // تحديث حالة الحجز
+    booking.status = BOOKING_STATUS.CANCELLED;
+    booking.updatedAt = new Date().toISOString();
+    booking.cancellationTime = new Date().toISOString();
+    booking.cancellationReason = cancellationReason || 'إلغاء من المدير';
+    booking.refundAmount = refundAmount;
+    booking.compensationCode = compensationCode ? compensationCode.code : null;
+    booking.cancelledBy = req.session.user.id;
+    
+    writeJSON(bookingsFile, bookings);
+
+    // إرسال بريد بالإلغاء
+    sendCancellationEmail(booking, compensationCode, refundAmount);
+
+    res.json({ 
+      message: 'تم إلغاء الحجز بنجاح',
+      booking,
+      refundAmount,
+      compensationCode
+    });
+
+  } catch (error) {
+    console.error('Manager cancel booking error:', error);
+    res.status(500).json({ message: 'حدث خطأ أثناء إلغاء الحجز' });
+  }
+});
+
+// 🆕 APIs للموافقة على المديرين (للمسؤول)
+app.get('/api/admin/pending-managers', requireAdmin, (req, res) => {
+  try {
+    const managers = readJSON(managersFile);
+    const users = readJSON(usersFile);
+    
+    const pendingManagers = managers
+      .filter(m => !m.approved)
+      .map(manager => {
+        const user = users.find(u => u.id === manager.userId);
+        const managedPitches = pitchesData.filter(p => manager.pitchIds.includes(p.id));
+        return {
+          ...manager,
+          userInfo: user ? {
+            username: user.username,
+            email: user.email,
+            phone: user.phone
+          } : null,
+          managedPitches: managedPitches.map(p => p.name)
+        };
+      });
+
+    res.json(pendingManagers);
+
+  } catch (error) {
+    console.error('Get pending managers error:', error);
+    res.status(500).json({ message: 'حدث خطأ في جلب طلبات المديرين' });
+  }
+});
+
+app.put('/api/admin/managers/:id/approve', requireAdmin, csrfProtection, (req, res) => {
+  try {
+    const managerId = req.params.id;
+    const managers = readJSON(managersFile);
+    const users = readJSON(usersFile);
+    
+    const manager = managers.find(m => m.id === managerId);
+    if (!manager) {
+      return res.status(404).json({ message: 'طلب المدير غير موجود' });
+    }
+
+    manager.approved = true;
+    manager.approvedAt = new Date().toISOString();
+    manager.approvedBy = req.session.user.id;
+    
+    writeJSON(managersFile, managers);
+
+    // تحديث حالة المستخدم
+    const user = users.find(u => u.id === manager.userId);
+    if (user) {
+      user.approved = true;
+      writeJSON(usersFile, users);
+    }
+
+    // إرسال بريد الموافقة
+    if (user) {
+      transporter.sendMail({
+        from: process.env.EMAIL_USER || 'noreply@ehgzly.com',
+        to: user.email,
+        subject: 'تمت الموافقة على طلبك كمدير - احجزلي',
+        html: `
+          <div style="font-family: 'Cairo', Arial, sans-serif; direction: rtl; padding: 20px; background: #f8f9fa;">
+            <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+              <h2 style="color: #1a7f46; text-align: center; margin-bottom: 20px;">تمت الموافقة على طلبك! 🎉</h2>
+              <div style="background: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="color: #155724; margin-bottom: 15px;">مبروك! تمت الموافقة على طلبك كمدير</h3>
+                <p style="color: #155724;">يمكنك الآن تسجيل الدخول والبدء في إدارة الملاعب الخاصة بك.</p>
+              </div>
+              <a href="${APP_URL}/login" style="background: #1a7f46; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">
+                تسجيل الدخول
+              </a>
+            </div>
+          </div>
+        `
+      }).catch(err => {
+        console.log('Failed to send approval email:', err);
+      });
+    }
+
+    res.json({ message: 'تمت الموافقة على المدير بنجاح' });
+
+  } catch (error) {
+    console.error('Approve manager error:', error);
+    res.status(500).json({ message: 'حدث خطأ أثناء الموافقة على المدير' });
+  }
+});
+
+// 🆕 رفض طلب مدير
+app.put('/api/admin/managers/:id/reject', requireAdmin, csrfProtection, (req, res) => {
+  try {
+    const managerId = req.params.id;
+    const { rejectionReason } = req.body;
+    
+    const managers = readJSON(managersFile);
+    const users = readJSON(usersFile);
+    
+    const manager = managers.find(m => m.id === managerId);
+    if (!manager) {
+      return res.status(404).json({ message: 'طلب المدير غير موجود' });
+    }
+
+    // حذف طلب المدير
+    const updatedManagers = managers.filter(m => m.id !== managerId);
+    writeJSON(managersFile, updatedManagers);
+
+    // تحديث حالة المستخدم
+    const user = users.find(u => u.id === manager.userId);
+    if (user) {
+      user.role = 'user'; // تحويله لمستخدم عادي
+      writeJSON(usersFile, users);
+    }
+
+    // إرسال بريد الرفض
+    if (user) {
+      transporter.sendMail({
+        from: process.env.EMAIL_USER || 'noreply@ehgzly.com',
+        to: user.email,
+        subject: 'قرار بشأن طلبك كمدير - احجزلي',
+        html: `
+          <div style="font-family: 'Cairo', Arial, sans-serif; direction: rtl; padding: 20px; background: #f8f9fa;">
+            <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+              <h2 style="color: #e74c3c; text-align: center; margin-bottom: 20px;">قرار بشأن طلبك</h2>
+              <div style="background: #f8d7da; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="color: #721c24; margin-bottom: 15px;">نأسف لإبلاغك</h3>
+                <p style="color: #721c24;">لم يتم الموافقة على طلبك كمدير في الوقت الحالي.</p>
+                ${rejectionReason ? `<p style="color: #721c24;"><strong>السبب:</strong> ${rejectionReason}</p>` : ''}
+                <p style="color: #721c24;">يمكنك المحاولة مرة أخرى في وقت لاحق.</p>
+              </div>
+              <a href="${APP_URL}/login" style="background: #1a7f46; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">
+                تسجيل الدخول
+              </a>
+            </div>
+          </div>
+        `
+      }).catch(err => {
+        console.log('Failed to send rejection email:', err);
+      });
+    }
+
+    res.json({ message: 'تم رفض طلب المدير بنجاح' });
+
+  } catch (error) {
+    console.error('Reject manager error:', error);
+    res.status(500).json({ message: 'حدث خطأ أثناء رفض طلب المدير' });
+  }
+});
+
 /* ========= Admin APIs ========= */
 
 // الإحصائيات
@@ -1527,6 +1872,7 @@ app.get('/api/admin/stats', requireAdmin, (req, res) => {
     const payments = readJSON(paymentsFile);
     const users = readJSON(usersFile);
     const discountCodes = readJSON(discountCodesFile);
+    const managers = readJSON(managersFile);
     
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -1578,6 +1924,11 @@ app.get('/api/admin/stats', requireAdmin, (req, res) => {
       .filter(dc => dc.status === 'used')
       .reduce((total, dc) => total + dc.value, 0);
 
+    // 🆕 إحصائيات المديرين
+    const totalManagers = managers.length;
+    const approvedManagers = managers.filter(m => m.approved).length;
+    const pendingManagers = managers.filter(m => !m.approved).length;
+
     const stats = {
       currentMonth: {
         successfulBookings: currentMonthBookings.length,
@@ -1603,6 +1954,12 @@ app.get('/api/admin/stats', requireAdmin, (req, res) => {
         active: activeCodes,
         used: usedCodes,
         totalDiscount: totalDiscount
+      },
+      // 🆕 إحصائيات المديرين
+      managers: {
+        total: totalManagers,
+        approved: approvedManagers,
+        pending: pendingManagers
       }
     };
     
@@ -1701,6 +2058,41 @@ app.put('/api/admin/users/:id/approve', requireAdmin, csrfProtection, (req, res)
   }
 });
 
+// 🆕 تحديث بيانات ملعب
+app.put('/api/admin/pitches/:id', requireAdmin, csrfProtection, (req, res) => {
+  try {
+    const pitchId = parseInt(req.params.id);
+    const updates = req.body;
+    
+    const pitch = pitchesData.find(p => p.id === pitchId);
+    if (!pitch) {
+      return res.status(404).json({ message: 'الملعب غير موجود' });
+    }
+
+    // تحديث البيانات المسموح بها
+    const allowedUpdates = ['price', 'deposit', 'workingHours', 'features'];
+    allowedUpdates.forEach(field => {
+      if (updates[field] !== undefined) {
+        pitch[field] = updates[field];
+      }
+    });
+
+    // إعادة حساب العربون إذا تغير السعر
+    if (updates.price) {
+      pitch.deposit = Math.floor(updates.price * 0.3);
+    }
+
+    res.json({ 
+      message: 'تم تحديث بيانات الملعب بنجاح',
+      pitch 
+    });
+
+  } catch (error) {
+    console.error('Update pitch error:', error);
+    res.status(500).json({ message: 'حدث خطأ أثناء تحديث بيانات الملعب' });
+  }
+});
+
 /* ========= Pages ========= */
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -1730,6 +2122,19 @@ app.get('/verify.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'verify.html'));
 });
 
+// 🆕 صفحة مدير الملعب
+app.get('/manager', requireLogin, (req, res) => {
+  if (req.session.user.role !== 'manager') {
+    return res.status(403).send('مسموح للمديرين فقط');
+  }
+  res.sendFile(path.join(__dirname, 'public', 'manager.html'));
+});
+
+// 🆕 صفحة مدير النظام
+app.get('/admin-dashboard', requireAdmin, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin-dashboard.html'));
+});
+
 /* ========= Error Handling ========= */
 app.use((err, req, res, next) => {
   if (err.code === 'EBADCSRFTOKEN') {
@@ -1755,8 +2160,14 @@ app.listen(PORT, () => {
   console.log(`📁 Data directory: ${dataDir}`);
   console.log(`🏟️  Loaded ${pitchesData.length} pitches`);
   console.log(`🔐 Admin access: /admin`);
+  console.log(`👨‍💼 Manager system: Active`);
   console.log(`🎫 Discount codes system: Active`);
   console.log(`⭐ Ratings system: Active`);
   console.log(`👤 User profiles system: Active`);
-  console.log(`💰 Deposit payment system: Active`);
+  console.log(`💰 Smart deposit system: Active`);
+  console.log(`📊 Statistics system: Active`);
+  
+  // 🆕 معلومات المديرين
+  const managers = readJSON(managersFile);
+  console.log(`👨‍💼 Managers: ${managers.filter(m => m.approved).length} approved, ${managers.filter(m => !m.approved).length} pending`);
 });
