@@ -219,10 +219,10 @@
 <body>
 
   <nav class="nav-links">
-    <a href="/index.html">
+    <a href="/">
       <i class="bi bi-house-fill"></i> الرئيسية
     </a>
-    <a href="/login.html">
+    <a href="/login">
       <i class="bi bi-box-arrow-in-left"></i> تسجيل الدخول
     </a>
   </nav>
@@ -335,6 +335,7 @@
         <select class="form-select" id="role" required>
           <option value="">اختر نوع الحساب</option>
           <option value="user">مستخدم عادي</option>
+          <option value="manager">مدير ملعب</option>
           <option value="admin">مدير نظام</option>
         </select>
         <label for="role">
@@ -342,6 +343,37 @@
         </label>
         <div class="form-text">
           <small>سيحتاج حساب المدير إلى موافقة من الإدارة</small>
+        </div>
+      </div>
+
+      <!-- 🆕 حقول المديرين -->
+      <div id="managerFields" style="display: none;">
+        <div class="mb-3">
+          <label class="form-label">الملاعب التي تريد إدارتها</label>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="pitchIds" value="1" id="pitch1">
+            <label class="form-check-label" for="pitch1">نادي الطيارة - الملعب الرئيسي</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="pitchIds" value="2" id="pitch2">
+            <label class="form-check-label" for="pitch2">نادي الطيارة - الملعب الثاني</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="pitchIds" value="3" id="pitch3">
+            <label class="form-check-label" for="pitch3">الراعي الصالح</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="pitchIds" value="4" id="pitch4">
+            <label class="form-check-label" for="pitch4">نادي الجزيرة</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="pitchIds" value="5" id="pitch5">
+            <label class="form-check-label" for="pitch5">نادي المقطم</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="pitchIds" value="6" id="pitch6">
+            <label class="form-check-label" for="pitch6">نادي مصر للتأمين</label>
+          </div>
         </div>
       </div>
 
@@ -373,7 +405,7 @@
     <div class="text-center mt-4">
       <p class="mb-0">
         لديك حساب بالفعل؟ 
-        <a href="/login.html" class="text-success text-decoration-none fw-bold">سجل الدخول الآن</a>
+        <a href="/login" class="text-success text-decoration-none fw-bold">سجل الدخول الآن</a>
       </p>
     </div>
   </main>
@@ -423,6 +455,16 @@
     const form = document.getElementById('signupForm');
     const submitBtn = document.getElementById('submitBtn');
     const originalBtnText = submitBtn.innerHTML;
+
+    // 🆕 إظهار/إخفاء حقول المدير
+    document.getElementById('role').addEventListener('change', function() {
+      const managerFields = document.getElementById('managerFields');
+      if (this.value === 'manager') {
+        managerFields.style.display = 'block';
+      } else {
+        managerFields.style.display = 'none';
+      }
+    });
 
     // 🆕 التحقق من قوة كلمة المرور المحسّن
     function checkPasswordStrength() {
@@ -512,6 +554,16 @@
         showAlert('⚠️ كلمة المرور ضعيفة. يرجى استخدام مزيج من الأحرف الكبيرة والصغيرة والأرقام', 'warning');
         isValid = false;
       }
+
+      // 🆕 التحقق من اختيار الملاعب للمديرين
+      const role = document.getElementById('role').value;
+      if (role === 'manager') {
+        const pitchCheckboxes = document.querySelectorAll('input[name="pitchIds"]:checked');
+        if (pitchCheckboxes.length === 0) {
+          showAlert('⚠️ يجب اختيار ملاعب للإدارة', 'warning');
+          isValid = false;
+        }
+      }
       
       return isValid;
     }
@@ -535,6 +587,13 @@
       const bio = document.querySelector('[name="bio"]').value;
       const _csrf = document.getElementById('csrfToken').value;
 
+      // 🆕 جمع الملاعب المختارة للمديرين
+      let pitchIds = [];
+      if (role === 'manager') {
+        const pitchCheckboxes = document.querySelectorAll('input[name="pitchIds"]:checked');
+        pitchIds = Array.from(pitchCheckboxes).map(cb => cb.value);
+      }
+
       // تعطيل الزر وعرض loading
       submitBtn.disabled = true;
       submitBtn.innerHTML = '<i class="bi bi-arrow-repeat spinner me-2"></i> جاري إنشاء الحساب...';
@@ -548,7 +607,7 @@
           },
           body: JSON.stringify({ 
             username, email, phone, password, role, 
-            nickname, age, bio, _csrf 
+            nickname, age, bio, pitchIds, _csrf 
           })
         });
 
@@ -563,9 +622,12 @@
             el.classList.remove('is-valid');
           });
           
+          // إخفاء حقول المدير
+          document.getElementById('managerFields').style.display = 'none';
+          
           // إعادة توجيه بعد 3 ثواني
           setTimeout(() => {
-            window.location.href = '/login.html';
+            window.location.href = '/login';
           }, 3000);
         } else {
           showAlert('❌ ' + (data.message || 'حدث خطأ أثناء التسجيل. يرجى المحاولة مرة أخرى.'), 'danger');
