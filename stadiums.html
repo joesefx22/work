@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>إدارة الملاعب - احجزلي</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <style>
+    .stadium-card {
+      transition: all 0.3s ease;
+      border: 2px solid transparent;
+    }
+    
+    .stadium-card:hover {
+      transform: translateY(-5px);
+      border-color: #1a7f46;
+    }
+    
+    .availability-badge {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 2;
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+    <div class="container">
+      <a class="navbar-brand fw-bold text-success" href="/">
+        <i class="bi bi-building me-2"></i>إدارة الملاعب
+      </a>
+      <div class="navbar-nav ms-auto">
+        <a class="nav-link" href="/">
+          <i class="bi bi-house me-1"></i>الرئيسية
+        </a>
+        <a class="nav-link" href="/admin">
+          <i class="bi bi-speedometer2 me-1"></i>لوحة التحكم
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container py-5">
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+          <h1 class="display-5 fw-bold text-success">
+            <i class="bi bi-building me-2"></i>الملاعب
+          </h1>
+          <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addStadiumModal">
+            <i class="bi bi-plus-circle me-2"></i>إضافة ملعب جديد
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- فلترة الملاعب -->
+    <div class="row mb-4">
+      <div class="col-md-4">
+        <input type="text" class="form-control" id="searchStadiums" placeholder="ابحث باسم الملعب...">
+      </div>
+      <div class="col-md-4">
+        <select class="form-select" id="filterArea">
+          <option value="">جميع المناطق</option>
+          <option value="mokatam">المقطم</option>
+          <option value="hedaba">الهضبة الوسطي</option>
+          <option value="70feddan">السبعين فدان</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <select class="form-select" id="filterType">
+          <option value="">جميع الأنواع</option>
+          <option value="natural">نجيلة طبيعية</option>
+          <option value="artificial">نجيلة صناعية</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- قائمة الملاعب -->
+    <div class="row" id="stadiumsContainer">
+      <!-- سيتم تعبئة الملاعب هنا -->
+    </div>
+  </div>
+
+  <!-- مودال إضافة ملعب جديد -->
+  <div class="modal fade" id="addStadiumModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header bg-success text-white">
+          <h5 class="modal-title">إضافة ملعب جديد</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="addStadiumForm">
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label">اسم الملعب</label>
+                <input type="text" class="form-control" name="name" required>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">المنطقة</label>
+                <select class="form-select" name="area" required>
+                  <option value="mokatam">المقطم</option>
+                  <option value="hedaba">الهضبة الوسطي</option>
+                  <option value="70feddan">السبعين فدان</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label">نوع النجيلة</label>
+                <select class="form-select" name="type" required>
+                  <option value="natural">نجيلة طبيعية</option>
+                  <option value="artificial">نجيلة صناعية</option>
+                </select>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">السعر للساعة (جنيه)</label>
+                <input type="number" class="form-control" name="price" min="100" required>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">الموقع</label>
+              <input type="text" class="form-control" name="location" required>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">المميزات (افصل بينها بفاصلة)</label>
+              <input type="text" class="form-control" name="features" placeholder="كشافات ليلية, غرف تبديل, موقف سيارات...">
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">رابط صورة الملعب</label>
+              <input type="url" class="form-control" name="image" placeholder="https://example.com/stadium.jpg">
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">رابط خرائط جوجل</label>
+              <input type="url" class="form-control" name="googleMaps" placeholder="https://maps.google.com/...">
+            </div>
+
+            <div class="alert alert-info">
+              <h6>ملاحظة:</h6>
+              <p class="mb-0">سيتم إنشاء ساعات افتراضية للملعب الجديد للـ 7 أيام القادمة تلقائياً.</p>
+            </div>
+
+            <button type="submit" class="btn btn-success w-100">
+              <i class="bi bi-plus-circle me-2"></i>إضافة الملعب
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // نظام إدارة الملاعب
+    class StadiumsManager {
+      constructor() {
+        this.stadiums = [];
+        this.init();
+      }
+
+      async init() {
+        await this.loadStadiums();
+        this.setupEventListeners();
+      }
+
+      async loadStadiums() {
+        try {
+          const response = await fetch('/api/stadiums');
+          if (response.ok) {
+            this.stadiums = await response.json();
+            this.displayStadiums();
+          }
+        } catch (error) {
+          console.error('Error loading stadiums:', error);
+        }
+      }
+
+      displayStadiums() {
+        const container = document.getElementById('stadiumsContainer');
+        
+        if (this.stadiums.length === 0) {
+          container.innerHTML = `
+            <div class="col-12">
+              <div class="alert alert-info text-center">
+                <i class="bi bi-info-circle me-2"></i>
+                لا توجد ملاعب مضافة حالياً
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = this.stadiums.map(stadium => `
+          <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card stadium-card h-100">
+              ${stadium.images && stadium.images.length > 0 ? `
+                <img src="${stadium.images[0]}" class="card-img-top" alt="${stadium.name}" style="height: 200px; object-fit: cover;">
+              ` : `
+                <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                  <i class="bi bi-building text-muted" style="font-size: 3rem;"></i>
+                </div>
+              `}
+              
+              <div class="card-body">
+                <h5 class="card-title">${stadium.name}</h5>
+                <p class="card-text text-muted small">
+                  <i class="bi bi-geo-alt me-1"></i>${stadium.location || 'غير محدد'}<br>
+                  <i class="bi bi-clock me-1"></i>الحد اليومي: ${stadium.max_daily_hours} ساعات<br>
+                  <i class="bi bi-calendar-week me-1"></i>الحد الأسبوعي: ${stadium.max_weekly_hours} ساعات
+                </p>
+                
+                <div class="d-flex gap-2">
+                  <button class="btn btn-outline-primary btn-sm" onclick="stadiumsManager.viewStadiumDetails(${stadium.id})">
+                    <i class="bi bi-eye me-1"></i>عرض
+                  </button>
+                  <button class="btn btn-outline-success btn-sm" onclick="stadiumsManager.manageTimeSlots(${stadium.id})">
+                    <i class="bi bi-clock me-1"></i>الساعات
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      async addStadium(formData) {
+        try {
+          const response = await fetch('/api/admin/stadiums', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              name: formData.name,
+              description: `${formData.type} - ${formData.area}`,
+              images: formData.image ? [formData.image] : [],
+              max_daily_hours: 3,
+              max_weekly_hours: 5
+            })
+          });
+
+          const result = await response.json();
+
+          if (response.ok) {
+            alert('✅ ' + result.message);
+            bootstrap.Modal.getInstance(document.getElementById('addStadiumModal')).hide();
+            document.getElementById('addStadiumForm').reset();
+            this.loadStadiums();
+          } else {
+            alert('❌ ' + result.message);
+          }
+        } catch (error) {
+          console.error('Error adding stadium:', error);
+          alert('❌ حدث خطأ أثناء إضافة الملعب');
+        }
+      }
+
+      viewStadiumDetails(stadiumId) {
+        // سيتم تطويرها لاحقاً
+        alert('عرض تفاصيل الملعب - قيد التطوير');
+      }
+
+      manageTimeSlots(stadiumId) {
+        // سيتم تطويرها لاحقاً
+        alert('إدارة ساعات الملعب - قيد التطوير');
+      }
+
+      setupEventListeners() {
+        document.getElementById('addStadiumForm').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const formData = new FormData(e.target);
+          const data = Object.fromEntries(formData);
+          await this.addStadium(data);
+        });
+
+        // البحث والفلترة
+        document.getElementById('searchStadiums').addEventListener('input', (e) => {
+          this.filterStadiums();
+        });
+
+        document.getElementById('filterArea').addEventListener('change', () => {
+          this.filterStadiums();
+        });
+
+        document.getElementById('filterType').addEventListener('change', () => {
+          this.filterStadiums();
+        });
+      }
+
+      filterStadiums() {
+        const searchTerm = document.getElementById('searchStadiums').value.toLowerCase();
+        const areaFilter = document.getElementById('filterArea').value;
+        const typeFilter = document.getElementById('filterType').value;
+
+        const filtered = this.stadiums.filter(stadium => {
+          const matchesSearch = stadium.name.toLowerCase().includes(searchTerm);
+          const matchesArea = !areaFilter || stadium.area === areaFilter;
+          const matchesType = !typeFilter || stadium.type === typeFilter;
+          
+          return matchesSearch && matchesArea && matchesType;
+        });
+
+        this.displayFilteredStadiums(filtered);
+      }
+
+      displayFilteredStadiums(stadiums) {
+        const container = document.getElementById('stadiumsContainer');
+        
+        if (stadiums.length === 0) {
+          container.innerHTML = `
+            <div class="col-12">
+              <div class="alert alert-warning text-center">
+                <i class="bi bi-search me-2"></i>
+                لا توجد نتائج مطابقة للبحث
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = stadiums.map(stadium => `
+          <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card stadium-card h-100">
+              <img src="${stadium.image}" class="card-img-top" alt="${stadium.name}" style="height: 200px; object-fit: cover;">
+              <div class="card-body">
+                <h5 class="card-title">${stadium.name}</h5>
+                <p class="card-text">
+                  <small class="text-muted">
+                    <i class="bi bi-geo-alt me-1"></i>${stadium.location}<br>
+                    <i class="bi bi-tag me-1"></i>${stadium.price} ج.م/ساعة
+                  </small>
+                </p>
+                <button class="btn btn-outline-primary btn-sm w-100" onclick="stadiumsManager.viewStadiumDetails(${stadium.id})">
+                  <i class="bi bi-eye me-1"></i>عرض التفاصيل
+                </button>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+    // تهيئة النظام
+    let stadiumsManager;
+    document.addEventListener('DOMContentLoaded', function() {
+      stadiumsManager = new StadiumsManager();
+    });
+  </script>
+</body>
+</html>
