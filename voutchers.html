@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>نظام الأكواد - احجزلي</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <style>
+    .voucher-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 15px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .voucher-code {
+      font-family: 'Courier New', monospace;
+      font-size: 1.5rem;
+      font-weight: bold;
+      letter-spacing: 2px;
+    }
+    
+    .used-voucher {
+      opacity: 0.7;
+      background: linear-gradient(135deg, #868e96 0%, #495057 100%);
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+    <div class="container">
+      <a class="navbar-brand fw-bold text-success" href="/">
+        <i class="bi bi-gift me-2"></i>نظام الأكواد
+      </a>
+      <div class="navbar-nav ms-auto">
+        <a class="nav-link" href="/">
+          <i class="bi bi-house me-1"></i>الرئيسية
+        </a>
+        <a class="nav-link" href="/admin">
+          <i class="bi bi-speedometer2 me-1"></i>لوحة التحكم
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container py-5">
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+          <h1 class="display-5 fw-bold text-success">
+            <i class="bi bi-gift me-2"></i>أكواد الدفع
+          </h1>
+          <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#generateVouchersModal">
+            <i class="bi bi-plus-circle me-2"></i>إنشاء أكواد جديدة
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- إحصائيات سريعة -->
+    <div class="row mb-4">
+      <div class="col-md-3 mb-3">
+        <div class="card bg-primary text-white">
+          <div class="card-body text-center">
+            <h4 class="mb-0" id="totalVouchers">0</h4>
+            <small>إجمالي الأكواد</small>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <div class="card bg-success text-white">
+          <div class="card-body text-center">
+            <h4 class="mb-0" id="activeVouchers">0</h4>
+            <small>أكواد نشطة</small>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <div class="card bg-warning text-white">
+          <div class="card-body text-center">
+            <h4 class="mb-0" id="usedVouchers">0</h4>
+            <small>أكواد مستخدمة</small>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <div class="card bg-info text-white">
+          <div class="card-body text-center">
+            <h4 class="mb-0" id="totalValue">0</h4>
+            <small>إجمالي القيمة (ج.م)</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- فلترة الأكواد -->
+    <div class="row mb-4">
+      <div class="col-md-6">
+        <select class="form-select" id="filterStatus">
+          <option value="">جميع الحالات</option>
+          <option value="active">نشطة فقط</option>
+          <option value="used">مستخدمة فقط</option>
+        </select>
+      </div>
+      <div class="col-md-6">
+        <input type="text" class="form-control" id="searchVouchers" placeholder="ابحث بالكود...">
+      </div>
+    </div>
+
+    <!-- قائمة الأكواد -->
+    <div class="row" id="vouchersContainer">
+      <!-- سيتم تعبئة الأكواد هنا -->
+    </div>
+  </div>
+
+  <!-- مودال إنشاء أكواد جديدة -->
+  <div class="modal fade" id="generateVouchersModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header bg-success text-white">
+          <h5 class="modal-title">إنشاء أكواد جديدة</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="generateVouchersForm">
+            <div class="mb-3">
+              <label class="form-label">قيمة الكود (جنيه)</label>
+              <select class="form-select" name="value" required>
+                <option value="50">50 جنيه</option>
+                <option value="100">100 جنيه</option>
+                <option value="150">150 جنيه</option>
+                <option value="200">200 جنيه</option>
+              </select>
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label">عدد الأكواد</label>
+              <input type="number" class="form-control" name="quantity" min="1" max="100" value="1" required>
+            </div>
+            
+            <div class="alert alert-info">
+              <h6>ملاحظة:</h6>
+              <p class="mb-0">سيتم إنشاء أكواد عشوائية تلقائياً. صلاحية الأكواد 30 يوم من تاريخ الإنشاء.</p>
+            </div>
+            
+            <button type="submit" class="btn btn-success w-100">
+              <i class="bi bi-magic me-2"></i>إنشاء الأكواد
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // نظام إدارة الأكواد
+    class VouchersSystem {
+      constructor() {
+        this.vouchers = [];
+        this.init();
+      }
+
+      async init() {
+        await this.loadVouchers();
+        this.setupEventListeners();
+      }
+
+      async loadVouchers() {
+        try {
+          const response = await fetch('/api/admin/vouchers');
+          if (response.ok) {
+            this.vouchers = await response.json();
+            this.displayVouchers();
+            this.updateStats();
+          }
+        } catch (error) {
+          console.error('Error loading vouchers:', error);
+        }
+      }
+
+      displayVouchers() {
+        const container = document.getElementById('vouchersContainer');
+        
+        if (this.vouchers.length === 0) {
+          container.innerHTML = `
+            <div class="col-12">
+              <div class="alert alert-info text-center">
+                <i class="bi bi-info-circle me-2"></i>
+                لا توجد أكواد مضافة حالياً
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = this.vouchers.map(voucher => `
+          <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card voucher-card ${voucher.is_used ? 'used-voucher' : ''}">
+              <div class="card-body text-center">
+                <h5 class="card-title">
+                  <i class="bi bi-gift me-2"></i>كود دفع
+                </h5>
+                <div class="voucher-code mb-3">${voucher.code}</div>
+                <p class="mb-2">
+                  <strong>القيمة:</strong> ${voucher.value} ج.م
+                </p>
+                <p class="mb-2">
+                  <strong>الحالة:</strong> 
+                  <span class="badge ${voucher.is_used ? 'bg-secondary' : 'bg-success'}">
+                    ${voucher.is_used ? 'مستخدم' : 'نشط'}
+                  </span>
+                </p>
+                ${voucher.used_at ? `
+                  <p class="mb-2">
+                    <strong>تاريخ الاستخدام:</strong><br>
+                    <small>${new Date(voucher.used_at).toLocaleDateString('ar-EG')}</small>
+                  </p>
+                ` : `
+                  <p class="mb-2">
+                    <strong>ينتهي في:</strong><br>
+                    <small>${new Date(voucher.expires_at).toLocaleDateString('ar-EG')}</small>
+                  </p>
+                `}
+                
+                ${!voucher.is_used ? `
+                  <button class="btn btn-light btn-sm" onclick="vouchersSystem.copyCode('${voucher.code}')">
+                    <i class="bi bi-clipboard me-1"></i>نسخ
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      async generateVouchers(formData) {
+        try {
+          const response = await fetch('/api/admin/vouchers', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+          });
+
+          const result = await response.json();
+
+          if (response.ok) {
+            alert('✅ ' + result.message);
+            bootstrap.Modal.getInstance(document.getElementById('generateVouchersModal')).hide();
+            document.getElementById('generateVouchersForm').reset();
+            this.loadVouchers();
+            
+            // عرض الأكواد المنشأة
+            if (result.vouchers) {
+              this.showGeneratedVouchers(result.vouchers);
+            }
+          } else {
+            alert('❌ ' + result.message);
+          }
+        } catch (error) {
+          console.error('Error generating vouchers:', error);
+          alert('❌ حدث خطأ أثناء إنشاء الأكواد');
+        }
+      }
+
+      showGeneratedVouchers(vouchers) {
+        const codesList = vouchers.map(v => `
+          <div class="alert alert-success">
+            <strong>${v.code}</strong> - ${v.value} ج.م
+            <button class="btn btn-sm btn-outline-success float-left" onclick="vouchersSystem.copyCode('${v.code}')">
+              <i class="bi bi-clipboard"></i>
+            </button>
+          </div>
+        `).join('');
+        
+        alert(`
+          تم إنشاء الأكواد بنجاح! 🎉
+          ${codesList}
+          يرجى حفظ هذه الأكواد في مكان آمن.
+        `);
+      }
+
+      copyCode(code) {
+        navigator.clipboard.writeText(code).then(() => {
+          alert('✅ تم نسخ الكود: ' + code);
+        }).catch(err => {
+          console.error('Failed to copy code:', err);
+        });
+      }
+
+      updateStats() {
+        const total = this.vouchers.length;
+        const active = this.vouchers.filter(v => !v.is_used).length;
+        const used = this.vouchers.filter(v => v.is_used).length;
+        const totalValue = this.vouchers.reduce((sum, v) => sum + parseFloat(v.value), 0);
+
+        document.getElementById('totalVouchers').textContent = total;
+        document.getElementById('activeVouchers').textContent = active;
+        document.getElementById('usedVouchers').textContent = used;
+        document.getElementById('totalValue').textContent = totalValue;
+      }
+
+      setupEventListeners() {
+        document.getElementById('generateVouchersForm').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const formData = new FormData(e.target);
+          const data = Object.fromEntries(formData);
+          await this.generateVouchers(data);
+        });
+
+        // الفلترة
+        document.getElementById('filterStatus').addEventListener('change', () => {
+          this.filterVouchers();
+        });
+
+        document.getElementById('searchVouchers').addEventListener('input', () => {
+          this.filterVouchers();
+        });
+      }
+
+      filterVouchers() {
+        const statusFilter = document.getElementById('filterStatus').value;
+        const searchTerm = document.getElementById('searchVouchers').value.toLowerCase();
+
+        const filtered = this.vouchers.filter(voucher => {
+          const matchesStatus = !statusFilter || 
+            (statusFilter === 'active' && !voucher.is_used) ||
+            (statusFilter === 'used' && voucher.is_used);
+          
+          const matchesSearch = voucher.code.toLowerCase().includes(searchTerm);
+          
+          return matchesStatus && matchesSearch;
+        });
+
+        this.displayFilteredVouchers(filtered);
+      }
+
+      displayFilteredVouchers(vouchers) {
+        const container = document.getElementById('vouchersContainer');
+        
+        if (vouchers.length === 0) {
+          container.innerHTML = `
+            <div class="col-12">
+              <div class="alert alert-warning text-center">
+                <i class="bi bi-search me-2"></i>
+                لا توجد نتائج مطابقة للبحث
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = vouchers.map(voucher => `
+          <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card voucher-card ${voucher.is_used ? 'used-voucher' : ''}">
+              <div class="card-body text-center">
+                <h5 class="card-title">
+                  <i class="bi bi-gift me-2"></i>كود دفع
+                </h5>
+                <div class="voucher-code mb-3">${voucher.code}</div>
+                <p class="mb-2"><strong>القيمة:</strong> ${voucher.value} ج.م</p>
+                <p class="mb-2">
+                  <strong>الحالة:</strong> 
+                  <span class="badge ${voucher.is_used ? 'bg-secondary' : 'bg-success'}">
+                    ${voucher.is_used ? 'مستخدم' : 'نشط'}
+                  </span>
+                </p>
+                ${!voucher.is_used ? `
+                  <button class="btn btn-light btn-sm" onclick="vouchersSystem.copyCode('${voucher.code}')">
+                    <i class="bi bi-clipboard me-1"></i>نسخ
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+    // تهيئة النظام
+    let vouchersSystem;
+    document.addEventListener('DOMContentLoaded', function() {
+      vouchersSystem = new VouchersSystem();
+    });
+  </script>
+</body>
+</html>
