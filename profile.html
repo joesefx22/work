@@ -19,6 +19,7 @@
       --accent-color: #f39c12;
       --dark-color: #2c3e50;
       --light-color: #ecf0f1;
+      --gold-color: #ffd700;
     }
     
     body {
@@ -27,7 +28,7 @@
     }
     
     .profile-card {
-      max-width: 800px;
+      max-width: 1200px;
       margin: 2rem auto;
       background: white;
       border-radius: 20px;
@@ -87,6 +88,12 @@
       text-align: center;
       box-shadow: 0 4px 15px rgba(0,0,0,0.1);
       border: 1px solid #e9ecef;
+      transition: all 0.3s ease;
+    }
+    
+    .stat-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.15);
     }
     
     .stat-number {
@@ -110,6 +117,7 @@
       padding: 1.5rem;
       border-radius: 12px;
       margin-bottom: 1.5rem;
+      border: 1px solid #e9ecef;
     }
     
     .nav-links {
@@ -122,15 +130,21 @@
       text-decoration: none;
       margin: 0 15px;
       font-weight: 600;
+      transition: opacity 0.3s ease;
+    }
+    
+    .nav-links a:hover {
+      opacity: 0.8;
     }
 
     .compensation-code {
       background: linear-gradient(135deg, #ff6b6b, #ee5a24);
       color: white;
-      padding: 1rem;
-      border-radius: 10px;
+      padding: 1.5rem;
+      border-radius: 12px;
       margin-bottom: 1rem;
       text-align: center;
+      border: 2px dashed rgba(255,255,255,0.3);
     }
     
     .code-value {
@@ -138,11 +152,108 @@
       font-weight: bold;
       letter-spacing: 2px;
       margin: 0.5rem 0;
+      font-family: 'Courier New', monospace;
     }
     
     .countdown {
       font-size: 0.9rem;
       opacity: 0.9;
+    }
+    
+    /* 🆕 أنماط جديدة */
+    .booking-card {
+      border: 2px solid #e9ecef;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      transition: all 0.3s ease;
+      background: white;
+    }
+    
+    .booking-card:hover {
+      border-color: var(--primary-color);
+      box-shadow: 0 5px 20px rgba(26, 127, 70, 0.1);
+    }
+    
+    .booking-card.golden {
+      border-color: var(--gold-color);
+      background: linear-gradient(135deg, #fff9e6, #fff3cd);
+    }
+    
+    .countdown-timer {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 25px;
+      font-weight: bold;
+      display: inline-block;
+    }
+    
+    .player-request-card {
+      border-right: 4px solid var(--primary-color);
+      border-radius: 10px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      background: white;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .player-request-card.pending {
+      border-right-color: var(--accent-color);
+      background: #fffaf0;
+    }
+    
+    .player-request-card.accepted {
+      border-right-color: var(--secondary-color);
+      background: #f0fff4;
+    }
+    
+    .player-request-card.rejected {
+      border-right-color: #e74c3c;
+      background: #fff5f5;
+    }
+    
+    .activity-timeline {
+      position: relative;
+      padding-right: 2rem;
+    }
+    
+    .activity-timeline::before {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--primary-color);
+      opacity: 0.3;
+    }
+    
+    .activity-item {
+      position: relative;
+      padding-bottom: 2rem;
+      padding-right: 2rem;
+    }
+    
+    .activity-item::before {
+      content: '';
+      position: absolute;
+      right: -7px;
+      top: 5px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--primary-color);
+      border: 2px solid white;
+    }
+    
+    .tab-content {
+      min-height: 400px;
+    }
+    
+    .badge-golden {
+      background: var(--gold-color);
+      color: #000;
     }
   </style>
 </head>
@@ -151,14 +262,17 @@
   <nav class="nav-links">
     <div class="container">
       <div class="d-flex justify-content-between align-items-center">
-        <a class="navbar-brand text-white fw-bold" href="/index.html">
-          <i class="bi bi-soccer-ball me-2"></i> احجزلي
+        <a class="navbar-brand text-white fw-bold" href="/">
+          <i class="bi bi-calendar-check me-2"></i> احجزلي
         </a>
         <div>
-          <a href="/index.html">
+          <a href="/">
             <i class="bi bi-house me-1"></i> الرئيسية
           </a>
-          <a href="/profile.html">
+          <a href="/players-with-you">
+            <i class="bi bi-people me-1"></i> لاعبوني معاكم
+          </a>
+          <a href="/profile">
             <i class="bi bi-person me-1"></i> ملفي الشخصي
           </a>
           <a href="#" onclick="logout()">
@@ -182,204 +296,855 @@
         <h2 id="profileName" class="mt-3 mb-1">الاسم المستعار</h2>
         <p id="profileAge" class="text-light mb-0">العمر: --</p>
         <p id="memberSince" class="text-light">عضو منذ: --</p>
-      </div>
-
-      <!-- شبكة الإحصائيات -->
-      <div class="stats-grid container">
-        <div class="stat-card">
-          <div class="stat-number" id="totalBookings">0</div>
-          <div class="stat-label">إجمالي الحجوزات</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-number" id="successfulBookings">0</div>
-          <div class="stat-label">حجوزات ناجحة</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-number" id="cancelledBookings">0</div>
-          <div class="stat-label">حجوزات ملغاة</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-number" id="totalSpent">0</div>
-          <div class="stat-label">إجمالي المصروفات (ج.م)</div>
+        <div class="mt-3">
+          <span class="badge bg-light text-dark me-2" id="userLevel">مبتدئ</span>
+          <span class="badge bg-warning text-dark" id="loyaltyPoints">0 نقطة</span>
         </div>
       </div>
 
-      <!-- 🆕 قسم أكواد التعويض -->
-      <div class="form-section container">
-        <h5 class="mb-3"><i class="bi bi-ticket-perforated me-2"></i>أكواد التعويض</h5>
-        <div id="compensationCodes">
-          <div class="text-center py-4">
-            <i class="bi bi-ticket-perforated display-4 text-muted"></i>
-            <p class="text-muted mt-2">لا توجد أكواد تعويض نشطة</p>
-          </div>
-        </div>
-      </div>
+      <!-- تبويبات الصفحة -->
+      <div class="container mt-4">
+        <ul class="nav nav-pills nav-justified mb-4" id="profileTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button">
+              <i class="bi bi-speedometer2 me-2"></i>نظرة عامة
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="bookings-tab" data-bs-toggle="tab" data-bs-target="#bookings" type="button">
+              <i class="bi bi-calendar-check me-2"></i>حجوزاتي
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="players-tab" data-bs-toggle="tab" data-bs-target="#players" type="button">
+              <i class="bi bi-people me-2"></i>طلبات اللاعبين
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="edit-tab" data-bs-toggle="tab" data-bs-target="#edit" type="button">
+              <i class="bi bi-pencil-square me-2"></i>تعديل الملف
+            </button>
+          </li>
+        </ul>
 
-      <!-- نموذج التعديل -->
-      <div class="edit-form">
-        <h4 class="mb-4"><i class="bi bi-pencil-square me-2"></i>تعديل الملف الشخصي</h4>
-        
-        <form id="profileForm" enctype="multipart/form-data">
-          <input type="hidden" name="_csrf" id="csrfToken">
-          <input type="file" id="avatarInput" name="avatar" accept="image/*" style="display: none;" onchange="previewAvatar(this)">
+        <div class="tab-content" id="profileTabContent">
           
-          <div class="form-section">
-            <h5 class="mb-3">المعلومات الأساسية</h5>
+          <!-- تبويب النظرة العامة -->
+          <div class="tab-pane fade show active" id="overview" role="tabpanel">
+            <!-- شبكة الإحصائيات -->
+            <div class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-number" id="totalBookings">0</div>
+                <div class="stat-label">إجمالي الحجوزات</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-number" id="successfulBookings">0</div>
+                <div class="stat-label">حجوزات ناجحة</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-number" id="cancelledBookings">0</div>
+                <div class="stat-label">حجوزات ملغاة</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-number" id="totalSpent">0</div>
+                <div class="stat-label">إجمالي المصروفات (ج.م)</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-number" id="playerRequestsSent">0</div>
+                <div class="stat-label">طلبات لاعبين مرسلة</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-number" id="playerRequestsReceived">0</div>
+                <div class="stat-label">طلبات لاعبين مستلمة</div>
+              </div>
+            </div>
+
+            <!-- 🆕 الحجوزات القادمة -->
+            <div class="form-section">
+              <h5 class="mb-3"><i class="bi bi-clock me-2"></i>حجوزاتي القادمة</h5>
+              <div id="upcomingBookings">
+                <div class="text-center py-4">
+                  <i class="bi bi-calendar-x display-4 text-muted"></i>
+                  <p class="text-muted mt-2">لا توجد حجوزات قادمة</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- 🆕 أكواد التعويض -->
+            <div class="form-section">
+              <h5 class="mb-3"><i class="bi bi-ticket-perforated me-2"></i>أكواد التعويض</h5>
+              <div id="compensationCodes">
+                <div class="text-center py-4">
+                  <i class="bi bi-ticket-perforated display-4 text-muted"></i>
+                  <p class="text-muted mt-2">لا توجد أكواد تعويض نشطة</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- 🆕 آخر النشاطات -->
+            <div class="form-section">
+              <h5 class="mb-3"><i class="bi bi-activity me-2"></i>آخر النشاطات</h5>
+              <div class="activity-timeline" id="activityTimeline">
+                <div class="text-center py-4">
+                  <i class="bi bi-inbox display-4 text-muted"></i>
+                  <p class="text-muted mt-2">لا توجد نشاطات حديثة</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- تبويب الحجوزات -->
+          <div class="tab-pane fade" id="bookings" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+              <h5><i class="bi bi-calendar-check me-2"></i>جميع حجوزاتي</h5>
+              <div class="btn-group">
+                <button class="btn btn-outline-primary btn-sm active" onclick="filterBookings('all')">الكل</button>
+                <button class="btn btn-outline-primary btn-sm" onclick="filterBookings('upcoming')">القادمة</button>
+                <button class="btn btn-outline-primary btn-sm" onclick="filterBookings('completed')">المنتهية</button>
+                <button class="btn btn-outline-primary btn-sm" onclick="filterBookings('cancelled')">الملغاة</button>
+              </div>
+            </div>
+            <div id="allBookingsContainer">
+              <!-- سيتم تعبئة الحجوزات هنا -->
+            </div>
+          </div>
+
+          <!-- تبويب طلبات اللاعبين -->
+          <div class="tab-pane fade" id="players" role="tabpanel">
             <div class="row">
-              <div class="col-md-6 mb-3">
-                <label class="form-label">الاسم المستعار</label>
-                <input type="text" class="form-control" id="nickname" name="nickname" placeholder="اختر اسمًا مستعارًا">
+              <div class="col-md-6">
+                <div class="form-section">
+                  <h5 class="mb-3"><i class="bi bi-send me-2"></i>طلباتي المرسلة</h5>
+                  <div id="sentRequestsContainer">
+                    <div class="text-center py-4">
+                      <i class="bi bi-send display-4 text-muted"></i>
+                      <p class="text-muted mt-2">لم تقم بإرسال أي طلبات</p>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div class="col-md-6 mb-3">
-                <label class="form-label">العمر</label>
-                <input type="number" class="form-control" id="age" name="age" min="10" max="100" placeholder="أدخل عمرك">
+              <div class="col-md-6">
+                <div class="form-section">
+                  <h5 class="mb-3"><i class="bi bi-inbox me-2"></i>طلباتي المستلمة</h5>
+                  <div id="receivedRequestsContainer">
+                    <div class="text-center py-4">
+                      <i class="bi bi-inbox display-4 text-muted"></i>
+                      <p class="text-muted mt-2">لا توجد طلبات مستلمة</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          <div class="form-section">
-            <h5 class="mb-3">نبذة عني</h5>
-            <div class="mb-3">
-              <label class="form-label">وصف قصير</label>
-              <textarea class="form-control" id="bio" name="bio" rows="4" placeholder="اكتب نبذة مختصرة عن نفسك..."></textarea>
-              <div class="form-text">يمكنك كتابة معلومات عن هواياتك أو فريقك المفضل</div>
+          <!-- تبويب تعديل الملف -->
+          <div class="tab-pane fade" id="edit" role="tabpanel">
+            <div class="edit-form">
+              <h4 class="mb-4"><i class="bi bi-pencil-square me-2"></i>تعديل الملف الشخصي</h4>
+              
+              <form id="profileForm" enctype="multipart/form-data">
+                <input type="hidden" name="_csrf" id="csrfToken">
+                <input type="file" id="avatarInput" name="avatar" accept="image/*" style="display: none;" onchange="previewAvatar(this)">
+                
+                <div class="form-section">
+                  <h5 class="mb-3">المعلومات الأساسية</h5>
+                  <div class="row">
+                    <div class="col-md-6 mb-3">
+                      <label class="form-label">الاسم المستعار</label>
+                      <input type="text" class="form-control" id="nickname" name="nickname" placeholder="اختر اسمًا مستعارًا">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                      <label class="form-label">العمر</label>
+                      <input type="number" class="form-control" id="age" name="age" min="10" max="100" placeholder="أدخل عمرك">
+                    </div>
+                  </div>
+                </div>
+
+                <div class="form-section">
+                  <h5 class="mb-3">نبذة عني</h5>
+                  <div class="mb-3">
+                    <label class="form-label">وصف قصير</label>
+                    <textarea class="form-control" id="bio" name="bio" rows="4" placeholder="اكتب نبذة مختصرة عن نفسك..."></textarea>
+                    <div class="form-text">يمكنك كتابة معلومات عن هواياتك أو فريقك المفضل</div>
+                  </div>
+                </div>
+
+                <div class="form-section">
+                  <h5 class="mb-3">إعدادات الإشعارات</h5>
+                  <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" id="notifyBookings" checked>
+                    <label class="form-check-label" for="notifyBookings">إشعارات الحجوزات</label>
+                  </div>
+                  <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" id="notifyPlayers" checked>
+                    <label class="form-check-label" for="notifyPlayers">إشعارات طلبات اللاعبين</label>
+                  </div>
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="notifyOffers" checked>
+                    <label class="form-check-label" for="notifyOffers">عروض خاصة</label>
+                  </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-lg w-100">
+                  <i class="bi bi-check-circle me-2"></i>حفظ التغييرات
+                </button>
+              </form>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-          <button type="submit" class="btn btn-primary btn-lg w-100">
-            <i class="bi bi-check-circle me-2"></i>حفظ التغييرات
-          </button>
-        </form>
+  <!-- 🆕 مودال تفاصيل الحجز -->
+  <div class="modal fade" id="bookingDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title">تفاصيل الحجز</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="bookingDetailsContent">
+          <!-- سيتم تعبئة التفاصيل هنا -->
+        </div>
       </div>
     </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    // جلب رمز CSRF
-    fetch('/csrf-token')
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        if (d?.csrfToken) {
-          document.getElementById('csrfToken').value = d.csrfToken;
+    // 🆕 نظام الملف الشخصي المتطور
+    class AdvancedProfileSystem {
+      constructor() {
+        this.currentBookings = [];
+        this.playerRequests = [];
+        this.compensationCodes = [];
+        this.userStats = {};
+        this.init();
+      }
+
+      init() {
+        this.setupEventListeners();
+        this.loadUserProfile();
+        this.startAutoRefresh();
+      }
+
+      async loadUserProfile() {
+        try {
+          await Promise.all([
+            this.loadBasicProfile(),
+            this.loadCurrentBookings(),
+            this.loadPlayerRequests(),
+            this.loadCompensationCodes(),
+            this.loadActivityTimeline()
+          ]);
+        } catch (error) {
+          console.error('Error loading profile:', error);
         }
-      });
+      }
 
-    // جلب بيانات الملف الشخصي
-    async function loadProfile() {
-      try {
+      async loadBasicProfile() {
         const response = await fetch('/api/user/profile');
-        if (!response.ok) throw new Error('Failed to load profile');
-        
-        const data = await response.json();
-        displayProfile(data);
-        loadCompensationCodes();
-      } catch (error) {
-        console.error('Error loading profile:', error);
-        alert('حدث خطأ في تحميل الملف الشخصي');
+        if (response.ok) {
+          const data = await response.json();
+          this.displayProfile(data);
+          this.userStats = data.stats;
+          this.updateStatsGrid();
+        }
       }
-    }
 
-    // عرض بيانات الملف الشخصي
-    function displayProfile(data) {
-      const { profile, stats } = data;
-      
-      // المعلومات الشخصية
-      document.getElementById('profileName').textContent = profile.nickname;
-      document.getElementById('profileAge').textContent = profile.age ? `العمر: ${profile.age}` : 'العمر: غير محدد';
-      document.getElementById('memberSince').textContent = `عضو منذ: ${new Date(profile.joinDate).toLocaleDateString('ar-EG')}`;
-      
-      if (profile.avatar) {
-        document.getElementById('avatarImage').src = profile.avatar;
+      async loadCurrentBookings() {
+        const response = await fetch('/api/user/bookings');
+        if (response.ok) {
+          const bookings = await response.json();
+          this.currentBookings = bookings;
+          this.displayUpcomingBookings();
+          this.displayAllBookings();
+        }
       }
-      
-      // نموذج التعديل
-      document.getElementById('nickname').value = profile.nickname;
-      if (profile.age) document.getElementById('age').value = profile.age;
-      document.getElementById('bio').value = profile.bio || '';
-      
-      // الإحصائيات
-      document.getElementById('totalBookings').textContent = stats.totalBookings;
-      document.getElementById('successfulBookings').textContent = stats.successfulBookings;
-      document.getElementById('cancelledBookings').textContent = stats.cancelledBookings;
-      document.getElementById('totalSpent').textContent = stats.totalSpent;
-    }
 
-    // 🆕 تحميل أكواد التعويض
-    async function loadCompensationCodes() {
-      try {
+      async loadPlayerRequests() {
+        const response = await fetch('/api/user/player-requests');
+        if (response.ok) {
+          const requests = await response.json();
+          this.playerRequests = requests;
+          this.displayPlayerRequests();
+        }
+      }
+
+      async loadCompensationCodes() {
         const response = await fetch('/api/user/compensation-codes');
         if (response.ok) {
-          const codes = await response.json();
-          displayCompensationCodes(codes);
+          this.compensationCodes = await response.json();
+          this.displayCompensationCodes();
         }
-      } catch (error) {
-        console.error('Error loading compensation codes:', error);
-      }
-    }
-
-    // 🆕 عرض أكواد التعويض
-    function displayCompensationCodes(codes) {
-      const container = document.getElementById('compensationCodes');
-      
-      if (codes.length === 0) {
-        container.innerHTML = `
-          <div class="text-center py-4">
-            <i class="bi bi-ticket-perforated display-4 text-muted"></i>
-            <p class="text-muted mt-2">لا توجد أكواد تعويض نشطة</p>
-          </div>
-        `;
-        return;
       }
 
-      container.innerHTML = codes.map(code => `
-        <div class="compensation-code">
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <h6 class="mb-1">كود التعويض</h6>
-              <div class="code-value">${code.code}</div>
-              <p class="mb-1">قيمة الكود: ${code.value} جنيه</p>
-              <p class="mb-1">صالح حتى: ${new Date(code.expiresAt).toLocaleDateString('ar-EG')}</p>
-              <p class="mb-0"><small>${code.message}</small></p>
-            </div>
-            <div class="text-left">
-              <span class="badge bg-light text-dark">نشط</span>
-              <div class="countdown mt-2" id="countdown-${code.id}"></div>
-            </div>
-          </div>
-        </div>
-      `).join('');
+      async loadActivityTimeline() {
+        const response = await fetch('/api/user/activity');
+        if (response.ok) {
+          const activities = await response.json();
+          this.displayActivityTimeline(activities);
+        }
+      }
 
-      // بدء العد التنازلي للأكواد
-      codes.forEach(code => {
-        startCountdown(code.id, code.expiresAt);
-      });
-    }
-
-    // 🆕 العد التنازلي لصلاحية الأكواد
-    function startCountdown(codeId, expiresAt) {
-      const countdownElement = document.getElementById(`countdown-${codeId}`);
-      const expiryDate = new Date(expiresAt);
-      
-      function updateCountdown() {
-        const now = new Date();
-        const timeLeft = expiryDate - now;
+      displayProfile(data) {
+        const { profile, stats } = data;
         
-        if (timeLeft <= 0) {
-          countdownElement.textContent = 'منتهي الصلاحية';
-          countdownElement.className = 'countdown text-danger';
+        document.getElementById('profileName').textContent = profile.nickname;
+        document.getElementById('profileAge').textContent = profile.age ? `العمر: ${profile.age}` : 'العمر: غير محدد';
+        document.getElementById('memberSince').textContent = `عضو منذ: ${new Date(profile.joinDate).toLocaleDateString('ar-EG')}`;
+        
+        if (profile.avatar) {
+          document.getElementById('avatarImage').src = profile.avatar;
+        }
+        
+        document.getElementById('nickname').value = profile.nickname;
+        if (profile.age) document.getElementById('age').value = profile.age;
+        document.getElementById('bio').value = profile.bio || '';
+        
+        // تحديث مستوى المستخدم
+        this.updateUserLevel(stats);
+      }
+
+      updateStatsGrid() {
+        const stats = this.userStats;
+        document.getElementById('totalBookings').textContent = stats.totalBookings || 0;
+        document.getElementById('successfulBookings').textContent = stats.successfulBookings || 0;
+        document.getElementById('cancelledBookings').textContent = stats.cancelledBookings || 0;
+        document.getElementById('totalSpent').textContent = stats.totalSpent || 0;
+        document.getElementById('playerRequestsSent').textContent = stats.requestsSent || 0;
+        document.getElementById('playerRequestsReceived').textContent = stats.requestsReceived || 0;
+      }
+
+      updateUserLevel(stats) {
+        const totalBookings = stats.totalBookings || 0;
+        let level = 'مبتدئ';
+        let points = totalBookings * 10;
+        
+        if (totalBookings >= 10) level = 'محترف';
+        if (totalBookings >= 25) level = 'خبير';
+        if (totalBookings >= 50) level = 'أسطورة';
+        
+        document.getElementById('userLevel').textContent = level;
+        document.getElementById('loyaltyPoints').textContent = `${points} نقطة`;
+      }
+
+      displayUpcomingBookings() {
+        const container = document.getElementById('upcomingBookings');
+        const upcoming = this.currentBookings.filter(booking => 
+          new Date(booking.date) > new Date() && booking.status === 'confirmed'
+        );
+
+        if (upcoming.length === 0) {
+          container.innerHTML = `
+            <div class="text-center py-4">
+              <i class="bi bi-calendar-x display-4 text-muted"></i>
+              <p class="text-muted mt-2">لا توجد حجوزات قادمة</p>
+            </div>
+          `;
           return;
         }
-        
-        const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        
-        countdownElement.textContent = `متبقي: ${days} يوم و ${hours} ساعة`;
-        countdownElement.className = days < 3 ? 'countdown text-warning' : 'countdown text-light';
+
+        container.innerHTML = upcoming.map(booking => `
+          <div class="booking-card ${booking.playersNeeded > 0 ? 'golden' : ''}">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <h6 class="mb-1">${booking.pitchName}</h6>
+                <p class="mb-1 text-muted">
+                  <i class="bi bi-calendar me-1"></i>${booking.date}
+                  <i class="bi bi-clock ms-2 me-1"></i>${booking.time}
+                </p>
+                <p class="mb-1">
+                  <span class="badge bg-success">مؤكد</span>
+                  ${booking.playersNeeded > 0 ? '<span class="badge badge-golden ms-1">👥 بحاجة لاعبين</span>' : ''}
+                </p>
+              </div>
+              <div class="text-left">
+                <div class="countdown-timer" id="countdown-${booking.id}">
+                  جاري التحميل...
+                </div>
+                <button class="btn btn-outline-primary btn-sm mt-2" onclick="profileSystem.showBookingDetails('${booking.id}')">
+                  التفاصيل
+                </button>
+              </div>
+            </div>
+          </div>
+        `).join('');
+
+        // بدء العد التنازلي للحجوزات
+        upcoming.forEach(booking => {
+          this.startBookingCountdown(booking.id, booking.date, booking.time);
+        });
       }
-      
-      updateCountdown();
-      setInterval(updateCountdown, 60000);
+
+      displayAllBookings() {
+        const container = document.getElementById('allBookingsContainer');
+        
+        if (this.currentBookings.length === 0) {
+          container.innerHTML = `
+            <div class="text-center py-5">
+              <i class="bi bi-calendar-x display-1 text-muted"></i>
+              <p class="text-muted mt-3">لا توجد حجوزات سابقة</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = this.currentBookings.map(booking => `
+          <div class="booking-card ${this.getBookingStatusClass(booking.status)}">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="mb-1">${booking.pitchName}</h6>
+                <p class="mb-1 text-muted">
+                  <i class="bi bi-calendar me-1"></i>${booking.date}
+                  <i class="bi bi-clock ms-2 me-1"></i>${booking.time}
+                </p>
+                <p class="mb-0">
+                  <span class="badge ${this.getStatusBadgeClass(booking.status)}">${this.getStatusText(booking.status)}</span>
+                  ${booking.playersNeeded > 0 ? '<span class="badge badge-golden ms-1">👥 طلب لاعبين</span>' : ''}
+                </p>
+              </div>
+              <div class="text-left">
+                <p class="mb-1"><strong>${booking.finalAmount || booking.amount} ج.م</strong></p>
+                <button class="btn btn-outline-primary btn-sm" onclick="profileSystem.showBookingDetails('${booking.id}')">
+                  التفاصيل
+                </button>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      displayPlayerRequests() {
+        const sentContainer = document.getElementById('sentRequestsContainer');
+        const receivedContainer = document.getElementById('receivedRequestsContainer');
+        
+        const sentRequests = this.playerRequests.filter(req => req.type === 'sent');
+        const receivedRequests = this.playerRequests.filter(req => req.type === 'received');
+
+        // الطلبات المرسلة
+        if (sentRequests.length === 0) {
+          sentContainer.innerHTML = `
+            <div class="text-center py-4">
+              <i class="bi bi-send display-4 text-muted"></i>
+              <p class="text-muted mt-2">لم تقم بإرسال أي طلبات</p>
+            </div>
+          `;
+        } else {
+          sentContainer.innerHTML = sentRequests.map(request => `
+            <div class="player-request-card ${request.status}">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <h6 class="mb-1">${request.stadiumName}</h6>
+                  <p class="mb-1 text-muted">
+                    <i class="bi bi-calendar me-1"></i>${request.date}
+                    <i class="bi bi-clock ms-2 me-1"></i>${request.time}
+                  </p>
+                  <p class="mb-1">الحالة: <span class="badge ${this.getRequestStatusClass(request.status)}">${this.getRequestStatusText(request.status)}</span></p>
+                </div>
+                <div class="text-left">
+                  <small class="text-muted">${new Date(request.createdAt).toLocaleDateString('ar-EG')}</small>
+                </div>
+              </div>
+            </div>
+          `).join('');
+        }
+
+        // الطلبات المستلمة
+        if (receivedRequests.length === 0) {
+          receivedContainer.innerHTML = `
+            <div class="text-center py-4">
+              <i class="bi bi-inbox display-4 text-muted"></i>
+              <p class="text-muted mt-2">لا توجد طلبات مستلمة</p>
+            </div>
+          `;
+        } else {
+          receivedContainer.innerHTML = receivedRequests.map(request => `
+            <div class="player-request-card ${request.status}">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <h6 class="mb-1">${request.requesterName} (${request.requesterAge} سنة)</h6>
+                  <p class="mb-1 text-muted">${request.playersCount} لاعب</p>
+                  <p class="mb-1">${request.comment || 'لا توجد ملاحظات'}</p>
+                  <p class="mb-1">الحالة: <span class="badge ${this.getRequestStatusClass(request.status)}">${this.getRequestStatusText(request.status)}</span></p>
+                </div>
+                <div class="text-left">
+                  ${request.status === 'pending' ? `
+                    <div class="btn-group btn-group-sm">
+                      <button class="btn btn-success" onclick="profileSystem.respondToRequest('${request.id}', 'accept')">
+                        <i class="bi bi-check"></i>
+                      </button>
+                      <button class="btn btn-danger" onclick="profileSystem.respondToRequest('${request.id}', 'reject')">
+                        <i class="bi bi-x"></i>
+                      </button>
+                    </div>
+                  ` : ''}
+                  <br>
+                  <small class="text-muted">${new Date(request.createdAt).toLocaleDateString('ar-EG')}</small>
+                </div>
+              </div>
+            </div>
+          `).join('');
+        }
+      }
+
+      displayCompensationCodes() {
+        const container = document.getElementById('compensationCodes');
+        
+        if (this.compensationCodes.length === 0) {
+          container.innerHTML = `
+            <div class="text-center py-4">
+              <i class="bi bi-ticket-perforated display-4 text-muted"></i>
+              <p class="text-muted mt-2">لا توجد أكواد تعويض نشطة</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = this.compensationCodes.map(code => `
+          <div class="compensation-code">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="mb-1">كود التعويض</h6>
+                <div class="code-value">${code.code}</div>
+                <p class="mb-1">قيمة الكود: ${code.value} جنيه</p>
+                <p class="mb-1">صالح حتى: ${new Date(code.expiresAt).toLocaleDateString('ar-EG')}</p>
+                <p class="mb-0"><small>${code.message}</small></p>
+              </div>
+              <div class="text-left">
+                <span class="badge bg-light text-dark">نشط</span>
+                <div class="countdown mt-2" id="code-countdown-${code.id}"></div>
+              </div>
+            </div>
+          </div>
+        `).join('');
+
+        // بدء العد التنازلي للأكواد
+        this.compensationCodes.forEach(code => {
+          this.startCodeCountdown(code.id, code.expiresAt);
+        });
+      }
+
+      displayActivityTimeline(activities) {
+        const container = document.getElementById('activityTimeline');
+        
+        if (!activities || activities.length === 0) {
+          container.innerHTML = `
+            <div class="text-center py-4">
+              <i class="bi bi-inbox display-4 text-muted"></i>
+              <p class="text-muted mt-2">لا توجد نشاطات حديثة</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = activities.map(activity => `
+          <div class="activity-item">
+            <h6 class="mb-1">${activity.title}</h6>
+            <p class="mb-1 text-muted">${activity.description}</p>
+            <small class="text-muted">${new Date(activity.timestamp).toLocaleDateString('ar-EG')}</small>
+          </div>
+        `).join('');
+      }
+
+      startBookingCountdown(bookingId, date, time) {
+        const countdownElement = document.getElementById(`countdown-${bookingId}`);
+        const bookingDateTime = new Date(`${date}T${time}`);
+        
+        function updateCountdown() {
+          const now = new Date();
+          const timeLeft = bookingDateTime - now;
+          
+          if (timeLeft <= 0) {
+            countdownElement.textContent = 'انتهى الوقت';
+            countdownElement.className = 'countdown-timer bg-secondary';
+            return;
+          }
+          
+          const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
+          const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+          
+          if (days > 0) {
+            countdownElement.textContent = `متبقي: ${days} يوم ${hours} ساعة`;
+          } else if (hours > 0) {
+            countdownElement.textContent = `متبقي: ${hours} ساعة ${minutes} دقيقة`;
+          } else {
+            countdownElement.textContent = `متبقي: ${minutes} دقيقة`;
+          }
+          
+          if (timeLeft < 2 * 60 * 60 * 1000) { // أقل من ساعتين
+            countdownElement.style.background = 'linear-gradient(135deg, #e74c3c, #c0392b)';
+          }
+        }
+        
+        updateCountdown();
+        setInterval(updateCountdown, 60000);
+      }
+
+      startCodeCountdown(codeId, expiresAt) {
+        const countdownElement = document.getElementById(`code-countdown-${codeId}`);
+        const expiryDate = new Date(expiresAt);
+        
+        function updateCountdown() {
+          const now = new Date();
+          const timeLeft = expiryDate - now;
+          
+          if (timeLeft <= 0) {
+            countdownElement.textContent = 'منتهي الصلاحية';
+            countdownElement.className = 'countdown text-danger';
+            return;
+          }
+          
+          const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
+          const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          
+          countdownElement.textContent = `متبقي: ${days} يوم و ${hours} ساعة`;
+          countdownElement.className = days < 3 ? 'countdown text-warning' : 'countdown text-light';
+        }
+        
+        updateCountdown();
+        setInterval(updateCountdown, 60000);
+      }
+
+      async showBookingDetails(bookingId) {
+        const booking = this.currentBookings.find(b => b.id === bookingId);
+        if (!booking) return;
+
+        const modalContent = document.getElementById('bookingDetailsContent');
+        modalContent.innerHTML = `
+          <div class="row">
+            <div class="col-md-6">
+              <h6>معلومات الحجز</h6>
+              <p><strong>الملعب:</strong> ${booking.pitchName}</p>
+              <p><strong>الموقع:</strong> ${booking.pitchLocation}</p>
+              <p><strong>التاريخ:</strong> ${booking.date}</p>
+              <p><strong>الوقت:</strong> ${booking.time}</p>
+              <p><strong>الحالة:</strong> <span class="badge ${this.getStatusBadgeClass(booking.status)}">${this.getStatusText(booking.status)}</span></p>
+            </div>
+            <div class="col-md-6">
+              <h6>المعلومات المالية</h6>
+              <p><strong>السعر الكامل:</strong> ${booking.amount} ج.م</p>
+              <p><strong>المبلغ المدفوع:</strong> ${booking.paidAmount} ج.م</p>
+              <p><strong>المبلغ المتبقي:</strong> ${booking.remainingAmount} ج.م</p>
+              ${booking.playersNeeded > 0 ? `<p><strong>اللاعبين المطلوبين:</strong> ${booking.playersNeeded}</p>` : ''}
+            </div>
+          </div>
+          ${booking.status === 'confirmed' && new Date(booking.date) > new Date() ? `
+            <div class="mt-3">
+              <button class="btn btn-warning me-2" onclick="profileSystem.requestPlayers('${booking.id}')">
+                <i class="bi bi-people me-1"></i>طلب لاعبين
+              </button>
+              <button class="btn btn-danger" onclick="profileSystem.cancelBooking('${booking.id}')">
+                <i class="bi bi-x-circle me-1"></i>إلغاء الحجز
+              </button>
+            </div>
+          ` : ''}
+        `;
+
+        const modal = new bootstrap.Modal(document.getElementById('bookingDetailsModal'));
+        modal.show();
+      }
+
+      async requestPlayers(bookingId) {
+        const playersNeeded = prompt('كم عدد اللاعبين الإضافيين الذي تريد طلبهم؟', '2');
+        if (playersNeeded && parseInt(playersNeeded) > 0) {
+          try {
+            const response = await fetch(`/api/bookings/${bookingId}/request-players`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                playersNeeded: parseInt(playersNeeded)
+              })
+            });
+
+            if (response.ok) {
+              alert('✅ تم طلب اللاعبين بنجاح! ستظهر ساعتك في "لاعبوني معاكم"');
+              this.loadUserProfile();
+            } else {
+              alert('❌ حدث خطأ أثناء طلب اللاعبين');
+            }
+          } catch (error) {
+            console.error('Error requesting players:', error);
+            alert('❌ حدث خطأ أثناء طلب اللاعبين');
+          }
+        }
+      }
+
+      async cancelBooking(bookingId) {
+        if (confirm('هل أنت متأكد من إلغاء هذا الحجز؟')) {
+          try {
+            const response = await fetch(`/api/bookings/${bookingId}/cancel`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+              }
+            });
+
+            if (response.ok) {
+              alert('✅ تم إلغاء الحجز بنجاح');
+              this.loadUserProfile();
+              bootstrap.Modal.getInstance(document.getElementById('bookingDetailsModal')).hide();
+            } else {
+              alert('❌ حدث خطأ أثناء إلغاء الحجز');
+            }
+          } catch (error) {
+            console.error('Error cancelling booking:', error);
+            alert('❌ حدث خطأ أثناء إلغاء الحجز');
+          }
+        }
+      }
+
+      async respondToRequest(requestId, action) {
+        try {
+          const response = await fetch(`/api/player-requests/${requestId}/respond`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ action })
+          });
+
+          if (response.ok) {
+            alert(`✅ تم ${action === 'accept' ? 'قبول' : 'رفض'} الطلب بنجاح`);
+            this.loadUserProfile();
+          } else {
+            alert('❌ حدث خطأ أثناء معالجة الطلب');
+          }
+        } catch (error) {
+          console.error('Error responding to request:', error);
+          alert('❌ حدث خطأ أثناء معالجة الطلب');
+        }
+      }
+
+      getBookingStatusClass(status) {
+        const classes = {
+          'confirmed': 'border-success',
+          'pending': 'border-warning',
+          'cancelled': 'border-danger',
+          'completed': 'border-secondary'
+        };
+        return classes[status] || '';
+      }
+
+      getStatusBadgeClass(status) {
+        const classes = {
+          'confirmed': 'bg-success',
+          'pending': 'bg-warning',
+          'cancelled': 'bg-danger',
+          'completed': 'bg-secondary'
+        };
+        return classes[status] || 'bg-secondary';
+      }
+
+      getStatusText(status) {
+        const texts = {
+          'confirmed': 'مؤكد',
+          'pending': 'قيد الانتظار',
+          'cancelled': 'ملغي',
+          'completed': 'منتهي'
+        };
+        return texts[status] || status;
+      }
+
+      getRequestStatusClass(status) {
+        const classes = {
+          'pending': 'bg-warning',
+          'accepted': 'bg-success',
+          'rejected': 'bg-danger'
+        };
+        return classes[status] || 'bg-secondary';
+      }
+
+      getRequestStatusText(status) {
+        const texts = {
+          'pending': 'قيد الانتظار',
+          'accepted': 'مقبول',
+          'rejected': 'مرفوض'
+        };
+        return texts[status] || status;
+      }
+
+      startAutoRefresh() {
+        // تحديث البيانات كل دقيقة
+        setInterval(() => {
+          this.loadUserProfile();
+        }, 60000);
+      }
+
+      setupEventListeners() {
+        // CSRF Token
+        fetch('/csrf-token')
+          .then(r => r.ok ? r.json() : null)
+          .then(d => {
+            if (d?.csrfToken) {
+              document.getElementById('csrfToken').value = d.csrfToken;
+            }
+          });
+
+        // نموذج تعديل الملف
+        document.getElementById('profileForm').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          await this.updateProfile(e.target);
+        });
+      }
+
+      async updateProfile(form) {
+        const formData = new FormData(form);
+        
+        try {
+          const response = await fetch('/api/user/profile', {
+            method: 'PUT',
+            body: formData
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            alert('✅ ' + data.message);
+            this.loadUserProfile();
+          } else {
+            alert('❌ ' + data.message);
+          }
+        } catch (error) {
+          console.error('Error updating profile:', error);
+          alert('❌ حدث خطأ أثناء تحديث الملف الشخصي');
+        }
+      }
+    }
+
+    // 🆕 دالة فلترة الحجوزات
+    function filterBookings(filter) {
+      const bookings = document.querySelectorAll('#allBookingsContainer .booking-card');
+      bookings.forEach(booking => {
+        const status = booking.querySelector('.badge').textContent;
+        let show = true;
+        
+        switch(filter) {
+          case 'upcoming':
+            show = status === 'مؤكد';
+            break;
+          case 'completed':
+            show = status === 'منتهي';
+            break;
+          case 'cancelled':
+            show = status === 'ملغي';
+            break;
+          default:
+            show = true;
+        }
+        
+        booking.style.display = show ? 'block' : 'none';
+      });
+
+      // تحديث أزرار الفلترة
+      document.querySelectorAll('#bookings .btn-group .btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      event.target.classList.add('active');
     }
 
     // معاينة الصورة الشخصية
@@ -393,32 +1158,6 @@
       }
     }
 
-    // إرسال النموذج
-    document.getElementById('profileForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      const formData = new FormData(e.target);
-      
-      try {
-        const response = await fetch('/api/user/profile', {
-          method: 'PUT',
-          body: formData
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-          alert('✅ ' + data.message);
-          loadProfile();
-        } else {
-          alert('❌ ' + data.message);
-        }
-      } catch (error) {
-        console.error('Error updating profile:', error);
-        alert('❌ حدث خطأ أثناء تحديث الملف الشخصي');
-      }
-    });
-
     // تسجيل الخروج
     function logout() {
       fetch('/logout', { method: 'POST' })
@@ -430,7 +1169,8 @@
         });
     }
 
-    // تحميل البيانات عند فتح الصفحة
+    // تهيئة النظام
+    let profileSystem;
     document.addEventListener('DOMContentLoaded', function() {
       fetch('/api/current-user')
         .then(r => {
@@ -439,7 +1179,7 @@
         })
         .then(user => {
           if (user) {
-            loadProfile();
+            profileSystem = new AdvancedProfileSystem();
           } else {
             window.location.href = '/login.html';
           }
