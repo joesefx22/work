@@ -20,6 +20,7 @@
       --dark-color: #2c3e50;
       --light-color: #ecf0f1;
       --blue-color: #3498db;
+      --gold-color: #ffd700;
     }
     
     body {
@@ -28,7 +29,72 @@
       color: #333;
       overflow-x: hidden;
     }
+
+    /* 🆕 إضافات جديدة */
     
+    /* شارة الساعات الذهبية */
+    .golden-slot-badge {
+      background: linear-gradient(135deg, #ffd700, #ffed4e) !important;
+      color: #000 !important;
+      font-weight: bold;
+      border: 2px solid #ffc107;
+    }
+    
+    /* زر طلب اللاعبين */
+    .players-request-btn {
+      background: linear-gradient(135deg, #ffd700, #ffed4e);
+      color: #000;
+      border: none;
+      font-weight: 600;
+    }
+    
+    .players-request-btn:hover {
+      background: linear-gradient(135deg, #ffed4e, #ffd700);
+      transform: translateY(-2px);
+    }
+    
+    /* عد تنازلي للحجز */
+    .countdown-timer {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 25px;
+      font-weight: bold;
+      font-size: 0.9rem;
+    }
+    
+    /* نظام الأكواد في الدفع */
+    .voucher-section {
+      border: 2px dashed #1a7f46;
+      border-radius: 10px;
+      padding: 1rem;
+      background: #f8fff9;
+      margin: 1rem 0;
+    }
+    
+    .voucher-input-group {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .voucher-input {
+      flex: 1;
+    }
+    
+    /* تحسينات للواجهة الحالية */
+    .time-slot.golden {
+      background: linear-gradient(135deg, #fff9e6, #fff3cd);
+      border: 2px solid var(--gold-color);
+      color: #000;
+      font-weight: bold;
+    }
+    
+    .time-slot.golden::before {
+      content: '👥';
+      margin-left: 5px;
+    }
+
     /* Loading Screen - التحديث الجديد */
     #loadingOverlay {
       position: fixed;
@@ -69,7 +135,7 @@
       height: 120px;
       top: 15px;
       left: 15px;
-      border-top-color: #1e40af; /* أزرق داكن */
+      border-top-color: #1e40af;
       animation-delay: 0s;
     }
     
@@ -78,7 +144,7 @@
       height: 100px;
       top: 25px;
       left: 25px;
-      border-top-color: #3b82f6; /* أزرق متوسط */
+      border-top-color: #3b82f6;
       animation-delay: 0.1s;
       animation-duration: 0.9s;
     }
@@ -88,7 +154,7 @@
       height: 80px;
       top: 35px;
       left: 35px;
-      border-top-color: #60a5fa; /* أزرق فاتح */
+      border-top-color: #60a5fa;
       animation-delay: 0.2s;
       animation-duration: 1s;
     }
@@ -98,7 +164,7 @@
       height: 60px;
       top: 45px;
       left: 45px;
-      border-top-color: #93c5fd; /* أزرق أفتح */
+      border-top-color: #93c5fd;
       animation-delay: 0.3s;
       animation-duration: 1.1s;
     }
@@ -108,7 +174,7 @@
       height: 40px;
       top: 55px;
       left: 55px;
-      border-top-color: #bfdbfe; /* أزرق فاتح جداً */
+      border-top-color: #bfdbfe;
       animation-delay: 0.4s;
       animation-duration: 1.2s;
     }
@@ -730,6 +796,12 @@
         <li class="nav-item">
           <a class="nav-link" href="#features">المميزات</a>
         </li>
+        <!-- 🆕 إضافة رابط لاعبوني معاكم -->
+        <li class="nav-item">
+          <a class="nav-link" href="/players-with-you">
+            <i class="bi bi-people me-1"></i>لاعبوني معاكم
+          </a>
+        </li>
         <li class="nav-item">
           <a class="nav-link" href="/profile">
             <i class="bi bi-person me-1"></i>ملفي
@@ -859,6 +931,34 @@
           <p>استرداد كامل مع كود تعويض عند الإلغاء قبل 48 ساعة</p>
         </div>
       </div>
+      <!-- 🆕 إضافة ميزة جديدة -->
+      <div class="col-md-4 mb-4">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i class="bi bi-people"></i>
+          </div>
+          <h4>لاعبوني معاكم</h4>
+          <p>اطلب لاعبين إضافيين أو انضم لمباريات تحتاج لاعبين</p>
+        </div>
+      </div>
+      <div class="col-md-4 mb-4">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i class="bi bi-gift"></i>
+          </div>
+          <h4>أكواد الدفع</h4>
+          <p>ادفع باستخدام أكواد مالية بقيم مختلفة 50، 100، 150 جنيه</p>
+        </div>
+      </div>
+      <div class="col-md-4 mb-4">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i class="bi bi-clock"></i>
+          </div>
+          <h4>عد تنازلي للحجز</h4>
+          <p>متابعة حية للوقت المتبقي وحالة الحجز الخاصة بك</p>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -891,6 +991,7 @@
           <a href="#">أورنج كاش</a>
           <a href="#">اتصالات كاش</a>
           <a href="#">إنستاباي</a>
+          <a href="#">أكواد الدفع</a>
         </div>
       </div>
       <div class="col-lg-3 col-md-6 mb-4">
@@ -958,10 +1059,37 @@
             <input type="email" class="form-control" id="customerEmail" name="email">
           </div>
           
+          <!-- 🆕 قسم طلب اللاعبين الإضافيين -->
+          <div class="mb-3">
+            <label class="form-label">عدد اللاعبين الإضافيين المطلوبين</label>
+            <input type="number" class="form-control" id="playersNeeded" name="playersNeeded" min="0" max="10" value="0">
+            <div class="form-text">
+              إذا طلبت لاعبين إضافيين، ستظهر ساعتك في "لاعبوني معاكم" بلون ذهبي
+            </div>
+          </div>
+          
           <div class="mb-3">
             <label class="form-label">كود الخصم (اختياري)</label>
             <input type="text" class="form-control" id="discountCode" name="discountCode" placeholder="أدخل الكود إذا كان لديك">
             <div class="form-text">يمكن استخدام أكواد التعويض لخصم على المبلغ المتبقي</div>
+          </div>
+          
+          <!-- 🆕 قسم أكواد الدفع -->
+          <div class="voucher-section">
+            <h6 class="mb-3">🆕 الدفع باستخدام الأكواد</h6>
+            <div class="voucher-input-group">
+              <input type="text" class="form-control voucher-input" placeholder="أدخل الكود الأول" id="voucherCode1">
+              <button type="button" class="btn btn-outline-success" onclick="validateVoucher(1)">تحقق</button>
+            </div>
+            <div class="voucher-input-group">
+              <input type="text" class="form-control voucher-input" placeholder="أدخل الكود الثاني (اختياري)" id="voucherCode2">
+              <button type="button" class="btn btn-outline-success" onclick="validateVoucher(2)">تحقق</button>
+            </div>
+            <div class="voucher-input-group">
+              <input type="text" class="form-control voucher-input" placeholder="أدخل الكود الثالث (اختياري)" id="voucherCode3">
+              <button type="button" class="btn btn-outline-success" onclick="validateVoucher(3)">تحقق</button>
+            </div>
+            <div id="voucherStatus" class="mt-2"></div>
           </div>
           
           <div class="alert alert-info">
@@ -1090,9 +1218,55 @@
   </div>
 </div>
 
+<!-- 🆕 مودال طلب اللاعبين -->
+<div class="modal fade" id="playersRequestModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-warning text-white">
+        <h5 class="modal-title">طلب لاعبين إضافيين</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info">
+          <h6>معلومات الساعة الذهبية</h6>
+          <p id="goldenSlotInfo" class="mb-0"></p>
+        </div>
+        
+        <form id="playersRequestForm">
+          <input type="hidden" id="requestTimeSlotId">
+          
+          <div class="mb-3">
+            <label class="form-label">اسمك</label>
+            <input type="text" class="form-control" id="requesterName" required>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">عمرك</label>
+            <input type="number" class="form-control" id="requesterAge" min="15" max="60" required>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">عدد اللاعبين معك</label>
+            <input type="number" class="form-control" id="playersWithYou" min="1" max="10" value="1" required>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">تعليق (اختياري)</label>
+            <textarea class="form-control" id="requestComment" rows="3" placeholder="أخبر منظم المباراة عن مستواك أو أي ملاحظات..."></textarea>
+          </div>
+          
+          <button type="submit" class="btn btn-warning w-100 text-white">
+            <i class="bi bi-send me-2"></i>إرسال طلب الانضمام
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-  // 🆕 متغيرات النظام المطور
+  // 🆕 متغيرات النظام المطور مع الإضافات الجديدة
   let pitches = [];
   let currentBookings = [];
   let currentCancellationBooking = null;
@@ -1102,6 +1276,10 @@
   let selectedPitchId = null;
   let selectedTime = '';
   let discountCodes = [];
+  let goldenSlots = []; // 🆕 الساعات الذهبية
+  let validatedVouchers = []; // 🆕 الأكواد المفحوصة
+
+  // ========= الدوال الأساسية من الكود الأصلي =========
 
   // 🆕 تحميل بيانات الملاعب مع التوفر
   async function loadPitchesData() {
@@ -1341,21 +1519,21 @@
     
     // التحقق من اختيار التاريخ والوقت
     const daySelector = document.querySelector(`[data-pitch-id="${pitchId}"] .day-select`);
-    const selectedTime = document.querySelector(`[data-pitch-id="${pitchId}"] .time-slot.selected`);
+    const selectedTimeElement = document.querySelector(`[data-pitch-id="${pitchId}"] .time-slot.selected`);
     
     if (!daySelector || !daySelector.value) {
       alert('يرجى اختيار تاريخ الحجز أولاً');
       return;
     }
 
-    if (!selectedTime) {
+    if (!selectedTimeElement) {
       alert('يرجى اختيار وقت الحجز أولاً');
       return;
     }
 
     // تعبئة بيانات الحجز
     document.getElementById('pitchId').value = pitchId;
-    document.getElementById('selectedTime').value = selectedTime.dataset.hour;
+    document.getElementById('selectedTime').value = selectedTimeElement.dataset.hour;
     document.getElementById('selectedDate').value = daySelector.value;
     
     // تحديث تفاصيل الحجز في المودال
@@ -1365,7 +1543,7 @@
         <p class="mb-1"><strong>الملعب:</strong> ${pitch.name}</p>
         <p class="mb-1"><strong>الموقع:</strong> ${pitch.location}</p>
         <p class="mb-1"><strong>التاريخ:</strong> ${daySelector.value}</p>
-        <p class="mb-1"><strong>الوقت:</strong> ${formatTime(parseInt(selectedTime.dataset.hour))}</p>
+        <p class="mb-1"><strong>الوقت:</strong> ${formatTime(parseInt(selectedTimeElement.dataset.hour))}</p>
         <p class="mb-1"><strong>السعر الكامل:</strong> ${pitch.price} جنيه</p>
         <p class="mb-1"><strong>العربون المطلوب:</strong> ${pitch.deposit} جنيه</p>
         <p class="mb-0"><strong>المبلغ المتبقي:</strong> ${pitch.price - pitch.deposit} جنيه</p>
@@ -1377,7 +1555,7 @@
       pitchId: pitchId,
       pitchName: pitch.name,
       date: daySelector.value,
-      time: selectedTime.dataset.hour,
+      time: selectedTimeElement.dataset.hour,
       amount: pitch.price,
       deposit: pitch.deposit
     };
@@ -1670,49 +1848,138 @@
     }
   }
 
-  // التهيئة
-  document.addEventListener('DOMContentLoaded', function() {
-    // إعداد الفلاتر
-    document.getElementById('areaFilter').addEventListener('change', filterPitches);
-    document.getElementById('sortFilter').addEventListener('change', filterPitches);
-    document.getElementById('typeFilter').addEventListener('change', filterPitches);
-    
-    // إعداد سبب الإلغاء
-    document.getElementById('cancellationReason').addEventListener('change', function() {
-      const otherReason = document.getElementById('otherReason');
-      otherReason.style.display = this.value === 'آخر' ? 'block' : 'none';
-    });
+  // ========= الدوال الجديدة للنظام =========
 
-    // جلب رمز CSRF
-    fetch('/csrf-token')
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        if (d?.csrfToken) {
-          document.getElementById('csrfToken').value = d.csrfToken;
-          document.getElementById('ratingCsrfToken').value = d.csrfToken;
-        }
+  // تحقق من صحة الكود
+  async function validateVoucher(inputNumber) {
+    const voucherInput = document.getElementById(`voucherCode${inputNumber}`);
+    const code = voucherInput.value.trim();
+    
+    if (!code) {
+      alert('يرجى إدخال الكود');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/validate-voucher', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ code })
       });
 
-    window.addEventListener('scroll', function() {
-      if (window.scrollY > 100) {
-        document.querySelector('.navbar').classList.add('scrolled');
+      const result = await response.json();
+
+      if (response.ok) {
+        // حفظ الكود المفحوص
+        validatedVouchers[inputNumber - 1] = {
+          code: code,
+          value: result.value
+        };
+        
+        voucherInput.disabled = true;
+        voucherInput.style.borderColor = '#1a7f46';
+        voucherInput.style.backgroundColor = '#f0fff4';
+        
+        document.getElementById('voucherStatus').innerHTML = `
+          <div class="alert alert-success">
+            <i class="bi bi-check-circle me-2"></i>الكود صالح! القيمة: ${result.value} جنيه
+          </div>
+        `;
       } else {
-        document.querySelector('.navbar').classList.remove('scrolled');
+        document.getElementById('voucherStatus').innerHTML = `
+          <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle me-2"></i>${result.message}
+          </div>
+        `;
+      }
+    } catch (error) {
+      console.error('Error validating voucher:', error);
+      document.getElementById('voucherStatus').innerHTML = `
+        <div class="alert alert-danger">
+          <i class="bi bi-exclamation-triangle me-2"></i>حدث خطأ أثناء التحقق من الكود
+        </div>
+      `;
+    }
+  }
+
+  // 🆕 تحميل الساعات الذهبية
+  async function loadGoldenSlots() {
+    try {
+      const response = await fetch('/api/golden-slots');
+      if (response.ok) {
+        goldenSlots = await response.json();
+        updateGoldenSlotsDisplay();
+      }
+    } catch (error) {
+      console.error('Error loading golden slots:', error);
+    }
+  }
+
+  // 🆕 تحديث عرض الساعات الذهبية
+  function updateGoldenSlotsDisplay() {
+    goldenSlots.forEach(slot => {
+      const timeSlotElement = document.querySelector(`[data-time-slot-id="${slot.id}"]`);
+      if (timeSlotElement) {
+        timeSlotElement.classList.add('golden');
+        timeSlotElement.innerHTML = `${formatTime(slot.start_time)} 👥`;
+        
+        // إضافة زر للانضمام
+        const joinButton = document.createElement('button');
+        joinButton.className = 'btn players-request-btn btn-sm mt-1';
+        joinButton.innerHTML = '<i class="bi bi-person-plus me-1"></i>انضم';
+        joinButton.onclick = () => showPlayersRequestModal(slot.id);
+        
+        timeSlotElement.parentNode.appendChild(joinButton);
       }
     });
+  }
 
-    // تحميل البيانات
-    loadPitchesData();
+  // 🆕 عرض مودال طلب اللاعبين
+  function showPlayersRequestModal(timeSlotId) {
+    const slot = goldenSlots.find(s => s.id === timeSlotId);
+    if (!slot) return;
 
-    // إخفاء شاشة التحميل
-    window.addEventListener('load', () => {
-      setTimeout(() => {
-        document.getElementById('loadingOverlay').classList.add('fade-out');
-      }, 1000);
-    });
-  });
+    document.getElementById('requestTimeSlotId').value = timeSlotId;
+    document.getElementById('goldenSlotInfo').innerHTML = `
+      <strong>الملعب:</strong> ${slot.stadium_name}<br>
+      <strong>التاريخ:</strong> ${slot.date}<br>
+      <strong>الوقت:</strong> ${slot.start_time} - ${slot.end_time}<br>
+      <strong>اللاعبين المطلوبين:</strong> ${slot.players_needed}
+    `;
 
-  // باقي الدوال (ratePitch, إلخ) تبقى كما هي مع التعديلات اللازمة
+    const modal = new bootstrap.Modal(document.getElementById('playersRequestModal'));
+    modal.show();
+  }
+
+  // 🆕 إرسال طلب الانضمام
+  async function submitPlayersRequest(formData) {
+    try {
+      const response = await fetch('/api/player-requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alert('✅ ' + result.message);
+        bootstrap.Modal.getInstance(document.getElementById('playersRequestModal')).hide();
+      } else {
+        alert('❌ ' + result.message);
+      }
+    } catch (error) {
+      console.error('Error submitting players request:', error);
+      alert('❌ حدث خطأ أثناء إرسال الطلب');
+    }
+  }
+
+  // ========= دوال التقييم =========
+
   function ratePitch(pitchId) {
     const pitch = pitches.find(p => p.id === pitchId);
     
@@ -1758,6 +2025,8 @@
     ratingModal.show();
   }
 
+  // ========= معالجة النماذج =========
+
   // إرسال نموذج الحجز
   document.getElementById('bookingForm').addEventListener('submit', async function(e) {
     e.preventDefault();
@@ -1765,8 +2034,11 @@
     const formData = new FormData(this);
     const data = Object.fromEntries(formData);
     
+    // جمع الأكواد المفحوصة
+    const voucherCodes = validatedVouchers.filter(v => v).map(v => v.code);
+    
     try {
-      const response = await fetch('/api/bookings', {
+      const response = await fetch('/api/bookings/new', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1779,6 +2051,8 @@
           name: data.name,
           phone: data.phone,
           email: data.email,
+          playersNeeded: parseInt(data.playersNeeded) || 0,
+          voucherCodes: voucherCodes,
           discountCode: data.discountCode
         })
       });
@@ -1792,10 +2066,28 @@
           </div>
         `;
         
+        // إذا طلب لاعبين، جعل الساعة ذهبية
+        if (parseInt(data.playersNeeded) > 0) {
+          await fetch(`/api/time-slots/${result.timeSlotId}/make-golden`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              playersNeeded: parseInt(data.playersNeeded)
+            })
+          });
+        }
+        
         // تحديث الواجهة وإعادة التوجيه
         setTimeout(() => {
           bootstrap.Modal.getInstance(document.getElementById('bookingModal')).hide();
-          window.location.href = '/payment';
+          if (result.depositAmount > 0) {
+            window.location.href = '/payment?booking=' + result.bookingId;
+          } else {
+            alert('🎉 تم الحجز بنجاح!');
+            location.reload();
+          }
         }, 2000);
       } else {
         document.getElementById('bookingStatus').innerHTML = `
@@ -1865,6 +2157,98 @@
       `;
     }
   });
+
+  // 🆕 إعداد نموذج طلب اللاعبين
+  document.getElementById('playersRequestForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = {
+      timeSlotId: parseInt(document.getElementById('requestTimeSlotId').value),
+      requesterName: document.getElementById('requesterName').value,
+      requesterAge: parseInt(document.getElementById('requesterAge').value),
+      comment: document.getElementById('requestComment').value,
+      playersCount: parseInt(document.getElementById('playersWithYou').value)
+    };
+
+    await submitPlayersRequest(formData);
+  });
+
+  // ========= التهيئة =========
+
+  document.addEventListener('DOMContentLoaded', function() {
+    // إعداد الفلاتر
+    document.getElementById('areaFilter').addEventListener('change', filterPitches);
+    document.getElementById('sortFilter').addEventListener('change', filterPitches);
+    document.getElementById('typeFilter').addEventListener('change', filterPitches);
+    
+    // إعداد سبب الإلغاء
+    document.getElementById('cancellationReason').addEventListener('change', function() {
+      const otherReason = document.getElementById('otherReason');
+      otherReason.style.display = this.value === 'آخر' ? 'block' : 'none';
+    });
+
+    // جلب رمز CSRF
+    fetch('/csrf-token')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.csrfToken) {
+          document.getElementById('csrfToken').value = d.csrfToken;
+          document.getElementById('ratingCsrfToken').value = d.csrfToken;
+        }
+      });
+
+    window.addEventListener('scroll', function() {
+      if (window.scrollY > 100) {
+        document.querySelector('.navbar').classList.add('scrolled');
+      } else {
+        document.querySelector('.navbar').classList.remove('scrolled');
+      }
+    });
+
+    // تحميل البيانات
+    loadPitchesData();
+
+    // تحميل الساعات الذهبية
+    loadGoldenSlots();
+    
+    // تحديث كل دقيقة
+    setInterval(loadGoldenSlots, 60000);
+
+    // إخفاء شاشة التحميل
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        document.getElementById('loadingOverlay').classList.add('fade-out');
+      }, 1000);
+    });
+  });
+
+  // 🆕 دوال العد التنازلي المحسنة
+  function startCountdown(bookingId) {
+    const countdownInterval = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/bookings/${bookingId}/countdown`);
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data.timeLeft.hours === 0 && data.timeLeft.minutes === 0 && data.timeLeft.seconds === 0) {
+            clearInterval(countdownInterval);
+            document.getElementById('trackerStatus').textContent = 'انتهى وقت تأكيد الحجز';
+            document.getElementById('trackerProgress').style.width = '100%';
+          } else {
+            document.getElementById('trackerStatus').textContent = 
+              `متبقي: ${data.timeLeft.hours} س ${data.timeLeft.minutes} د ${data.timeLeft.seconds} ث | المتبقي: ${data.remainingAmount} ج.م`;
+            
+            const totalSeconds = (data.timeLeft.hours * 3600) + (data.timeLeft.minutes * 60) + data.timeLeft.seconds;
+            const totalTime = 2 * 60 * 60; // ساعتين
+            const progressPercent = ((totalTime - totalSeconds) / totalTime) * 100;
+            document.getElementById('trackerProgress').style.width = `${progressPercent}%`;
+          }
+        }
+      } catch (error) {
+        console.error('Countdown error:', error);
+      }
+    }, 1000);
+  }
 </script>
 </body>
 </html>
