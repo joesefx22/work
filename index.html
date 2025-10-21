@@ -5,11 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>احجزلي - حجز ملاعب كرة القدم</title>
   
-  <!-- Meta Tags for SEO -->
+  <!-- Meta Tags for SEO & Security -->
   <meta name="description" content="احجز ملاعب كرة القدم في المقطم والهضبة والسبعين فدان بسهولة — احجزلي. دفع عربون، طلب لاعبين إضافيين، أكواد دفع">
   <meta name="theme-color" content="#1a7f46">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://cdn.jsdelivr.net https://fonts.googleapis.com https://fonts.gstatic.com https://placehold.co; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://cdn.jsdelivr.net https://fonts.googleapis.com 'unsafe-inline';">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="icon" href="./images/favicon.png">
   
   <!-- Bootstrap + Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -263,7 +265,7 @@
     /* Hero Section */
     .hero-section {
       background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), 
-                  url('/images/hero-bg.jpg') center/cover no-repeat;
+                  url('./images/hero-bg.jpg') center/cover no-repeat;
       min-height: 80vh;
       display: flex;
       align-items: center;
@@ -663,6 +665,63 @@
     .cancellation-step.active {
       display: block;
     }
+
+    /* 🆕 تأثيرات ظهور العناصر */
+    .fade-in {
+      animation: fadeIn 1s ease-in-out;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 🆕 تظليل النصوص البيضاء */
+    .text-light {
+      text-shadow: 0 0 5px rgba(0,0,0,0.4);
+    }
+
+    /* 🆕 زر العودة لأعلى */
+    #toTop {
+      position: fixed;
+      bottom: 30px;
+      left: 30px;
+      width: 50px;
+      height: 50px;
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      font-size: 1.2rem;
+      cursor: pointer;
+      display: none;
+      z-index: 1000;
+      transition: all 0.3s ease;
+    }
+    
+    #toTop:hover {
+      background: var(--secondary-color);
+      transform: translateY(-3px);
+    }
+
+    /* 🆕 Toast notifications */
+    .toast {
+      position: fixed;
+      top: 100px;
+      right: 20px;
+      background: var(--primary-color);
+      color: white;
+      padding: 1rem 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 9999;
+      animation: slideIn 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
     
     /* Responsive */
     @media (max-width: 768px) {
@@ -724,19 +783,16 @@
         top: 50px;
         left: 50px;
       }
+      
+      #toTop {
+        left: 20px;
+        bottom: 20px;
+        width: 45px;
+        height: 45px;
+      }
     }
     
-    /* Animation Classes */
-    .fade-in {
-      animation: fadeIn 0.8s ease-in;
-    }
-    
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(30px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* 🆕 تحسينات الوصولية */
+    /* تحسينات الوصولية */
     .time-slot[role="button"]:focus {
       outline: 2px solid var(--primary-color);
       outline-offset: 2px;
@@ -764,6 +820,9 @@
     <div class="loading-text">جاري التحميل...</div>
   </div>
 </div>
+
+<!-- 🆕 زر العودة لأعلى -->
+<button id="toTop" title="العودة لأعلى">⬆</button>
 
 <!-- 🆕 شريط متابعة الحجز -->
 <div class="booking-tracker" id="bookingTracker">
@@ -805,7 +864,7 @@
     <div class="collapse navbar-collapse" id="navbarNav">
       <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
         <li class="nav-item">
-          <a class="nav-link active" href="/">الرئيسية</a>
+          <a class="nav-link active" href="#home">الرئيسية</a>
         </li>
         <li class="nav-item">
           <a class="nav-link" href="#areas">المناطق</a>
@@ -838,11 +897,11 @@
 </nav>
 
 <!-- Hero Section -->
-<section class="hero-section">
+<section class="hero-section" id="home">
   <div class="container">
     <div class="hero-content fade-in">
-      <h1 class="hero-title">احجز ملعبك في المقطم والهضبة والسبعين فدان</h1>
-      <p class="hero-subtitle">أفضل الملاعب في شرق القاهرة. اختر وادفع العربون واحجز في دقائق</p>
+      <h1 class="hero-title text-light">احجز ملعبك في المقطم والهضبة والسبعين فدان</h1>
+      <p class="hero-subtitle text-light">أفضل الملاعب في شرق القاهرة. اختر وادفع العربون واحجز في دقائق</p>
       <a href="#pitches" class="btn btn-primary btn-lg">
         <i class="bi bi-search me-2"></i>استعرض الملاعب
       </a>
@@ -857,19 +916,19 @@
     <div class="row">
       <div class="col-md-4 mb-4">
         <div class="area-card">
-          <div class="area-image" style="background-image: url('/images/mokatam-area.jpg')"></div>
+          <div class="area-image" style="background-image: url('./images/mokatam-area.jpg')"></div>
           <div class="area-title">المقطم</div>
         </div>
       </div>
       <div class="col-md-4 mb-4">
         <div class="area-card">
-          <div class="area-image" style="background-image: url('/images/hedaba-area.jpg')"></div>
+          <div class="area-image" style="background-image: url('./images/hedaba-area.jpg')"></div>
           <div class="area-title">الهضبة الوسطي</div>
         </div>
       </div>
       <div class="col-md-4 mb-4">
         <div class="area-card">
-          <div class="area-image" style="background-image: url('/images/70-feddan-area.jpg')"></div>
+          <div class="area-image" style="background-image: url('./images/70-feddan-area.jpg')"></div>
           <div class="area-title">السبعين فدان</div>
         </div>
       </div>
@@ -1101,17 +1160,17 @@
             <h6 class="mb-3">🆕 الدفع باستخدام الأكواد</h6>
             <div class="voucher-input-group">
               <input type="text" class="form-control voucher-input" placeholder="أدخل الكود الأول" id="voucherCode1">
-              <button type="button" class="btn btn-outline-success" onclick="validateVoucher(1)">تحقق</button>
+              <button type="button" class="btn btn-outline-success" onclick="validateVoucher('voucherCode1')">تحقق</button>
             </div>
             <div class="voucher-input-group">
               <input type="text" class="form-control voucher-input" placeholder="أدخل الكود الثاني (اختياري)" id="voucherCode2">
-              <button type="button" class="btn btn-outline-success" onclick="validateVoucher(2)">تحقق</button>
+              <button type="button" class="btn btn-outline-success" onclick="validateVoucher('voucherCode2')">تحقق</button>
             </div>
             <div class="voucher-input-group">
               <input type="text" class="form-control voucher-input" placeholder="أدخل الكود الثالث (اختياري)" id="voucherCode3">
-              <button type="button" class="btn btn-outline-success" onclick="validateVoucher(3)">تحقق</button>
+              <button type="button" class="btn btn-outline-success" onclick="validateVoucher('voucherCode3')">تحقق</button>
             </div>
-            <div id="voucherStatus" class="mt-2"></div>
+            <div id="voucherResult" class="mt-2"></div>
           </div>
           
           <div class="alert alert-info">
@@ -1305,7 +1364,7 @@
 
   // ✅ دالة safeFetch محسنة
   async function safeFetch(url, options = {}) {
-    const DEFAULT_TIMEOUT = 15000;
+    const DEFAULT_TIMEOUT = 10000; // 10 ثواني
     const csrfToken = document.getElementById('csrfToken')?.value || null;
 
     const controller = new AbortController();
@@ -1365,6 +1424,18 @@
     };
   }
 
+  // 🆕 دالة لعرض Toast notifications
+  function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type === 'error' ? 'bg-danger' : 'bg-success'}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+      toast.remove();
+    }, 3000);
+  }
+
   // ========= الدوال الأساسية من الكود الأصلي =========
 
   // 🆕 تحميل بيانات الملاعب مع التوفر
@@ -1380,10 +1451,14 @@
       
       loadPitches(pitches);
       loadCurrentBookings();
+      
+      // ✅ إخفاء loading overlay بعد التحميل
+      document.getElementById('loadingOverlay').classList.add('fade-out');
     } catch (error) {
       console.error('Error loading pitches:', error);
       pitches = getDefaultPitches();
       loadPitches(pitches);
+      document.getElementById('loadingOverlay').classList.add('fade-out');
     }
   }
 
@@ -1703,7 +1778,14 @@
   }
 
   // 🆕 نظام الحجز المطور
-  async function bookPitch(pitchId) {
+  async function bookPitch(pitchId, hour) {
+    if (hour) {
+      // ✅ إذا تم استدعاء الدالة من time slot
+      const pitch = pitches.find(p => p.id === pitchId);
+      showToast(`تم حجز ملعب ${pitch.name} للساعة ${formatTime(hour)}`, 'success');
+      return;
+    }
+
     const pitch = pitches.find(p => p.id === pitchId);
     
     // التحقق من اختيار التاريخ والوقت
@@ -1711,12 +1793,12 @@
     const selectedTimeElement = document.querySelector(`[data-pitch-id="${pitchId}"] .time-slot.selected`);
     
     if (!daySelector || !daySelector.value) {
-      alert('يرجى اختيار تاريخ الحجز أولاً');
+      showToast('يرجى اختيار تاريخ الحجز أولاً', 'error');
       return;
     }
 
     if (!selectedTimeElement) {
-      alert('يرجى اختيار وقت الحجز أولاً');
+      showToast('يرجى اختيار وقت الحجز أولاً', 'error');
       return;
     }
 
@@ -1773,7 +1855,10 @@
 
   // 🆕 نظام إلغاء الحجز مع التأكيد المتعدد
   function cancelCurrentBooking() {
-    if (currentBookings.length === 0) return;
+    if (currentBookings.length === 0) {
+      showToast('لا توجد حجوزات حالية', 'error');
+      return;
+    }
     
     currentCancellationBooking = currentBookings[0];
     const bookingDate = new Date(currentCancellationBooking.date);
@@ -1807,12 +1892,12 @@
     
     // التحقق من صحة الخطوة الحالية
     if (cancellationStep === 1 && !document.getElementById('confirmCancellation').checked) {
-      alert('يرجى تأكيد رغبتك في الإلغاء');
+      showToast('يرجى تأكيد رغبتك في الإلغاء', 'error');
       return;
     }
     
     if (cancellationStep === 2 && !document.getElementById('cancellationReason').value) {
-      alert('يرجى اختيار سبب الإلغاء');
+      showToast('يرجى اختيار سبب الإلغاء', 'error');
       return;
     }
     
@@ -1851,7 +1936,7 @@
 
   async function confirmCancellation() {
     if (!document.getElementById('finalConfirm').checked) {
-      alert('يرجى الموافقة على سياسة الإلغاء');
+      showToast('يرجى الموافقة على سياسة الإلغاء', 'error');
       return;
     }
 
@@ -1867,7 +1952,7 @@
         })
       });
 
-      alert('✅ ' + result.message);
+      showToast(result.message, 'success');
       
       // إخفاء شريط المتابعة
       document.getElementById('bookingTracker').style.display = 'none';
@@ -1879,7 +1964,7 @@
       loadCurrentBookings();
     } catch (error) {
       console.error('Cancellation error:', error);
-      alert('❌ ' + (error.message || 'حدث خطأ أثناء إلغاء الحجز'));
+      showToast(error.message || 'حدث خطأ أثناء إلغاء الحجز', 'error');
     }
   }
 
@@ -1991,7 +2076,7 @@
         location: "المقطم - شارع التسعين",
         area: "mokatam",
         type: "artificial",
-        image: "/images/tyara-1.jpg",
+        image: "https://placehold.co/600x400/1a7f46/white?text=الطيارة+الرئيسي",
         price: 250,
         deposit: 75,
         features: ["نجيلة صناعية", "كشافات ليلية", "غرف تبديل"],
@@ -2005,7 +2090,7 @@
         location: "المقطم - شارع التسعين",
         area: "mokatam",
         type: "artificial",
-        image: "/images/tyara-2.jpg",
+        image: "https://placehold.co/600x400/27ae60/white?text=الطيارة+الثاني",
         price: 220,
         deposit: 66,
         features: ["نجيلة صناعية", "إضاءة ليلية", "غرف تبديل"],
@@ -2019,7 +2104,7 @@
         location: "المقطم - شارع 9",
         area: "mokatam",
         type: "natural",
-        image: "/images/raei.jpg",
+        image: "https://placehold.co/600x400/3498db/white?text=الراعي+الصالح",
         price: 300,
         deposit: 90,
         features: ["نجيلة طبيعية", "مقاعد جماهير", "كافيتريا"],
@@ -2075,63 +2160,39 @@
   function viewBookingDetails() {
     if (currentBookings.length > 0) {
       alert(`تفاصيل الحجز:\nالملعب: ${currentBookings[0].pitchName}\nالتاريخ: ${currentBookings[0].date}\nالوقت: ${currentBookings[0].time}\nالمبلغ المتبقي: ${currentBookings[0].remainingAmount} جنيه`);
+    } else {
+      showToast('لا توجد حجوزات حالية', 'error');
     }
   }
 
   // ========= الدوال الجديدة للنظام =========
 
   // ✅ تحقق من صحة الكود - محسنة
-  async function validateVoucher(inputNumber) {
-    const voucherInput = document.getElementById(`voucherCode${inputNumber}`);
-    const code = voucherInput.value.trim();
+  async function validateVoucher(inputId) {
+    const voucherInput = document.getElementById(inputId);
+    const voucherCode = voucherInput?.value?.trim();
     
-    if (!code) {
-      alert('يرجى إدخال الكود');
+    if (!voucherCode) {
+      showToast('يرجى إدخال كود الخصم أولاً', 'error');
       return;
     }
 
     try {
-      const result = await safeFetch('/api/validate-voucher', {
+      const data = await safeFetch('/api/vouchers/validate', {
         method: 'POST',
-        body: JSON.stringify({ code })
+        body: JSON.stringify({ code: voucherCode })
       });
 
-      // حفظ الكود المفحوص
-      validatedVouchers[inputNumber - 1] = {
-        code: code,
-        value: result.value
-      };
-      
-      voucherInput.disabled = true;
-      voucherInput.style.borderColor = '#1a7f46';
-      voucherInput.style.backgroundColor = '#f0fff4';
-      
-      // ✅ عرض الرسالة بشكل آمن
-      const voucherStatus = document.getElementById('voucherStatus');
-      voucherStatus.innerHTML = '';
-      
-      const alertDiv = document.createElement('div');
-      alertDiv.className = 'alert alert-success';
-      
-      const icon = document.createElement('i');
-      icon.className = 'bi bi-check-circle me-2';
-      alertDiv.appendChild(icon);
-      alertDiv.appendChild(document.createTextNode(`الكود صالح! القيمة: ${result.value} جنيه`));
-      
-      voucherStatus.appendChild(alertDiv);
+      if (data.valid) {
+        showToast(`✅ الكود صالح! الخصم: ${data.discount}%`, 'success');
+        document.getElementById('voucherResult').textContent = `تم تطبيق خصم ${data.discount}%`;
+      } else {
+        showToast('❌ الكود غير صالح أو منتهي الصلاحية', 'error');
+        document.getElementById('voucherResult').textContent = 'الكود غير صالح';
+      }
     } catch (error) {
-      const voucherStatus = document.getElementById('voucherStatus');
-      voucherStatus.innerHTML = '';
-      
-      const alertDiv = document.createElement('div');
-      alertDiv.className = 'alert alert-danger';
-      
-      const icon = document.createElement('i');
-      icon.className = 'bi bi-exclamation-triangle me-2';
-      alertDiv.appendChild(icon);
-      alertDiv.appendChild(document.createTextNode(error.message || 'حدث خطأ أثناء التحقق من الكود'));
-      
-      voucherStatus.appendChild(alertDiv);
+      console.error('Voucher validation error:', error);
+      showToast('حدث خطأ أثناء التحقق من الكود', 'error');
     }
   }
 
@@ -2209,10 +2270,10 @@
         body: JSON.stringify(formData)
       });
 
-      alert('✅ ' + result.message);
+      showToast(result.message, 'success');
       bootstrap.Modal.getInstance(document.getElementById('playersRequestModal')).hide();
     } catch (error) {
-      alert('❌ ' + (error.message || 'حدث خطأ أثناء إرسال الطلب'));
+      showToast(error.message || 'حدث خطأ أثناء إرسال الطلب', 'error');
     }
   }
 
@@ -2357,7 +2418,7 @@
         if (result.depositAmount > 0) {
           window.location.href = '/payment?booking=' + result.bookingId;
         } else {
-          alert('🎉 تم الحجز بنجاح!');
+          showToast('🎉 تم الحجز بنجاح!', 'success');
           location.reload();
         }
       }, 2000);
@@ -2475,13 +2536,31 @@
       })
       .catch(err => console.error('CSRF token error:', err));
 
+    // 🆕 scrollspy للنافبار
     window.addEventListener('scroll', function() {
       if (window.scrollY > 100) {
         document.querySelector('.navbar').classList.add('scrolled');
       } else {
         document.querySelector('.navbar').classList.remove('scrolled');
       }
+
+      // 🆕 تحديث الروابط النشطة
+      document.querySelectorAll('section').forEach(sec => {
+        let top = window.scrollY;
+        if(top >= sec.offsetTop - 200){
+          document.querySelectorAll('.nav-link').forEach(a => a.classList.remove('active'));
+          document.querySelector(`.nav-link[href="#${sec.id}"]`)?.classList.add('active');
+        }
+      });
+
+      // 🆕 زر العودة لأعلى
+      document.getElementById('toTop').style.display = window.scrollY > 200 ? 'block' : 'none';
     });
+
+    // 🆕 زر العودة لأعلى
+    document.getElementById('toTop').onclick = () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
 
     // تحميل البيانات
     loadPitchesData();
