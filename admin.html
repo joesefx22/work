@@ -296,6 +296,22 @@
             opacity: 0.5;
         }
 
+        /* التحميل */
+        .loading-spinner {
+            display: inline-block;
+            width: 2rem;
+            height: 2rem;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
         /* التجاوب */
         @media (max-width: 768px) {
             .sidebar {
@@ -618,11 +634,11 @@
                                     <div class="row">
                                         <div class="col-md-4">
                                             <label class="form-label">من الساعة</label>
-                                            <input type="time" class="form-control" id="startTime">
+                                            <input type="time" class="form-control" id="startTime" value="08:00">
                                         </div>
                                         <div class="col-md-4">
                                             <label class="form-label">إلى الساعة</label>
-                                            <input type="time" class="form-control" id="endTime">
+                                            <input type="time" class="form-control" id="endTime" value="22:00">
                                         </div>
                                         <div class="col-md-4">
                                             <label class="form-label">&nbsp;</label>
@@ -630,6 +646,9 @@
                                                 <i class="bi bi-plus-circle me-1"></i>إضافة الساعات
                                             </button>
                                         </div>
+                                    </div>
+                                    <div class="mt-2">
+                                        <small class="text-muted">سيتم إنشاء ساعات من الساعة 8 صباحاً حتى 10 مساءً</small>
                                     </div>
                                 </div>
                             </div>
@@ -645,7 +664,9 @@
                                     <option value="">جميع الحالات</option>
                                     <option value="confirmed">مؤكد</option>
                                     <option value="pending">قيد المراجعة</option>
+                                    <option value="failed">فاشل</option>
                                 </select>
+                                <input type="date" class="form-control" id="paymentDateFilter" style="width: auto;">
                                 <button class="btn btn-primary" onclick="filterPayments()">
                                     <i class="bi bi-funnel me-1"></i>تصفية
                                 </button>
@@ -681,13 +702,14 @@
                                 <select class="form-select" id="userRoleFilter" style="width: auto;">
                                     <option value="">جميع الصلاحيات</option>
                                     <option value="admin">مسؤول</option>
-                                    <option value="manager">مدير</option>
-                                    <option value="user">مستخدم</option>
+                                    <option value="stadium_owner">مدير</option>
+                                    <option value="player">مستخدم</option>
                                 </select>
                                 <select class="form-select" id="userStatusFilter" style="width: auto;">
                                     <option value="">جميع الحالات</option>
                                     <option value="approved">مفعل</option>
                                     <option value="pending">قيد الانتظار</option>
+                                    <option value="suspended">موقوف</option>
                                 </select>
                                 <button class="btn btn-primary" onclick="filterUsers()">
                                     <i class="bi bi-funnel me-1"></i>تصفية
@@ -752,9 +774,9 @@
                                             <i class="bi bi-calendar-check me-2"></i>الحجوزات النشطة
                                         </h5>
                                         <div id="activeBookingsReport">
-                                            <div class="empty-state">
-                                                <i class="bi bi-calendar-check"></i>
-                                                <p>جاري تحميل بيانات الحجوزات...</p>
+                                            <div class="text-center py-3">
+                                                <h3 class="text-success" id="activeBookingsCount">0</h3>
+                                                <p class="text-muted">حجز نشط هذا الأسبوع</p>
                                             </div>
                                         </div>
                                     </div>
@@ -767,9 +789,9 @@
                                             <i class="bi bi-graph-up me-2"></i>الإيرادات
                                         </h5>
                                         <div id="revenueReport">
-                                            <div class="empty-state">
-                                                <i class="bi bi-graph-up"></i>
-                                                <p>جاري تحميل بيانات الإيرادات...</p>
+                                            <div class="text-center py-3">
+                                                <h3 class="text-primary" id="totalRevenueAmount">0</h3>
+                                                <p class="text-muted">جنيه إيرادات هذا الشهر</p>
                                             </div>
                                         </div>
                                     </div>
@@ -807,15 +829,16 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">اسم الملعب *</label>
-                                    <input type="text" class="form-control" name="name" required>
+                                    <input type="text" class="form-control" name="name" required placeholder="أدخل اسم الملعب">
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">الموقع *</label>
-                                    <input type="text" class="form-control" name="location" required>
+                                    <input type="text" class="form-control" name="location" required placeholder="أدخل عنوان الملعب">
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">المنطقة *</label>
                                     <select class="form-select" name="area" required>
+                                        <option value="">اختر المنطقة</option>
                                         <option value="mokatam">المقطم</option>
                                         <option value="hedaba">الهضبة الوسطي</option>
                                         <option value="70feddan">السبعين فدان</option>
@@ -825,11 +848,12 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">السعر (ج.م/ساعة) *</label>
-                                    <input type="number" class="form-control" name="price" required>
+                                    <input type="number" class="form-control" name="price" required min="100" placeholder="أدخل السعر">
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">نوع النجيلة *</label>
                                     <select class="form-select" name="type" required>
+                                        <option value="">اختر نوع النجيلة</option>
                                         <option value="artificial">نجيلة صناعية</option>
                                         <option value="natural">نجيلة طبيعية</option>
                                     </select>
@@ -842,7 +866,8 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label">المميزات (افصل بينها بفاصلة)</label>
-                            <input type="text" class="form-control" name="features" placeholder="نجيلة صناعية, كشافات ليلية, غرف تبديل">
+                            <input type="text" class="form-control" name="features" placeholder="كشافات ليلية, غرف تبديل, موقف سيارات...">
+                            <div class="form-text">أدخل مميزات الملعب مفصولة بفاصلة</div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">رابط خرائط جوجل</label>
@@ -952,6 +977,21 @@
         </div>
     </div>
 
+    <!-- مودال تفاصيل الحجز -->
+    <div class="modal fade" id="bookingDetailsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title">تفاصيل الحجز</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="bookingDetailsContent">
+                    <!-- سيتم تعبئة التفاصيل هنا -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
@@ -971,6 +1011,7 @@
                 this.charts = {};
                 this.currentBookingToCancel = null;
                 this.currentDeleteAction = null;
+                this.currentManagerToApprove = null;
                 
                 this.init();
             }
@@ -1042,12 +1083,13 @@
                     document.getElementById('adminStats').style.display = 'block';
                     document.getElementById('managerStats').style.display = 'none';
                     document.getElementById('pitchesTabTitle').textContent = 'إدارة الملاعب';
+                    document.getElementById('recentBookingsTitle').textContent = 'أحدث الحجوزات - جميع الملاعب';
                 } else if (this.userRole === 'stadium_owner') {
                     document.getElementById('adminTabs').style.display = 'none';
                     document.getElementById('adminStats').style.display = 'none';
                     document.getElementById('managerStats').style.display = 'block';
                     document.getElementById('pitchesTabTitle').textContent = 'الملاعب الخاصة بي';
-                    this.loadManagerData();
+                    document.getElementById('recentBookingsTitle').textContent = 'أحدث الحجوزات - ملاعبي';
                 } else {
                     window.location.href = '/';
                 }
@@ -1068,6 +1110,8 @@
             // 🏟️ تحميل الملاعب
             async loadPitches() {
                 try {
+                    this.showLoading('pitchesContainer', 'جاري تحميل الملاعب...');
+                    
                     const endpoint = this.userRole === 'admin' ? '/api/admin/pitches' : '/api/manager/pitches';
                     const response = await fetch(endpoint, {
                         headers: this.getAuthHeaders()
@@ -1159,6 +1203,8 @@
             // 📅 تحميل الحجوزات
             async loadBookings() {
                 try {
+                    this.showLoading('bookingsTable', 'جاري تحميل الحجوزات...');
+                    
                     const endpoint = this.userRole === 'admin' ? '/api/admin/bookings' : '/api/manager/bookings';
                     const response = await fetch(endpoint, {
                         headers: this.getAuthHeaders()
@@ -1210,7 +1256,7 @@
                                     <i class="bi bi-x-circle"></i> إلغاء
                                 </button>
                             ` : ''}
-                            <button class="btn btn-info btn-sm" onclick="unifiedSystem.viewBookingDetails('${booking.id}')">
+                            <button class="btn btn-info btn-sm" onclick="unifiedSystem.showBookingDetails('${booking.id}')">
                                 <i class="bi bi-eye"></i> تفاصيل
                             </button>
                         </td>
@@ -1239,7 +1285,7 @@
                             </span>
                         </td>
                         <td>
-                            <button class="btn btn-info btn-sm" onclick="unifiedSystem.viewBookingDetails('${booking.id}')">
+                            <button class="btn btn-info btn-sm" onclick="unifiedSystem.showBookingDetails('${booking.id}')">
                                 <i class="bi bi-eye"></i>
                             </button>
                         </td>
@@ -1473,6 +1519,54 @@
                 }
             }
 
+            // 👥 تحميل المستخدمين
+            async loadUsers() {
+                try {
+                    this.showLoading('usersTable', 'جاري تحميل المستخدمين...');
+                    
+                    const response = await fetch('/api/admin/users', {
+                        headers: this.getAuthHeaders()
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        this.allUsers = result.users || result.data || [];
+                        this.updateUsersTable(this.allUsers);
+                    } else {
+                        throw new Error('Failed to load users');
+                    }
+                } catch (error) {
+                    console.error('Error loading users:', error);
+                    this.allUsers = this.getMockUsers();
+                    this.updateUsersTable(this.allUsers);
+                    this.showAlert('تم تحميل بيانات تجريبية', 'info');
+                }
+            }
+
+            // 💰 تحميل المدفوعات
+            async loadPayments() {
+                try {
+                    this.showLoading('paymentsTable', 'جاري تحميل المدفوعات...');
+                    
+                    const response = await fetch('/api/admin/payments', {
+                        headers: this.getAuthHeaders()
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        this.allPayments = result.payments || result.data || [];
+                        this.updatePaymentsTable(this.allPayments);
+                    } else {
+                        throw new Error('Failed to load payments');
+                    }
+                } catch (error) {
+                    console.error('Error loading payments:', error);
+                    this.allPayments = this.getMockPayments();
+                    this.updatePaymentsTable(this.allPayments);
+                    this.showAlert('تم تحميل بيانات تجريبية', 'info');
+                }
+            }
+
             // 📋 تحديث جدول طلبات المديرين المعلقة
             updatePendingManagersTable(managers) {
                 const table = document.getElementById('pendingManagersTable');
@@ -1504,6 +1598,80 @@
                             </button>
                             <button class="btn btn-danger btn-sm" onclick="unifiedSystem.rejectManager('${manager.id}')">
                                 <i class="bi bi-x-lg me-1"></i>رفض
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            // 👥 تحديث جدول المستخدمين
+            updateUsersTable(users) {
+                const table = document.getElementById('usersTable');
+                if (users.length === 0) {
+                    table.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">لا توجد مستخدمين</td></tr>';
+                    return;
+                }
+
+                table.innerHTML = users.map((user, index) => `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${user.username}</td>
+                        <td>${user.email}</td>
+                        <td>${user.phone || 'غير متوفر'}</td>
+                        <td>
+                            <span class="badge ${this.getRoleBadgeClass(user.role)}">
+                                ${this.getRoleText(user.role)}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge ${this.getStatusBadgeClass(user.status)}">
+                                ${this.getStatusText(user.status)}
+                            </span>
+                        </td>
+                        <td>${new Date(user.createdAt).toLocaleDateString('ar-EG')}</td>
+                        <td class="action-buttons">
+                            ${user.status === 'pending' ? `
+                                <button class="btn btn-success btn-sm" onclick="unifiedSystem.approveUser('${user.id}')">
+                                    <i class="bi bi-check-lg"></i> قبول
+                                </button>
+                            ` : ''}
+                            <button class="btn btn-danger btn-sm" onclick="unifiedSystem.confirmDelete('user', '${user.id}', '${user.username}')">
+                                <i class="bi bi-trash"></i> حذف
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            // 💰 تحديث جدول المدفوعات
+            updatePaymentsTable(payments) {
+                const table = document.getElementById('paymentsTable');
+                if (payments.length === 0) {
+                    table.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">لا توجد مدفوعات</td></tr>';
+                    return;
+                }
+
+                table.innerHTML = payments.map((payment, index) => `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${payment.user?.username || 'غير معروف'}</td>
+                        <td>${payment.amount} ج.م</td>
+                        <td>${this.getPaymentMethodText(payment.method)}</td>
+                        <td>${payment.transactionId || 'غير متوفر'}</td>
+                        <td>
+                            <span class="badge ${this.getPaymentStatusBadgeClass(payment.status)}">
+                                ${this.getPaymentStatusText(payment.status)}
+                            </span>
+                        </td>
+                        <td>${new Date(payment.createdAt).toLocaleDateString('ar-EG')}</td>
+                        <td class="action-buttons">
+                            ${payment.status === 'pending' ? `
+                                <button class="btn btn-success btn-sm" onclick="unifiedSystem.confirmPayment('${payment.id}')">
+                                    <i class="bi bi-check-lg"></i> تأكيد
+                                </button>
+                            ` : ''}
+                            <button class="btn btn-info btn-sm" onclick="unifiedSystem.viewPaymentDetails('${payment.id}')">
+                                <i class="bi bi-eye"></i> تفاصيل
                             </button>
                         </td>
                     </tr>
@@ -1569,6 +1737,28 @@
                         }
                     }
                 });
+
+                // رسم بياني للأداء
+                const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+                this.charts.performance = new Chart(performanceCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو'],
+                        datasets: [{
+                            label: 'الإيرادات (ألف جنيه)',
+                            data: [65, 59, 80, 81, 56, 55],
+                            backgroundColor: '#1a7f46'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            }
+                        }
+                    }
+                });
             }
 
             // 🛠️ دوال المساعدة
@@ -1584,7 +1774,9 @@
                 const classes = {
                     'confirmed': 'bg-success',
                     'pending': 'bg-warning',
-                    'cancelled': 'bg-danger'
+                    'cancelled': 'bg-danger',
+                    'approved': 'bg-success',
+                    'suspended': 'bg-danger'
                 };
                 return classes[status] || 'bg-secondary';
             }
@@ -1593,9 +1785,29 @@
                 const texts = {
                     'confirmed': 'مؤكد',
                     'pending': 'قيد الانتظار',
-                    'cancelled': 'ملغي'
+                    'cancelled': 'ملغي',
+                    'approved': 'مفعل',
+                    'suspended': 'موقوف'
                 };
                 return texts[status] || status;
+            }
+
+            getRoleBadgeClass(role) {
+                const classes = {
+                    'admin': 'bg-danger',
+                    'stadium_owner': 'bg-primary',
+                    'player': 'bg-secondary'
+                };
+                return classes[role] || 'bg-secondary';
+            }
+
+            getRoleText(role) {
+                const texts = {
+                    'admin': 'مسؤول',
+                    'stadium_owner': 'مدير',
+                    'player': 'مستخدم'
+                };
+                return texts[role] || role;
             }
 
             getAreaText(area) {
@@ -1605,6 +1817,33 @@
                     '70feddan': 'السبعين فدان'
                 };
                 return areas[area] || area;
+            }
+
+            getPaymentMethodText(method) {
+                const methods = {
+                    'cash': 'نقدي',
+                    'card': 'بطاقة',
+                    'wallet': 'محفظة'
+                };
+                return methods[method] || method;
+            }
+
+            getPaymentStatusBadgeClass(status) {
+                const classes = {
+                    'confirmed': 'bg-success',
+                    'pending': 'bg-warning',
+                    'failed': 'bg-danger'
+                };
+                return classes[status] || 'bg-secondary';
+            }
+
+            getPaymentStatusText(status) {
+                const texts = {
+                    'confirmed': 'مؤكد',
+                    'pending': 'قيد المراجعة',
+                    'failed': 'فاشل'
+                };
+                return texts[status] || status;
             }
 
             showAlert(message, type) {
@@ -1623,6 +1862,16 @@
                         alert.remove();
                     }
                 }, 5000);
+            }
+
+            showLoading(containerId, message = 'جاري التحميل...') {
+                const container = document.getElementById(containerId);
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <div class="loading-spinner mb-2"></div>
+                        <p class="text-muted">${message}</p>
+                    </div>
+                `;
             }
 
             // 🎯 دوال الإجراءات
@@ -1687,11 +1936,33 @@
                 }
             }
 
+            async addPitch(formData) {
+                try {
+                    const response = await fetch('/api/admin/stadiums', {
+                        method: 'POST',
+                        headers: this.getAuthHeaders(),
+                        body: JSON.stringify(formData)
+                    });
+
+                    if (response.ok) {
+                        this.showAlert('✅ تم إضافة الملعب بنجاح', 'success');
+                        bootstrap.Modal.getInstance(document.getElementById('addPitchModal')).hide();
+                        document.getElementById('addPitchForm').reset();
+                        this.loadPitches();
+                    } else {
+                        this.showAlert('❌ حدث خطأ أثناء إضافة الملعب', 'danger');
+                    }
+                } catch (error) {
+                    console.error('Error adding pitch:', error);
+                    this.showAlert('❌ حدث خطأ أثناء إضافة الملعب', 'danger');
+                }
+            }
+
             confirmDelete(type, id, name) {
                 this.currentDeleteAction = { type, id };
                 const message = type === 'stadium' 
                     ? `هل أنت متأكد من حذف الملعب "${name}"؟ سيتم حذف جميع الساعات والحجوزات المرتبطة به.`
-                    : `هل أنت متأكد من حذف ${name}؟`;
+                    : `هل أنت متأكد من حذف المستخدم "${name}"؟`;
 
                 document.getElementById('deleteMessage').textContent = message;
                 document.getElementById('confirmDeleteBtn').onclick = () => this.executeDelete();
@@ -1780,11 +2051,41 @@
                 }
             }
 
-            viewBookingDetails(bookingId) {
+            showBookingDetails(bookingId) {
                 const booking = this.allBookings.find(b => b.id === bookingId);
-                if (booking) {
-                    alert(`تفاصيل الحجز:\nالعميل: ${booking.customerName || booking.user?.username}\nالملعب: ${booking.pitchName || booking.stadium?.name}\nالتاريخ: ${booking.date}\nالوقت: ${booking.time}\nالمبلغ: ${booking.amount} ج.م\nالحالة: ${this.getStatusText(booking.status)}`);
-                }
+                if (!booking) return;
+
+                const modalContent = document.getElementById('bookingDetailsContent');
+                modalContent.innerHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>معلومات الحجز</h6>
+                            <p><strong>رقم الحجز:</strong> ${booking.id}</p>
+                            <p><strong>الحالة:</strong> <span class="badge ${this.getStatusBadgeClass(booking.status)}">${this.getStatusText(booking.status)}</span></p>
+                            <p><strong>التاريخ:</strong> ${booking.date}</p>
+                            <p><strong>الوقت:</strong> ${booking.time}</p>
+                            <p><strong>المبلغ:</strong> ${booking.amount} ج.م</p>
+                            <p><strong>العربون:</strong> ${booking.depositAmount || 0} ج.م</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>معلومات العميل</h6>
+                            <p><strong>الاسم:</strong> ${booking.customerName || booking.user?.username || 'غير معروف'}</p>
+                            <p><strong>البريد:</strong> ${booking.user?.email || 'غير متوفر'}</p>
+                            <p><strong>الهاتف:</strong> ${booking.user?.phone || 'غير متوفر'}</p>
+                            <h6 class="mt-3">معلومات الملعب</h6>
+                            <p><strong>الاسم:</strong> ${booking.pitchName || booking.stadium?.name || 'غير معروف'}</p>
+                            <p><strong>الموقع:</strong> ${booking.stadium?.location || 'غير متوفر'}</p>
+                        </div>
+                    </div>
+                    ${booking.cancellationReason ? `
+                        <div class="alert alert-warning mt-3">
+                            <h6>سبب الإلغاء:</h6>
+                            <p>${booking.cancellationReason}</p>
+                        </div>
+                    ` : ''}
+                `;
+
+                new bootstrap.Modal(document.getElementById('bookingDetailsModal')).show();
             }
 
             viewPitchBookings(pitchId) {
@@ -1793,11 +2094,11 @@
                 this.filterBookings();
             }
 
-            viewPitchAvailability(pitchId) {
+            async viewPitchAvailability(pitchId) {
                 document.querySelector('a[href="#time-slots"]').click();
                 document.getElementById('stadiumSelect').value = pitchId;
                 document.getElementById('slotDate').value = new Date().toISOString().split('T')[0];
-                this.loadSelectedTimeSlots();
+                await this.loadSelectedTimeSlots();
             }
 
             viewStadiumDetails(stadiumId) {
@@ -1809,6 +2110,338 @@
                     : 'لا توجد مميزات';
 
                 alert(`تفاصيل الملعب: ${stadium.name}\nالموقع: ${stadium.location}\nالمنطقة: ${this.getAreaText(stadium.area)}\nالسعر: ${stadium.price} ج.م/ساعة\nالنوع: ${stadium.type === 'natural' ? 'نجيلة طبيعية' : 'نجيلة صناعية'}\nالمميزات:\n• ${features}`);
+            }
+
+            async loadSelectedTimeSlots() {
+                const stadiumId = document.getElementById('stadiumSelect').value;
+                const date = document.getElementById('slotDate').value;
+                
+                if (stadiumId && date) {
+                    await this.loadTimeSlots(stadiumId, date);
+                }
+            }
+
+            async loadTimeSlots(stadiumId, date) {
+                try {
+                    this.showLoading('timeSlotsContainer', 'جاري تحميل الساعات...');
+                    
+                    const response = await fetch(`/api/stadiums/${stadiumId}/time-slots?date=${date}`, {
+                        headers: this.getAuthHeaders()
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        this.timeSlots = result.timeSlots || result.data || [];
+                        this.displayTimeSlots();
+                        document.getElementById('addTimeSlotsSection').style.display = 'block';
+                    } else {
+                        throw new Error('Failed to load time slots');
+                    }
+                } catch (error) {
+                    console.error('Error loading time slots:', error);
+                    this.timeSlots = this.getMockTimeSlots();
+                    this.displayTimeSlots();
+                    document.getElementById('addTimeSlotsSection').style.display = 'block';
+                    this.showAlert('تم تحميل بيانات تجريبية', 'info');
+                }
+            }
+
+            displayTimeSlots() {
+                const container = document.getElementById('timeSlotsContainer');
+                
+                if (this.timeSlots.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <i class="bi bi-clock"></i>
+                            <h5>لا توجد ساعات متاحة</h5>
+                            <p>يمكنك إضافة ساعات جديدة للملعب</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = `
+                    <h6 class="mb-3">الساعات المتاحة</h6>
+                    <div class="time-slot-grid">
+                        ${this.timeSlots.map(slot => `
+                            <div class="time-slot ${slot.status === 'available' ? 'available' : 'booked'} ${slot.selected ? 'selected' : ''}" 
+                                 onclick="unifiedSystem.toggleTimeSlot(${slot.id})">
+                                ${slot.start_time}
+                                <br>
+                                <small>${slot.status === 'available' ? 'متاح' : 'محجوز'}</small>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="mt-3">
+                        <button class="btn btn-success btn-sm" onclick="unifiedSystem.addTimeSlots()">
+                            <i class="bi bi-plus-circle me-1"></i>إضافة ساعات جديدة
+                        </button>
+                    </div>
+                `;
+            }
+
+            toggleTimeSlot(slotId) {
+                const slot = this.timeSlots.find(s => s.id === slotId);
+                if (slot && slot.status === 'available') {
+                    slot.selected = !slot.selected;
+                    this.displayTimeSlots();
+                }
+            }
+
+            async addTimeSlots() {
+                const stadiumId = document.getElementById('stadiumSelect').value;
+                const date = document.getElementById('slotDate').value;
+                
+                if (!stadiumId || !date) {
+                    this.showAlert('يرجى اختيار الملعب والتاريخ', 'warning');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/api/stadiums/${stadiumId}/time-slots`, {
+                        method: 'POST',
+                        headers: this.getAuthHeaders(),
+                        body: JSON.stringify({
+                            date: date,
+                            startTime: document.getElementById('startTime').value,
+                            endTime: document.getElementById('endTime').value
+                        })
+                    });
+
+                    if (response.ok) {
+                        this.showAlert('✅ تم إضافة الساعات بنجاح', 'success');
+                        await this.loadTimeSlots(stadiumId, date);
+                    } else {
+                        this.showAlert('❌ حدث خطأ أثناء إضافة الساعات', 'danger');
+                    }
+                } catch (error) {
+                    console.error('Error adding time slots:', error);
+                    this.showAlert('❌ حدث خطأ أثناء إضافة الساعات', 'danger');
+                }
+            }
+
+            filterStadiums() {
+                const searchTerm = document.getElementById('searchStadiums').value.toLowerCase();
+                const areaFilter = document.getElementById('filterArea').value;
+                const typeFilter = document.getElementById('filterType').value;
+
+                const filtered = this.allPitches.filter(stadium => {
+                    const matchesSearch = stadium.name.toLowerCase().includes(searchTerm);
+                    const matchesArea = !areaFilter || stadium.area === areaFilter;
+                    const matchesType = !typeFilter || stadium.type === typeFilter;
+                    
+                    return matchesSearch && matchesArea && matchesType;
+                });
+
+                this.displayFilteredStadiums(filtered);
+            }
+
+            displayFilteredStadiums(stadiums) {
+                const container = document.getElementById('pitchesContainer');
+                
+                if (stadiums.length === 0) {
+                    container.innerHTML = `
+                        <div class="col-12">
+                            <div class="empty-state">
+                                <i class="bi bi-search"></i>
+                                <h5>لا توجد نتائج مطابقة</h5>
+                                <p>جرب تعديل معايير البحث</p>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = stadiums.map(stadium => `
+                    <div class="col-lg-6 col-xl-4 mb-4">
+                        <div class="stadium-card">
+                            <div class="stadium-image" style="background-image: url('${stadium.image || '/api/placeholder/400/300'}')">
+                                <span class="stadium-badge">${stadium.type === 'natural' ? 'نجيلة طبيعية' : 'نجيلة صناعية'}</span>
+                                <span class="stadium-price">${stadium.price} ج.م/ساعة</span>
+                            </div>
+                            <div class="p-3">
+                                <h5 class="mb-2">${stadium.name}</h5>
+                                <p class="text-muted mb-2">
+                                    <i class="bi bi-geo-alt me-1"></i>${stadium.location}
+                                </p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" onclick="unifiedSystem.editStadium(${stadium.id})">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        ${this.userRole === 'admin' ? `
+                                            <button class="btn btn-outline-danger" onclick="unifiedSystem.confirmDelete('stadium', ${stadium.id}, '${stadium.name}')">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            filterBookings() {
+                const statusFilter = document.getElementById('statusFilter').value;
+                const pitchFilter = document.getElementById('pitchFilter').value;
+                const dateFilter = document.getElementById('dateFilter').value;
+
+                let filteredBookings = this.allBookings;
+
+                if (statusFilter) {
+                    filteredBookings = filteredBookings.filter(booking => booking.status === statusFilter);
+                }
+
+                if (pitchFilter) {
+                    filteredBookings = filteredBookings.filter(booking => booking.pitchId == pitchFilter || booking.stadium?.id == pitchFilter);
+                }
+
+                if (dateFilter) {
+                    filteredBookings = filteredBookings.filter(booking => booking.date === dateFilter);
+                }
+
+                this.updateBookingsTable(filteredBookings);
+            }
+
+            filterPayments() {
+                const statusFilter = document.getElementById('paymentStatusFilter').value;
+                const dateFilter = document.getElementById('paymentDateFilter').value;
+
+                let filteredPayments = this.allPayments;
+
+                if (statusFilter) {
+                    filteredPayments = filteredPayments.filter(payment => payment.status === statusFilter);
+                }
+
+                if (dateFilter) {
+                    filteredPayments = filteredPayments.filter(payment => payment.date === dateFilter);
+                }
+
+                this.updatePaymentsTable(filteredPayments);
+            }
+
+            filterUsers() {
+                const roleFilter = document.getElementById('userRoleFilter').value;
+                const statusFilter = document.getElementById('userStatusFilter').value;
+
+                let filteredUsers = this.allUsers;
+
+                if (roleFilter) {
+                    filteredUsers = filteredUsers.filter(user => user.role === roleFilter);
+                }
+
+                if (statusFilter) {
+                    filteredUsers = filteredUsers.filter(user => user.status === statusFilter);
+                }
+
+                this.updateUsersTable(filteredUsers);
+            }
+
+            showApproveManagerModal(managerId) {
+                const manager = this.pendingManagers.find(m => m.id === managerId);
+                if (!manager) return;
+
+                this.currentManagerToApprove = managerId;
+
+                document.getElementById('managerRequestDetails').innerHTML = `
+                    <div class="alert alert-info">
+                        <h6>تفاصيل الطلب:</h6>
+                        <p><strong>اسم المستخدم:</strong> ${manager.userInfo?.username || manager.username}</p>
+                        <p><strong>البريد الإلكتروني:</strong> ${manager.userInfo?.email || manager.email}</p>
+                        <p><strong>الملاعب المطلوبة:</strong> ${(manager.managedPitches || []).join('، ')}</p>
+                        <p><strong>تاريخ الطلب:</strong> ${new Date(manager.createdAt || manager.requestDate).toLocaleDateString('ar-EG')}</p>
+                    </div>
+                `;
+
+                document.getElementById('confirmApproveBtn').onclick = () => this.approveManager(managerId);
+                new bootstrap.Modal(document.getElementById('approveManagerModal')).show();
+            }
+
+            async approveManager(managerId) {
+                try {
+                    const response = await fetch(`/api/admin/managers/${managerId}/approve`, {
+                        method: 'PUT',
+                        headers: this.getAuthHeaders()
+                    });
+
+                    if (response.ok) {
+                        this.showAlert('✅ تمت الموافقة على المدير بنجاح', 'success');
+                        bootstrap.Modal.getInstance(document.getElementById('approveManagerModal')).hide();
+                        this.loadAdminData();
+                    } else {
+                        throw new Error('Failed to approve manager');
+                    }
+                } catch (error) {
+                    console.error('Error approving manager:', error);
+                    this.showAlert('❌ حدث خطأ أثناء الموافقة على المدير', 'danger');
+                }
+            }
+
+            async rejectManager(managerId) {
+                if (!confirm('هل أنت متأكد من رفض هذا الطلب؟')) return;
+
+                try {
+                    const response = await fetch(`/api/admin/managers/${managerId}/reject`, {
+                        method: 'PUT',
+                        headers: this.getAuthHeaders()
+                    });
+
+                    if (response.ok) {
+                        this.showAlert('✅ تم رفض طلب المدير', 'success');
+                        this.loadAdminData();
+                    } else {
+                        throw new Error('Failed to reject manager');
+                    }
+                } catch (error) {
+                    console.error('Error rejecting manager:', error);
+                    this.showAlert('❌ حدث خطأ أثناء رفض المدير', 'danger');
+                }
+            }
+
+            async approveUser(userId) {
+                try {
+                    const response = await fetch(`/api/admin/users/${userId}/approve`, {
+                        method: 'PUT',
+                        headers: this.getAuthHeaders()
+                    });
+
+                    if (response.ok) {
+                        this.showAlert('✅ تم تفعيل المستخدم بنجاح', 'success');
+                        this.loadUsers();
+                    } else {
+                        throw new Error('Failed to approve user');
+                    }
+                } catch (error) {
+                    console.error('Error approving user:', error);
+                    this.showAlert('❌ حدث خطأ أثناء تفعيل المستخدم', 'danger');
+                }
+            }
+
+            async confirmPayment(paymentId) {
+                try {
+                    const response = await fetch(`/api/admin/payments/${paymentId}/confirm`, {
+                        method: 'PUT',
+                        headers: this.getAuthHeaders()
+                    });
+
+                    if (response.ok) {
+                        this.showAlert('✅ تم تأكيد الدفع بنجاح', 'success');
+                        this.loadPayments();
+                    } else {
+                        throw new Error('Failed to confirm payment');
+                    }
+                } catch (error) {
+                    console.error('Error confirming payment:', error);
+                    this.showAlert('❌ حدث خطأ أثناء تأكيد الدفع', 'danger');
+                }
+            }
+
+            viewPaymentDetails(paymentId) {
+                const payment = this.allPayments.find(p => p.id === paymentId);
+                if (!payment) return;
+
+                alert(`تفاصيل الدفع:\nالمستخدم: ${payment.user?.username}\nالمبلغ: ${payment.amount} ج.م\nطريقة الدفع: ${this.getPaymentMethodText(payment.method)}\nالحالة: ${this.getPaymentStatusText(payment.status)}\nرقم العملية: ${payment.transactionId || 'غير متوفر'}\nالتاريخ: ${new Date(payment.createdAt).toLocaleDateString('ar-EG')}`);
             }
 
             // 🎛️ دوال التحديث والإعداد
@@ -1833,13 +2466,20 @@
             }
 
             updateStats() {
-                document.getElementById('totalStadiums').textContent = this.allPitches.length;
-                document.getElementById('activeStadiums').textContent = this.allPitches.length;
-                document.getElementById('totalBookings').textContent = this.allBookings.filter(b => b.status === 'confirmed').length;
-                document.getElementById('totalRevenue').textContent = this.allBookings
+                const totalBookings = this.allBookings.filter(b => b.status === 'confirmed').length;
+                const totalRevenue = this.allBookings
                     .filter(b => b.status === 'confirmed')
                     .reduce((sum, b) => sum + (b.finalAmount || b.amount), 0);
-                document.getElementById('availableSlots').textContent = this.allPitches.length * 10; // تقديري
+
+                document.getElementById('totalStadiums').textContent = this.allPitches.length;
+                document.getElementById('activeStadiums').textContent = this.allPitches.length;
+                document.getElementById('totalBookings').textContent = totalBookings;
+                document.getElementById('totalRevenue').textContent = totalRevenue;
+                document.getElementById('availableSlots').textContent = this.allPitches.length * 10;
+
+                // تحديث التقارير
+                document.getElementById('activeBookingsCount').textContent = totalBookings;
+                document.getElementById('totalRevenueAmount').textContent = totalRevenue;
             }
 
             updateAdminStats(stats) {
@@ -1852,7 +2492,7 @@
                                     <i class="bi bi-people"></i>
                                 </div>
                                 <div>
-                                    <div class="stat-number">${stats.totalUsers || 0}</div>
+                                    <div class="stat-number">${stats.totalUsers || this.allUsers.length}</div>
                                     <div class="stat-label">إجمالي المستخدمين</div>
                                 </div>
                             </div>
@@ -1865,7 +2505,7 @@
                                     <i class="bi bi-building"></i>
                                 </div>
                                 <div>
-                                    <div class="stat-number">${stats.totalStadiums || 0}</div>
+                                    <div class="stat-number">${stats.totalStadiums || this.allPitches.length}</div>
                                     <div class="stat-label">إجمالي الملاعب</div>
                                 </div>
                             </div>
@@ -1878,7 +2518,7 @@
                                     <i class="bi bi-calendar-check"></i>
                                 </div>
                                 <div>
-                                    <div class="stat-number">${stats.totalBookings || 0}</div>
+                                    <div class="stat-number">${stats.totalBookings || this.allBookings.length}</div>
                                     <div class="stat-label">إجمالي الحجوزات</div>
                                 </div>
                             </div>
@@ -1917,6 +2557,15 @@
                     const data = Object.fromEntries(formData);
                     await this.addPitch(data);
                 });
+
+                // تحديث التقارير عند تغيير التبويبات
+                document.querySelectorAll('a[data-bs-toggle="tab"]').forEach(tab => {
+                    tab.addEventListener('shown.bs.tab', (e) => {
+                        if (e.target.getAttribute('href') === '#reports') {
+                            this.updateStats();
+                        }
+                    });
+                });
             }
 
             startAutoRefresh() {
@@ -1924,20 +2573,6 @@
                     this.loadInitialData();
                 }, 300000); // 5 دقائق
             }
-
-            // 🎯 دوال إضافية تحتاج للتطوير الكامل
-            async loadUsers() { /* ... */ }
-            async loadPayments() { /* ... */ }
-            async addPitch(formData) { /* ... */ }
-            async loadSelectedTimeSlots() { /* ... */ }
-            async loadTimeSlots(stadiumId, date) { /* ... */ }
-            filterStadiums() { /* ... */ }
-            filterBookings() { /* ... */ }
-            filterPayments() { /* ... */ }
-            filterUsers() { /* ... */ }
-            showApproveManagerModal(managerId) { /* ... */ }
-            async approveManager(managerId) { /* ... */ }
-            async rejectManager(managerId) { /* ... */ }
 
             // 📋 بيانات تجريبية
             getMockStadiums() {
@@ -2004,8 +2639,88 @@
                         depositAmount: 60,
                         status: "pending",
                         createdAt: "2024-01-11T11:00:00Z"
+                    },
+                    {
+                        id: 3,
+                        customerName: "سارة خالد",
+                        pitchName: "ملعب النصر",
+                        date: "2024-01-14",
+                        time: "17:00 - 18:00",
+                        amount: 200,
+                        depositAmount: 40,
+                        status: "confirmed",
+                        createdAt: "2024-01-09T09:00:00Z"
                     }
                 ];
+            }
+
+            getMockUsers() {
+                return [
+                    {
+                        id: 1,
+                        username: "ahmed2024",
+                        email: "ahmed@example.com",
+                        phone: "01012345678",
+                        role: "player",
+                        status: "approved",
+                        createdAt: "2024-01-01T00:00:00Z"
+                    },
+                    {
+                        id: 2,
+                        username: "stadium_owner1",
+                        email: "owner@example.com",
+                        phone: "01087654321",
+                        role: "stadium_owner",
+                        status: "approved",
+                        createdAt: "2024-01-02T00:00:00Z"
+                    },
+                    {
+                        id: 3,
+                        username: "new_user",
+                        email: "new@example.com",
+                        phone: "01011112222",
+                        role: "player",
+                        status: "pending",
+                        createdAt: "2024-01-12T00:00:00Z"
+                    }
+                ];
+            }
+
+            getMockPayments() {
+                return [
+                    {
+                        id: 1,
+                        user: { username: "ahmed2024" },
+                        amount: 250,
+                        method: "cash",
+                        transactionId: "TXN001",
+                        status: "confirmed",
+                        createdAt: "2024-01-10T10:00:00Z"
+                    },
+                    {
+                        id: 2,
+                        user: { username: "mohamed2024" },
+                        amount: 300,
+                        method: "card",
+                        transactionId: "TXN002",
+                        status: "pending",
+                        createdAt: "2024-01-11T11:00:00Z"
+                    }
+                ];
+            }
+
+            getMockTimeSlots() {
+                const slots = [];
+                for (let hour = 8; hour <= 22; hour++) {
+                    slots.push({
+                        id: hour,
+                        start_time: `${hour}:00`,
+                        end_time: `${hour + 1}:00`,
+                        status: Math.random() > 0.3 ? 'available' : 'booked',
+                        selected: false
+                    });
+                }
+                return slots;
             }
         }
 
@@ -2027,7 +2742,27 @@
         }
 
         function exportData() {
-            unifiedSystem.showAlert('سيتم تنفيذ وظيفة التصدير قريباً', 'info');
+            // إنشاء بيانات للتصدير
+            const data = {
+                stadiums: unifiedSystem.allPitches,
+                bookings: unifiedSystem.allBookings,
+                users: unifiedSystem.allUsers,
+                payments: unifiedSystem.allPayments,
+                exportDate: new Date().toISOString()
+            };
+            
+            // تحميل الملف
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `export-data-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            unifiedSystem.showAlert('تم تصدير البيانات بنجاح', 'success');
         }
 
         function showAddPitchModal() {
@@ -2038,34 +2773,20 @@
             document.getElementById('addPitchForm').dispatchEvent(new Event('submit'));
         }
 
+        function addTimeSlots() {
+            unifiedSystem.addTimeSlots();
+        }
+
         function filterBookings() {
-            const statusFilter = document.getElementById('statusFilter').value;
-            const pitchFilter = document.getElementById('pitchFilter').value;
-            const dateFilter = document.getElementById('dateFilter').value;
-
-            let filteredBookings = unifiedSystem.allBookings;
-
-            if (statusFilter) {
-                filteredBookings = filteredBookings.filter(booking => booking.status === statusFilter);
-            }
-
-            if (pitchFilter) {
-                filteredBookings = filteredBookings.filter(booking => booking.pitchId == pitchFilter || booking.stadium?.id == pitchFilter);
-            }
-
-            if (dateFilter) {
-                filteredBookings = filteredBookings.filter(booking => booking.date === dateFilter);
-            }
-
-            unifiedSystem.updateBookingsTable(filteredBookings);
+            unifiedSystem.filterBookings();
         }
 
         function filterPayments() {
-            unifiedSystem.showAlert('سيتم تنفيذ وظيفة التصفية قريباً', 'info');
+            unifiedSystem.filterPayments();
         }
 
         function filterUsers() {
-            unifiedSystem.showAlert('سيتم تنفيذ وظيفة التصفية قريباً', 'info');
+            unifiedSystem.filterUsers();
         }
 
         // 🎯 تهيئة تاريخ اليوم في حقل التاريخ
