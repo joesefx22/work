@@ -1,8 +1,8 @@
 /**
- * server.js - النسخة النهائية الكاملة مع كل الإصلاحات
- * نظام حجز الملاعب - احجزلي
- * الإصدار: 3.0 - شامل كل الميزات والإصلاحات
- * الكود الأصلي: 3300+ سطر + كل الإضافات الجديدة
+ * server.js - النسخة النهائية الكاملة مع PostgreSQL
+ * نظام حجز الملاعب - احجزلي  
+ * الإصدار: 5.0 - شامل كل الميزات + PostgreSQL + كل الإصلاحات
+ * الكود الأصلي: 4700+ سطر + كل الإضافات الجديدة
  */
 
 require('dotenv').config();
@@ -14,7 +14,6 @@ const bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path');
 const session = require('express-session');
-const MySQLStore = require('express-mysql-session')(session);
 const bcrypt = require('bcrypt');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
@@ -22,13 +21,13 @@ const nodemailer = require('nodemailer');
 const { v4: uuidv4 } = require('uuid');
 const QRCode = require('qrcode');
 const multer = require('multer');
-const mysql = require('mysql2/promise');
-
-/* ========= مكتبات الأمان ========= */
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
 const csrf = require('csurf');
+
+/* ========= PostgreSQL Database ========= */
+const { execQuery, withTransaction, createTables } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -73,7 +72,6 @@ const CODE_SOURCES = {
   CANCELLATION: 'cancellation'
 };
 
-/* ========= الثوابت الجديدة ========= */
 const TIME_SLOT_STATUS = {
   AVAILABLE: 'available',
   BOOKED: 'booked', 
@@ -102,91 +100,6 @@ const paymentConfig = {
   instapay: { name: 'InstaPay', number: process.env.INSTAPAY_NUMBER || 'yourname@instapay', icon: '/icons/instapay.png' }
 };
 
-/* ========= جداول جديدة للميزات المحسنة ========= */
-const createEnhancedTables = async () => {
-  try {
-    // جدول سياسات العربون للملاعب
-    await pool.execute(`
-      CREATE TABLE IF NOT EXISTS stadium_deposit_policies (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        stadium_id INT NOT NULL,
-        less_than_24_hours DECIMAL(5,2) DEFAULT 0,
-        between_24_48_hours DECIMAL(5,2) DEFAULT 30,
-        more_than_48_hours DECIMAL(5,2) DEFAULT 50,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY unique_stadium (stadium_id),
-        FOREIGN KEY (stadium_id) REFERENCES stadiums(id) ON DELETE CASCADE
-      )
-    `);
-
-    // جدول المدراء المتعددين للملعب
-    await pool.execute(`
-      CREATE TABLE IF NOT EXISTS stadium_managers (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        stadium_id INT NOT NULL,
-        user_id VARCHAR(36) NOT NULL,
-        role ENUM('manager', 'assistant') DEFAULT 'manager',
-        permissions JSON,
-        is_active BOOLEAN DEFAULT TRUE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY unique_stadium_manager (stadium_id, user_id),
-        FOREIGN KEY (stadium_id) REFERENCES stadiums(id) ON DELETE CASCADE,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-      )
-    `);
-
-    // جدول المواعيد المحجوزة ثابتاً
-    await pool.execute(`
-      CREATE TABLE IF NOT EXISTS blocked_slots (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        stadium_id INT NOT NULL,
-        start_date DATE NOT NULL,
-        end_date DATE NOT NULL,
-        start_time TIME NOT NULL,
-        end_time TIME NOT NULL,
-        reason VARCHAR(500),
-        is_active BOOLEAN DEFAULT TRUE,
-        is_emergency BOOLEAN DEFAULT FALSE,
-        created_by VARCHAR(36) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_stadium_dates (stadium_id, start_date, end_date),
-        INDEX idx_active (is_active),
-        FOREIGN KEY (stadium_id) REFERENCES stadiums(id) ON DELETE CASCADE
-      )
-    `);
-
-    // جدول أكواد التعويض المحسنة
-    await pool.execute(`
-      CREATE TABLE IF NOT EXISTS enhanced_compensation_codes (
-        id VARCHAR(36) PRIMARY KEY,
-        user_id VARCHAR(36) NOT NULL,
-        booking_id VARCHAR(36) NOT NULL,
-        code VARCHAR(50) UNIQUE NOT NULL,
-        value DECIMAL(10,2) NOT NULL,
-        reason ENUM('cancellation', 'refund', 'compensation') NOT NULL,
-        cancellation_type ENUM('user', 'manager', 'system') NOT NULL,
-        hours_before_booking INT,
-        compensation_percentage DECIMAL(5,2),
-        expires_at TIMESTAMP NOT NULL,
-        is_used BOOLEAN DEFAULT FALSE,
-        used_at TIMESTAMP NULL,
-        used_for_booking VARCHAR(36) NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_user_expires (user_id, expires_at, is_used),
-        INDEX idx_booking (booking_id),
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-      )
-    `);
-
-    logger.info('✅ Enhanced tables created successfully');
-  } catch (error) {
-    logger.error('❌ Error creating enhanced tables', error);
-  }
-};
-
 /* ========= بيانات الملاعب المحسنة ========= */
 const pitchesData = [
   {
@@ -196,33 +109,23 @@ const pitchesData = [
     rating: 4.7, totalRatings: 128, coordinates: { lat: 30.0130, lng: 31.2929 },
     workingHours: { start: 8, end: 24 }, googleMaps: "https://maps.app.goo.gl/v6tj8pxhG5FHfoSj9",
     availability: 8, totalSlots: 12, availabilityPercentage: 67,
-    // الإضافات الجديدة
     depositPolicy: {
       lessThan24Hours: 0,
       between24_48Hours: 30,
       moreThan48Hours: 50
     },
-    managers: [], // سيتم ملؤها من قاعدة البيانات
-    blockedSlots: [] // سيتم ملؤها من قاعدة البيانات
+    managers: [],
+    blockedSlots: []
   },
-  // ... (بقية الملاعب بنفس الهيكل)
+  {
+    id: 2, name: "نادي الطيارة - الملعب الثاني", location: "المقطم - شارع التسعين", area: "mokatam", 
+    type: "artificial", image: "/images/tyara-2.jpg", price: 200, deposit: 60, depositRequired: true,
+    features: ["نجيلة صناعية", "كشافات ليلية", "غرف تبديل", "موقف سيارات"],
+    rating: 4.5, totalRatings: 89, coordinates: { lat: 30.0135, lng: 31.2935 },
+    workingHours: { start: 8, end: 24 }, googleMaps: "https://maps.app.goo.gl/v6tj8pxhG5FHfoSj9",
+    availability: 6, totalSlots: 10, availabilityPercentage: 60
+  }
 ];
-
-/* ========= إعداد قاعدة البيانات ========= */
-const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 3306,
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'ehgzly_db',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  charset: 'utf8mb4'
-};
-
-let pool;
-let sessionStore;
 
 /* ========= Middlewares الأساسية ========= */
 app.use(helmet({
@@ -283,311 +186,6 @@ const apiLimiter = rateLimit({
 });
 
 app.use(globalLimiter);
-
-/* ========= دوال مساعدة قاعدة البيانات ========= */
-async function initDatabase() {
-  try {
-    pool = mysql.createPool(dbConfig);
-    const connection = await pool.getConnection();
-    await connection.ping();
-    connection.release();
-    logger.info('✅ MySQL pool established successfully');
-    
-    // إنشاء الجداول الجديدة والمحسنة
-    await createNewTables();
-    await createEnhancedTables();
-    return true;
-  } catch (error) {
-    logger.error('❌ Failed to initialize database', error);
-    throw error;
-  }
-}
-
-async function createNewTables() {
-  try {
-    // جدول الساعات الجديد
-    await pool.execute(`
-      CREATE TABLE IF NOT EXISTS time_slots (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        stadium_id INT NOT NULL,
-        date DATE NOT NULL,
-        start_time TIME NOT NULL,
-        end_time TIME NOT NULL,
-        price DECIMAL(10,2) NOT NULL,
-        status ENUM('available', 'booked', 'pending', 'golden') DEFAULT 'available',
-        is_golden BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_stadium_date (stadium_id, date),
-        INDEX idx_status (status)
-      )
-    `);
-
-    // جدول الحجوزات الجديد
-    await pool.execute(`
-      CREATE TABLE IF NOT EXISTS new_bookings (
-        id VARCHAR(36) PRIMARY KEY,
-        time_slot_id INT,
-        customer_name VARCHAR(255) NOT NULL,
-        customer_phone VARCHAR(20) NOT NULL,
-        total_amount DECIMAL(10,2) NOT NULL,
-        deposit_amount DECIMAL(10,2) NOT NULL,
-        deposit_paid BOOLEAN DEFAULT FALSE,
-        status ENUM('pending', 'confirmed', 'cancelled', 'completed') DEFAULT 'pending',
-        players_needed INT DEFAULT 0,
-        countdown_end TIMESTAMP NULL,
-        remaining_amount DECIMAL(10,2) DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        FOREIGN KEY (time_slot_id) REFERENCES time_slots(id) ON DELETE CASCADE,
-        INDEX idx_user_status (customer_phone, status),
-        INDEX idx_countdown (countdown_end)
-      )
-    `);
-
-    // جدول الأكواد (Vouchers)
-    await pool.execute(`
-      CREATE TABLE IF NOT EXISTS voucher_codes (
-        id VARCHAR(36) PRIMARY KEY,
-        code VARCHAR(50) UNIQUE NOT NULL,
-        value DECIMAL(10,2) NOT NULL,
-        is_used BOOLEAN DEFAULT FALSE,
-        used_at TIMESTAMP NULL,
-        used_for_booking VARCHAR(36) NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        expires_at TIMESTAMP NULL,
-        INDEX idx_code_status (code, is_used),
-        INDEX idx_expires (expires_at)
-      )
-    `);
-
-    // جدول طلبات اللاعبين
-    await pool.execute(`
-      CREATE TABLE IF NOT EXISTS player_requests (
-        id VARCHAR(36) PRIMARY KEY,
-        booking_id VARCHAR(36) NOT NULL,
-        time_slot_id INT NOT NULL,
-        requester_name VARCHAR(255) NOT NULL,
-        requester_age INT NOT NULL,
-        comment TEXT,
-        players_count INT NOT NULL,
-        status ENUM('pending', 'accepted', 'rejected') DEFAULT 'pending',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (booking_id) REFERENCES new_bookings(id) ON DELETE CASCADE,
-        FOREIGN KEY (time_slot_id) REFERENCES time_slots(id) ON DELETE CASCADE,
-        INDEX idx_booking_status (booking_id, status),
-        INDEX idx_time_slot (time_slot_id)
-      )
-    `);
-
-    // جدول الملاعب الجديد
-    await pool.execute(`
-      CREATE TABLE IF NOT EXISTS stadiums (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        description TEXT,
-        images JSON,
-        max_daily_hours INT DEFAULT 3,
-        max_weekly_hours INT DEFAULT 5,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // جداول إضافية مطلوبة
-    await pool.execute(`
-      CREATE TABLE IF NOT EXISTS discount_codes (
-        id VARCHAR(36) PRIMARY KEY,
-        code VARCHAR(50) UNIQUE NOT NULL,
-        value DECIMAL(10,2) NOT NULL,
-        type ENUM('pitch', 'premium', 'compensation') NOT NULL,
-        pitchId INT NULL,
-        pitchName VARCHAR(255) NULL,
-        source ENUM('pitch', 'owner', 'cancellation') NOT NULL,
-        status ENUM('active', 'used', 'expired') DEFAULT 'active',
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        expiresAt TIMESTAMP NULL,
-        usedBy VARCHAR(36) NULL,
-        usedAt TIMESTAMP NULL,
-        usedForBooking VARCHAR(36) NULL,
-        originalBookingId VARCHAR(36) NULL,
-        originalAmount DECIMAL(10,2) NULL,
-        cancellationType VARCHAR(50) NULL,
-        message TEXT NULL,
-        userId VARCHAR(36) NULL,
-        INDEX idx_code_status (code, status),
-        INDEX idx_user (userId)
-      )
-    `);
-
-    await pool.execute(`
-      CREATE TABLE IF NOT EXISTS payments (
-        id VARCHAR(36) PRIMARY KEY,
-        bookingId VARCHAR(36) NOT NULL,
-        payerName VARCHAR(255) NOT NULL,
-        email VARCHAR(255) NOT NULL,
-        phone VARCHAR(20) NOT NULL,
-        field VARCHAR(255) NOT NULL,
-        hours INT NOT NULL,
-        transactionId VARCHAR(255) NOT NULL,
-        amount DECIMAL(10,2) NOT NULL,
-        paymentType ENUM('deposit', 'full') NOT NULL,
-        originalAmount DECIMAL(10,2) NOT NULL,
-        remainingAmount DECIMAL(10,2) NOT NULL,
-        discountApplied DECIMAL(10,2) DEFAULT 0,
-        provider VARCHAR(50) NOT NULL,
-        providerName VARCHAR(255) NOT NULL,
-        receiptPath VARCHAR(500) NULL,
-        date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        status ENUM('pending', 'confirmed', 'failed') DEFAULT 'pending',
-        confirmedAt TIMESTAMP NULL,
-        confirmedBy VARCHAR(255) NULL,
-        INDEX idx_booking (bookingId),
-        INDEX idx_status (status)
-      )
-    `);
-
-    await pool.execute(`
-      CREATE TABLE IF NOT EXISTS bookings (
-        id VARCHAR(36) PRIMARY KEY,
-        pitchId INT NOT NULL,
-        pitchName VARCHAR(255) NOT NULL,
-        pitchLocation VARCHAR(255) NOT NULL,
-        pitchPrice DECIMAL(10,2) NOT NULL,
-        depositAmount DECIMAL(10,2) NOT NULL,
-        date DATE NOT NULL,
-        time VARCHAR(10) NOT NULL,
-        customerName VARCHAR(255) NOT NULL,
-        customerPhone VARCHAR(20) NOT NULL,
-        customerEmail VARCHAR(255) NULL,
-        userId VARCHAR(36) NULL,
-        userType ENUM('customer', 'manager') DEFAULT 'customer',
-        status ENUM('pending', 'confirmed', 'cancelled', 'completed') DEFAULT 'pending',
-        amount DECIMAL(10,2) NOT NULL,
-        paidAmount DECIMAL(10,2) DEFAULT 0,
-        remainingAmount DECIMAL(10,2) DEFAULT 0,
-        finalAmount DECIMAL(10,2) NOT NULL,
-        appliedDiscount TEXT NULL,
-        discountCode VARCHAR(50) NULL,
-        paymentType ENUM('deposit', 'full') DEFAULT 'deposit',
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        paymentDeadline TIMESTAMP NULL,
-        cancellationTime TIMESTAMP NULL,
-        cancellationReason TEXT NULL,
-        refundAmount DECIMAL(10,2) DEFAULT 0,
-        compensationCode VARCHAR(50) NULL,
-        cancelledBy VARCHAR(36) NULL,
-        INDEX idx_user (userId),
-        INDEX idx_status (status),
-        INDEX idx_date (date)
-      )
-    `);
-
-    await pool.execute(`
-      CREATE TABLE IF NOT EXISTS users (
-        id VARCHAR(36) PRIMARY KEY,
-        username VARCHAR(255) UNIQUE NOT NULL,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        phone VARCHAR(20) UNIQUE NOT NULL,
-        password VARCHAR(255) NULL,
-        role ENUM('user', 'manager', 'admin') DEFAULT 'user',
-        approved BOOLEAN DEFAULT FALSE,
-        provider ENUM('local', 'google') DEFAULT 'local',
-        emailVerified BOOLEAN DEFAULT FALSE,
-        verificationToken VARCHAR(255) NULL,
-        googleId VARCHAR(255) NULL,
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        lastLogin TIMESTAMP NULL,
-        stats JSON NULL,
-        INDEX idx_email (email),
-        INDEX idx_google (googleId)
-      )
-    `);
-
-    await pool.execute(`
-      CREATE TABLE IF NOT EXISTS user_profiles (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        userId VARCHAR(36) NOT NULL,
-        nickname VARCHAR(255) NULL,
-        age INT NULL,
-        bio TEXT NULL,
-        avatar VARCHAR(500) NULL,
-        joinDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        lastUpdated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY unique_user (userId),
-        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
-      )
-    `);
-
-    await pool.execute(`
-      CREATE TABLE IF NOT EXISTS managers (
-        id VARCHAR(36) PRIMARY KEY,
-        userId VARCHAR(36) NOT NULL,
-        pitchIds JSON NOT NULL,
-        approved BOOLEAN DEFAULT FALSE,
-        approvedAt TIMESTAMP NULL,
-        approvedBy VARCHAR(36) NULL,
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
-      )
-    `);
-
-    await pool.execute(`
-      CREATE TABLE IF NOT EXISTS ratings (
-        id VARCHAR(36) PRIMARY KEY,
-        pitchId INT NOT NULL,
-        userId VARCHAR(36) NOT NULL,
-        username VARCHAR(255) NOT NULL,
-        rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
-        comment TEXT NULL,
-        bookingId VARCHAR(36) NULL,
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        status ENUM('active', 'hidden') DEFAULT 'active',
-        UNIQUE KEY unique_rating (pitchId, userId),
-        INDEX idx_pitch (pitchId),
-        INDEX idx_user (userId)
-      )
-    `);
-
-    logger.info('✅ All tables created successfully');
-  } catch (error) {
-    logger.error('❌ Error creating tables', error);
-  }
-}
-
-async function execQuery(sql, params = []) {
-  try {
-    const [rows] = await pool.execute(sql, params);
-    return rows;
-  } catch (error) {
-    logger.error('Database query error', { sql, params, error });
-    throw error;
-  }
-}
-
-/* ========= Wrapper للمعاملات الآمنة ========= */
-async function withTransaction(fn) {
-  const conn = await pool.getConnection();
-  try {
-    await conn.beginTransaction();
-    const result = await fn(conn);
-    await conn.commit();
-    return result;
-  } catch (err) {
-    try { await conn.rollback(); } catch (e) { logger.error('Rollback error', e); }
-    throw err;
-  } finally {
-    conn.release();
-  }
-}
-
-/* ========= CSRF Protection ========= */
-const csrfProtection = csrf({
-  cookie: {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? 'none' : 'lax'
-  }
-});
 
 /* ========= إعداد البريد الإلكتروني ========= */
 let transporter;
@@ -669,7 +267,7 @@ passport.serializeUser((user, done) => {
 
 passport.deserializeUser(async (email, done) => {
   try {
-    const users = await execQuery('SELECT id, username, email, phone, role FROM users WHERE email = ?', [email]);
+    const users = await execQuery('SELECT id, username, email, phone, role FROM users WHERE email = $1', [email]);
     const user = users.length > 0 ? users[0] : null;
     done(null, user);
   } catch (error) {
@@ -689,7 +287,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       
       // البحث عن مستخدم موجود بنفس البريد
       const existingUsers = await execQuery(
-        'SELECT * FROM users WHERE email = ? OR googleId = ?', 
+        'SELECT * FROM users WHERE email = $1 OR google_id = $2', 
         [profile.emails[0].value, profile.id]
       );
 
@@ -697,7 +295,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
         // تحديث المستخدم الموجود
         const user = existingUsers[0];
         await execQuery(
-          'UPDATE users SET googleId = ?, lastLogin = ? WHERE id = ?',
+          'UPDATE users SET google_id = $1, last_login = $2 WHERE id = $3',
           [profile.id, new Date(), user.id]
         );
         return done(null, user);
@@ -711,13 +309,13 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
         phone: null,
         password: null,
         role: 'user',
-        approved: 1,
+        approved: true,
         provider: 'google',
-        emailVerified: 1,
-        verificationToken: null,
-        googleId: profile.id,
-        createdAt: new Date(),
-        lastLogin: new Date(),
+        email_verified: true,
+        verification_token: null,
+        google_id: profile.id,
+        created_at: new Date(),
+        last_login: new Date(),
         stats: JSON.stringify({
           totalBookings: 0,
           successfulBookings: 0,
@@ -726,23 +324,22 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
         })
       };
 
-      // ✅ الإصلاح: استخدام مصفوفة قيم مرتبة بدل Object.values()
       await execQuery(
         `INSERT INTO users (id, username, email, phone, password, role, approved, provider, 
-         emailVerified, verificationToken, googleId, createdAt, lastLogin, stats)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         email_verified, verification_token, google_id, created_at, last_login, stats)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
         [
           newUser.id, newUser.username, newUser.email, newUser.phone, newUser.password, 
-          newUser.role, newUser.approved, newUser.provider, newUser.emailVerified, 
-          newUser.verificationToken, newUser.googleId, newUser.createdAt, newUser.lastLogin, 
+          newUser.role, newUser.approved, newUser.provider, newUser.email_verified, 
+          newUser.verification_token, newUser.google_id, newUser.created_at, newUser.last_login, 
           newUser.stats
         ]
       );
 
       // إنشاء ملف شخصي
       await execQuery(
-        `INSERT INTO user_profiles (userId, nickname, joinDate, lastUpdated)
-         VALUES (?, ?, ?, ?)`,
+        `INSERT INTO user_profiles (user_id, nickname, join_date, last_updated)
+         VALUES ($1, $2, $3, $4)`,
         [newUser.id, profile.displayName, new Date(), new Date()]
       );
 
@@ -780,6 +377,22 @@ function requireManager(req, res, next) {
   res.status(403).json({ message: 'مسموح للمديرين فقط' });
 }
 
+// تحقق صلاحيات المدير أو المالك
+async function requireManagerOrOwner(req, res, next) {
+  const userId = req.session.user.id;
+  const { stadiumId } = req.body;
+  
+  const result = await execQuery(
+    'SELECT * FROM stadium_managers WHERE user_id = $1 AND stadium_id = $2 AND is_active = true',
+    [userId, stadiumId]
+  );
+  
+  if (result.length === 0) {
+    return res.status(403).json({ message: 'غير مصرح لك' });
+  }
+  next();
+}
+
 /* ========= دوال مساعدة ========= */
 function generateDiscountCode(length = 8) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -790,13 +403,8 @@ function generateDiscountCode(length = 8) {
   return result;
 }
 
-function generateVoucherCode(length = 8) {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let result = '';
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return `VOUCH-${result}`;
+function generateVoucherCode(prefix = 'VC') {
+  return prefix + '-' + Math.random().toString(36).substring(2, 10).toUpperCase();
 }
 
 function calculateTimeLeft(countdownEnd) {
@@ -815,7 +423,7 @@ function calculateTimeLeft(countdownEnd) {
 
 async function updateUserStats(userId, booking, action) {
   try {
-    const users = await execQuery('SELECT stats FROM users WHERE id = ?', [userId]);
+    const users = await execQuery('SELECT stats FROM users WHERE id = $1', [userId]);
     if (users.length === 0) return;
 
     let stats = users[0].stats;
@@ -840,12 +448,12 @@ async function updateUserStats(userId, booking, action) {
       stats.totalBookings = (stats.totalBookings || 0) + 1;
     } else if (action === 'confirmation') {
       stats.successfulBookings = (stats.successfulBookings || 0) + 1;
-      stats.totalSpent = (stats.totalSpent || 0) + (booking.finalAmount || booking.amount || 0);
+      stats.totalSpent = (stats.totalSpent || 0) + (booking.final_amount || booking.amount || 0);
     } else if (action === 'cancellation') {
       stats.cancelledBookings = (stats.cancelledBookings || 0) + 1;
     }
 
-    await execQuery('UPDATE users SET stats = ? WHERE id = ?', [JSON.stringify(stats), userId]);
+    await execQuery('UPDATE users SET stats = $1 WHERE id = $2', [JSON.stringify(stats), userId]);
   } catch (error) {
     logger.error('Error updating user stats', { userId, error });
   }
@@ -866,6 +474,50 @@ function calculateDeposit(pitchPrice, bookingDate) {
   }
   
   return Math.floor(pitchPrice * 0.3);
+}
+
+// حساب العربون الديناميكي حسب سياسة الملعب
+async function calculateDynamicDeposit(stadiumId, pitchPrice, bookingDateTime) {
+  try {
+    // الحصول على سياسة العربون للملعب
+    const depositRules = await execQuery(
+      'SELECT * FROM deposit_rules WHERE stadium_id = $1',
+      [stadiumId]
+    );
+
+    let depositRule;
+    if (depositRules.length > 0) {
+      depositRule = depositRules[0];
+    } else {
+      // استخدام السياسة الافتراضية إذا لم توجد سياسة مخصصة
+      depositRule = {
+        less_than_24_hours: 0,
+        between_24_48_hours: 30,
+        more_than_48_hours: 50
+      };
+    }
+
+    const now = new Date();
+    const bookingDate = new Date(bookingDateTime);
+    const timeDiff = bookingDate.getTime() - now.getTime();
+    const hoursDiff = timeDiff / (1000 * 60 * 60);
+    
+    let depositPercentage = 0;
+    
+    if (hoursDiff < 24) {
+      depositPercentage = depositRule.less_than_24_hours;
+    } else if (hoursDiff < 48) {
+      depositPercentage = depositRule.between_24_48_hours;
+    } else {
+      depositPercentage = depositRule.more_than_48_hours;
+    }
+    
+    return Math.floor(pitchPrice * (depositPercentage / 100));
+  } catch (error) {
+    logger.error('Calculate dynamic deposit error', error);
+    // العودة للحساب القديم في حالة الخطأ
+    return calculateDeposit(pitchPrice, bookingDateTime);
+  }
 }
 
 function validateEmail(email) {
@@ -889,10 +541,10 @@ async function generateCompensationCode(booking, type) {
   let message = '';
 
   if (type === 'full_refund') {
-    compensationValue = Math.floor(booking.paidAmount * 0.8);
+    compensationValue = Math.floor(booking.paid_amount * 0.8);
     message = 'كود تعويض عن إلغاء الحجز مع استرداد كامل المبلغ. صالح لمدة 14 يوم.';
   } else {
-    compensationValue = Math.floor(booking.paidAmount * 0.5);
+    compensationValue = Math.floor(booking.paid_amount * 0.5);
     message = 'كود تعويض عن إلغاء الحجز. صالح لمدة 14 يوم.';
   }
 
@@ -903,25 +555,24 @@ async function generateCompensationCode(booking, type) {
     type: CODE_TYPES.COMPENSATION,
     source: CODE_SOURCES.CANCELLATION,
     status: 'active',
-    createdAt: new Date(),
-    expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-    originalBookingId: booking.id,
-    originalAmount: booking.paidAmount,
-    cancellationType: type,
+    created_at: new Date(),
+    expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+    original_booking_id: booking.id,
+    original_amount: booking.paid_amount,
+    cancellation_type: type,
     message: message,
-    userId: booking.userId
+    user_id: booking.user_id
   };
 
-  // ✅ الإصلاح: استخدام مصفوفة قيم مرتبة
   await execQuery(
-    `INSERT INTO discount_codes (id, code, value, type, source, status, createdAt, expiresAt, 
-     originalBookingId, originalAmount, cancellationType, message, userId)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO discount_codes (id, code, value, type, source, status, created_at, expires_at, 
+     original_booking_id, original_amount, cancellation_type, message, user_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
     [
       compensationCode.id, compensationCode.code, compensationCode.value, compensationCode.type,
-      compensationCode.source, compensationCode.status, compensationCode.createdAt, compensationCode.expiresAt,
-      compensationCode.originalBookingId, compensationCode.originalAmount, compensationCode.cancellationType,
-      compensationCode.message, compensationCode.userId
+      compensationCode.source, compensationCode.status, compensationCode.created_at, compensationCode.expires_at,
+      compensationCode.original_booking_id, compensationCode.original_amount, compensationCode.cancellation_type,
+      compensationCode.message, compensationCode.user_id
     ]
   );
 
@@ -930,7 +581,7 @@ async function generateCompensationCode(booking, type) {
 
 // إرسال بريد الإلغاء
 async function sendCancellationEmail(booking, compensationCode, refundAmount) {
-  const userEmail = booking.customerEmail;
+  const userEmail = booking.customer_email;
   
   let emailContent = '';
   
@@ -974,10 +625,10 @@ async function sendCancellationEmail(booking, compensationCode, refundAmount) {
             <h2 style="color: #e74c3c; text-align: center; margin-bottom: 20px;">تم إلغاء حجزك</h2>
             <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
               <h3 style="color: #333; margin-bottom: 15px;">تفاصيل الحجز الملغي:</h3>
-              <p><strong>الملعب:</strong> ${booking.pitchName}</p>
+              <p><strong>الملعب:</strong> ${booking.pitch_name}</p>
               <p><strong>التاريخ:</strong> ${booking.date}</p>
               <p><strong>الوقت:</strong> ${booking.time}</p>
-              <p><strong>سبب الإلغاء:</strong> ${booking.cancellationReason || 'غير محدد'}</p>
+              <p><strong>سبب الإلغاء:</strong> ${booking.cancellation_reason || 'غير محدد'}</p>
             </div>
             ${emailContent}
             <p style="text-align: center; color: #666; margin-top: 20px;">نأمل أن نراك قريباً في حجز آخر!</p>
@@ -1020,97 +671,51 @@ async function createDefaultTimeSlots(stadiumId) {
     }
     
     if (timeSlots.length > 0) {
-      const placeholders = timeSlots.map(() => '(?, ?, ?, ?, ?, ?)').join(', ');
-      const flatValues = timeSlots.flat();
-      
-      await execQuery(
-        `INSERT INTO time_slots (stadium_id, date, start_time, end_time, price, status) 
-         VALUES ${placeholders}`,
-        flatValues
-      );
+      for (const slot of timeSlots) {
+        await execQuery(
+          `INSERT INTO time_slots (stadium_id, date, start_time, end_time, price, status) 
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          slot
+        );
+      }
     }
   } catch (error) {
     logger.error('Create default time slots error', error);
   }
 }
 
-// تحديث متوسط تقييم الملعب
-async function updatePitchRating(pitchId) {
+// التحقق من الساعات المحجوبة
+async function checkBlockedSlots(stadiumId, date, startTime, endTime) {
   try {
-    const ratings = await execQuery(
-      'SELECT AVG(rating) as average, COUNT(*) as count FROM ratings WHERE pitchId = ? AND status = ?',
-      [pitchId, 'active']
+    const blockedSlots = await execQuery(
+      `SELECT * FROM blocked_slots 
+       WHERE stadium_id = $1 
+       AND is_active = TRUE 
+       AND start_date <= $2 
+       AND end_date >= $2
+       AND (
+         (start_time <= $3 AND end_time >= $3) OR
+         (start_time <= $4 AND end_time >= $4) OR
+         (start_time >= $3 AND end_time <= $4)
+       )`,
+      [stadiumId, date, startTime, endTime]
     );
 
-    if (ratings.length > 0) {
-      const averageRating = parseFloat(ratings[0].average).toFixed(1);
-      const totalRatings = ratings[0].count;
-      
-      const pitch = pitchesData.find(p => p.id === pitchId);
-      if (pitch) {
-        pitch.rating = parseFloat(averageRating);
-        pitch.totalRatings = totalRatings;
-      }
-    }
+    return blockedSlots.length > 0;
   } catch (error) {
-    logger.error('Update pitch rating error', error);
+    logger.error('Check blocked slots error', error);
+    return false;
   }
 }
 
-/* ========= دوال مساعدة محسنة ========= */
-
-// 1. حساب العربون الديناميكي حسب سياسة الملعب
-async function calculateDynamicDeposit(stadiumId, pitchPrice, bookingDateTime) {
-  try {
-    // الحصول على سياسة العربون للملعب
-    const policies = await execQuery(
-      'SELECT * FROM stadium_deposit_policies WHERE stadium_id = ?',
-      [stadiumId]
-    );
-
-    let depositPolicy;
-    if (policies.length > 0) {
-      depositPolicy = policies[0];
-    } else {
-      // استخدام السياسة الافتراضية إذا لم توجد سياسة مخصصة
-      depositPolicy = {
-        less_than_24_hours: 0,
-        between_24_48_hours: 30,
-        more_than_48_hours: 50
-      };
-    }
-
-    const now = new Date();
-    const bookingDate = new Date(bookingDateTime);
-    const timeDiff = bookingDate.getTime() - now.getTime();
-    const hoursDiff = timeDiff / (1000 * 60 * 60);
-    
-    let depositPercentage = 0;
-    
-    if (hoursDiff < 24) {
-      depositPercentage = depositPolicy.less_than_24_hours;
-    } else if (hoursDiff < 48) {
-      depositPercentage = depositPolicy.between_24_48_hours;
-    } else {
-      depositPercentage = depositPolicy.more_than_48_hours;
-    }
-    
-    return Math.floor(pitchPrice * (depositPercentage / 100));
-  } catch (error) {
-    logger.error('Calculate dynamic deposit error', error);
-    // العودة للحساب القديم في حالة الخطأ
-    return calculateDeposit(pitchPrice, bookingDateTime);
-  }
-}
-
-// 2. التحقق من صلاحيات المدير على الملعب
+// التحقق من صلاحيات المدير على الملعب
 async function checkManagerPermissions(stadiumId, userId) {
   try {
     const managers = await execQuery(
       `SELECT sm.*, u.role as user_role 
        FROM stadium_managers sm 
        JOIN users u ON sm.user_id = u.id 
-       WHERE sm.stadium_id = ? AND sm.user_id = ? AND sm.is_active = TRUE`,
+       WHERE sm.stadium_id = $1 AND sm.user_id = $2 AND sm.is_active = TRUE`,
       [stadiumId, userId]
     );
 
@@ -1124,7 +729,7 @@ async function checkManagerPermissions(stadiumId, userId) {
 
     // التحقق إذا كان المستخدم مسؤول
     const users = await execQuery(
-      'SELECT role FROM users WHERE id = ?',
+      'SELECT role FROM users WHERE id = $1',
       [userId]
     );
 
@@ -1143,31 +748,30 @@ async function checkManagerPermissions(stadiumId, userId) {
   }
 }
 
-// 3. التحقق من الساعات المحجوبة
-async function checkBlockedSlots(stadiumId, date, startTime, endTime) {
+// تحديث متوسط تقييم الملعب
+async function updatePitchRating(pitchId) {
   try {
-    const blockedSlots = await execQuery(
-      `SELECT * FROM blocked_slots 
-       WHERE stadium_id = ? 
-       AND is_active = TRUE 
-       AND start_date <= ? 
-       AND end_date >= ?
-       AND (
-         (start_time <= ? AND end_time >= ?) OR
-         (start_time <= ? AND end_time >= ?) OR
-         (start_time >= ? AND end_time <= ?)
-       )`,
-      [stadiumId, date, date, startTime, startTime, endTime, endTime, startTime, endTime]
+    const ratings = await execQuery(
+      'SELECT AVG(rating) as average, COUNT(*) as count FROM ratings WHERE pitch_id = $1 AND status = $2',
+      [pitchId, 'active']
     );
 
-    return blockedSlots.length > 0;
+    if (ratings.length > 0) {
+      const averageRating = parseFloat(ratings[0].average).toFixed(1);
+      const totalRatings = ratings[0].count;
+      
+      const pitch = pitchesData.find(p => p.id === pitchId);
+      if (pitch) {
+        pitch.rating = parseFloat(averageRating);
+        pitch.totalRatings = totalRatings;
+      }
+    }
   } catch (error) {
-    logger.error('Check blocked slots error', error);
-    return false;
+    logger.error('Update pitch rating error', error);
   }
 }
 
-// 4. توليد كود تعويض محسن
+// توليد كود تعويض محسن
 async function generateEnhancedCompensationCode(booking, cancellationType, hoursBeforeBooking) {
   try {
     let compensationPercentage = 0;
@@ -1188,30 +792,36 @@ async function generateEnhancedCompensationCode(booking, cancellationType, hours
       return null;
     }
 
-    const compensationValue = Math.floor(booking.paidAmount * (compensationPercentage / 100));
+    const compensationValue = Math.floor(booking.paid_amount * (compensationPercentage / 100));
     
     const compensationCode = {
       id: uuidv4(),
-      user_id: booking.userId,
-      booking_id: booking.id,
       code: generateDiscountCode(12),
       value: compensationValue,
-      reason: 'cancellation',
+      type: CODE_TYPES.COMPENSATION,
+      source: CODE_SOURCES.CANCELLATION,
+      status: 'active',
+      created_at: new Date(),
+      expires_at: new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000),
+      original_booking_id: booking.id,
+      original_amount: booking.paid_amount,
       cancellation_type: cancellationType,
       hours_before_booking: hoursBeforeBooking,
       compensation_percentage: compensationPercentage,
-      expires_at: new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000)
+      user_id: booking.user_id
     };
 
     await execQuery(
-      `INSERT INTO enhanced_compensation_codes 
-       (id, user_id, booking_id, code, value, reason, cancellation_type, hours_before_booking, compensation_percentage, expires_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO discount_codes 
+       (id, code, value, type, source, status, created_at, expires_at, 
+        original_booking_id, original_amount, cancellation_type, hours_before_booking, 
+        compensation_percentage, user_id) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
       [
-        compensationCode.id, compensationCode.user_id, compensationCode.booking_id,
-        compensationCode.code, compensationCode.value, compensationCode.reason,
-        compensationCode.cancellation_type, compensationCode.hours_before_booking,
-        compensationCode.compensation_percentage, compensationCode.expires_at
+        compensationCode.id, compensationCode.code, compensationCode.value, compensationCode.type,
+        compensationCode.source, compensationCode.status, compensationCode.created_at, compensationCode.expires_at,
+        compensationCode.original_booking_id, compensationCode.original_amount, compensationCode.cancellation_type,
+        compensationCode.hours_before_booking, compensationCode.compensation_percentage, compensationCode.user_id
       ]
     );
 
@@ -1222,7 +832,7 @@ async function generateEnhancedCompensationCode(booking, cancellationType, hours
   }
 }
 
-// 5. حساب المبلغ المتبقي مع الأكواد
+// حساب المبلغ المتبقي مع الأكواد
 function calculateRemainingWithVouchers(totalAmount, depositAmount, voucherValues = []) {
   const totalVoucherValue = voucherValues.reduce((sum, value) => sum + value, 0);
   
@@ -1234,12 +844,12 @@ function calculateRemainingWithVouchers(totalAmount, depositAmount, voucherValue
   }
 }
 
-// 6. تحديث حالة الساعة بعد الإلغاء
+// تحديث حالة الساعة بعد الإلغاء
 async function restoreTimeSlotAfterCancellation(timeSlotId) {
   try {
     await execQuery(
-      'UPDATE time_slots SET status = "available", is_golden = FALSE WHERE id = ?',
-      [timeSlotId]
+      'UPDATE time_slots SET status = $1, is_golden = $2 WHERE id = $3',
+      ['available', false, timeSlotId]
     );
     logger.info('Time slot restored after cancellation', { timeSlotId });
   } catch (error) {
@@ -1247,27 +857,73 @@ async function restoreTimeSlotAfterCancellation(timeSlotId) {
   }
 }
 
+// إنشاء الجداول المحسنة
+async function createEnhancedTables() {
+  try {
+    // جدول سياسات العربون للملاعب
+    await execQuery(`
+      CREATE TABLE IF NOT EXISTS deposit_rules (
+        id SERIAL PRIMARY KEY,
+        stadium_id INTEGER REFERENCES stadiums(id) ON DELETE CASCADE,
+        less_than_24_hours DECIMAL(5,2) DEFAULT 0,
+        between_24_48_hours DECIMAL(5,2) DEFAULT 30,
+        more_than_48_hours DECIMAL(5,2) DEFAULT 50,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // جدول المدراء المتعددين للملعب
+    await execQuery(`
+      CREATE TABLE IF NOT EXISTS stadium_managers (
+        id SERIAL PRIMARY KEY,
+        stadium_id INTEGER REFERENCES stadiums(id) ON DELETE CASCADE,
+        user_id VARCHAR(36) REFERENCES users(id) ON DELETE CASCADE,
+        role VARCHAR(20) DEFAULT 'manager',
+        permissions JSONB,
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // جدول المواعيد المحجوزة ثابتاً
+    await execQuery(`
+      CREATE TABLE IF NOT EXISTS blocked_slots (
+        id SERIAL PRIMARY KEY,
+        stadium_id INTEGER REFERENCES stadiums(id) ON DELETE CASCADE,
+        start_date DATE NOT NULL,
+        end_date DATE NOT NULL,
+        start_time TIME NOT NULL,
+        end_time TIME NOT NULL,
+        reason TEXT,
+        is_active BOOLEAN DEFAULT TRUE,
+        is_emergency BOOLEAN DEFAULT FALSE,
+        created_by VARCHAR(36) REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    logger.info('✅ Enhanced tables created successfully');
+  } catch (error) {
+    logger.error('❌ Error creating enhanced tables', error);
+  }
+}
+
 /* ========= بدء الخادم مع الترتيب الصحيح ========= */
 async function startServer() {
   try {
-    // 1. تهيئة قاعدة البيانات أولاً
-    await initDatabase();
+    // 1. إنشاء الجداول في PostgreSQL
+    await createTables();
+    await createEnhancedTables();
     
     // 2. تهيئة خدمة البريد
     initEmailService();
 
-    // 3. إنشاء session store بعد إنشاء pool
-    sessionStore = new MySQLStore({}, pool);
-
-    if (isProduction) {
-      app.set('trust proxy', 1);
-    }
-
-    // 4. middleware الجلسات (قبل passport)
+    // 3. middleware الجلسات
     app.use(session({
-      key: process.env.SESSION_KEY || 'ehgzly_session',
       secret: process.env.SESSION_SECRET || 'change-this-in-production-' + Date.now(),
-      store: sessionStore,
       resave: false,
       saveUninitialized: false,
       cookie: {
@@ -1278,12 +934,18 @@ async function startServer() {
       }
     }));
 
-    // 5. تهيئة passport (بعد الجلسات)
+    // 4. تهيئة passport (بعد الجلسات)
     app.use(passport.initialize());
     app.use(passport.session());
 
-    // 6. CSRF Protection (بعد الجلسات)
-    app.use(csrfProtection);
+    // 5. CSRF Protection (بعد الجلسات)
+    app.use(csrf({
+      cookie: {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax'
+      }
+    }));
 
     // HSTS للإنتاج
     if (isProduction) {
@@ -1379,25 +1041,25 @@ async function startServer() {
     app.get('/api/user/bookings', requireLogin, async (req, res) => {
       try {
         const bookings = await execQuery(
-          'SELECT * FROM bookings WHERE userId = ? ORDER BY createdAt DESC',
+          'SELECT * FROM bookings WHERE user_id = $1 ORDER BY created_at DESC',
           [req.session.user.id]
         );
         
         // في النظام الجديد، ندمج مع new_bookings
         const newBookings = await execQuery(
-          'SELECT * FROM new_bookings WHERE customer_phone = ? ORDER BY created_at DESC',
+          'SELECT * FROM new_bookings WHERE customer_phone = $1 ORDER BY created_at DESC',
           [req.session.user.phone]
         );
 
         const allBookings = [...bookings, ...newBookings.map(b => ({
           id: b.id,
-          pitchName: 'ملعب - نظام جديد',
+          pitch_name: 'ملعب - نظام جديد',
           date: b.created_at.split(' ')[0],
           time: '--',
           status: b.status,
           amount: b.total_amount,
-          paidAmount: b.deposit_paid ? b.deposit_amount : 0,
-          remainingAmount: b.remaining_amount
+          paid_amount: b.deposit_paid ? b.deposit_amount : 0,
+          remaining_amount: b.remaining_amount
         }))];
 
         res.json(allBookings);
@@ -1415,7 +1077,7 @@ async function startServer() {
            FROM time_slots ts 
            JOIN stadiums s ON ts.stadium_id = s.id 
            JOIN new_bookings b ON ts.id = b.time_slot_id 
-           WHERE ts.is_golden = TRUE AND b.status = "pending"
+           WHERE ts.is_golden = TRUE AND b.status = 'pending'
            ORDER BY ts.date, ts.start_time`
         );
 
@@ -1452,7 +1114,7 @@ async function startServer() {
 
         // التحقق من الأكواد في قاعدة البيانات
         const vouchers = await execQuery(
-          'SELECT * FROM voucher_codes WHERE code = ? AND is_used = FALSE',
+          'SELECT * FROM voucher_codes WHERE code = $1 AND is_used = FALSE',
           [code.toUpperCase()]
         );
 
@@ -1503,7 +1165,7 @@ async function startServer() {
     // إنشاء حجز جديد (النظام الجديد)
     app.post('/api/bookings/new', apiLimiter, async (req, res) => {
       try {
-        const result = await withTransaction(async (connection) => {
+        const result = await withTransaction(async (client) => {
           const { timeSlotId, customerName, customerPhone, playersNeeded = 0 } = req.body;
           
           if (!timeSlotId || !customerName || !customerPhone) {
@@ -1515,27 +1177,27 @@ async function startServer() {
           }
 
           // التحقق من أن الساعة متاحة
-          const [timeSlots] = await connection.execute(
-            'SELECT * FROM time_slots WHERE id = ? AND status = "available" FOR UPDATE',
-            [timeSlotId]
+          const timeSlots = await client.query(
+            'SELECT * FROM time_slots WHERE id = $1 AND status = $2',
+            [timeSlotId, 'available']
           );
 
-          if (timeSlots.length === 0) {
+          if (timeSlots.rows.length === 0) {
             throw { status: 400, message: 'هذه الساعة غير متاحة للحجز' };
           }
 
-          const timeSlot = timeSlots[0];
+          const timeSlot = timeSlots.rows[0];
 
           // التحقق من الحد الأقصى اليومي
-          const [dailyBookings] = await connection.execute(
+          const dailyBookings = await client.query(
             `SELECT COUNT(*) as count FROM new_bookings b 
              JOIN time_slots ts ON b.time_slot_id = ts.id 
-             WHERE ts.stadium_id = ? AND ts.date = ? 
+             WHERE ts.stadium_id = $1 AND ts.date = $2 
              AND b.status IN ('pending', 'confirmed')`,
             [timeSlot.stadium_id, timeSlot.date]
           );
 
-          if (dailyBookings[0].count >= 3) {
+          if (parseInt(dailyBookings.rows[0].count) >= 3) {
             throw { status: 400, message: 'تم الوصول للحد الأقصى للحجوزات اليومية (3 ساعات)' };
           }
 
@@ -1558,11 +1220,10 @@ async function startServer() {
             remaining_amount: remainingAmount
           };
 
-          // ✅ الإصلاح: استخدام مصفوفة قيم مرتبة
-          await connection.execute(
+          await client.query(
             `INSERT INTO new_bookings (id, time_slot_id, customer_name, customer_phone, total_amount, 
              deposit_amount, players_needed, countdown_end, remaining_amount) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
             [
               newBooking.id, newBooking.time_slot_id, newBooking.customer_name, 
               newBooking.customer_phone, newBooking.total_amount, newBooking.deposit_amount,
@@ -1571,15 +1232,15 @@ async function startServer() {
           );
 
           // تحديث حالة الساعة
-          await connection.execute(
-            'UPDATE time_slots SET status = ? WHERE id = ?',
+          await client.query(
+            'UPDATE time_slots SET status = $1 WHERE id = $2',
             [playersNeeded > 0 ? 'golden' : 'pending', timeSlotId]
           );
 
           // إذا طلب لاعبين، جعل الساعة ذهبية
           if (playersNeeded > 0) {
-            await connection.execute(
-              'UPDATE time_slots SET is_golden = TRUE WHERE id = ?',
+            await client.query(
+              'UPDATE time_slots SET is_golden = TRUE WHERE id = $1',
               [timeSlotId]
             );
           }
@@ -1614,8 +1275,8 @@ async function startServer() {
         const { bookingId } = req.params;
         
         const bookings = await execQuery(
-          'SELECT countdown_end, remaining_amount FROM new_bookings WHERE id = ? AND status = "pending"',
-          [bookingId]
+          'SELECT countdown_end, remaining_amount FROM new_bookings WHERE id = $1 AND status = $2',
+          [bookingId, 'pending']
         );
 
         if (bookings.length === 0) {
@@ -1640,31 +1301,31 @@ async function startServer() {
     // إلغاء الحجز (النظام الجديد)
     app.post('/api/bookings/:bookingId/cancel', apiLimiter, async (req, res) => {
       try {
-        await withTransaction(async (connection) => {
+        await withTransaction(async (client) => {
           const { bookingId } = req.params;
           
           // الحصول على معلومات الحجز
-          const [bookings] = await connection.execute(
-            'SELECT * FROM new_bookings WHERE id = ? FOR UPDATE',
+          const bookings = await client.query(
+            'SELECT * FROM new_bookings WHERE id = $1',
             [bookingId]
           );
 
-          if (bookings.length === 0) {
+          if (bookings.rows.length === 0) {
             throw { status: 404, message: 'الحجز غير موجود' };
           }
 
-          const booking = bookings[0];
+          const booking = bookings.rows[0];
 
           // تحديث حالة الحجز
-          await connection.execute(
-            'UPDATE new_bookings SET status = "cancelled" WHERE id = ?',
-            [bookingId]
+          await client.query(
+            'UPDATE new_bookings SET status = $1 WHERE id = $2',
+            ['cancelled', bookingId]
           );
 
           // إعادة الساعة للمتاحة
-          await connection.execute(
-            'UPDATE time_slots SET status = "available", is_golden = FALSE WHERE id = ?',
-            [booking.time_slot_id]
+          await client.query(
+            'UPDATE time_slots SET status = $1, is_golden = $2 WHERE id = $3',
+            ['available', false, booking.time_slot_id]
           );
 
           return { timeSlotId: booking.time_slot_id };
@@ -1697,8 +1358,8 @@ async function startServer() {
         }
 
         // التحقق من أن الساعة ذهبية (تحتاج لاعبين)
-        const [timeSlots] = await execQuery(
-          'SELECT * FROM time_slots WHERE id = ? AND is_golden = TRUE',
+        const timeSlots = await execQuery(
+          'SELECT * FROM time_slots WHERE id = $1 AND is_golden = TRUE',
           [timeSlotId]
         );
 
@@ -1707,9 +1368,9 @@ async function startServer() {
         }
 
         // إيجاد الحجز المرتبط بالساعة
-        const [bookings] = await execQuery(
-          'SELECT id FROM new_bookings WHERE time_slot_id = ? AND status = "pending"',
-          [timeSlotId]
+        const bookings = await execQuery(
+          'SELECT id FROM new_bookings WHERE time_slot_id = $1 AND status = $2',
+          [timeSlotId, 'pending']
         );
 
         if (bookings.length === 0) {
@@ -1728,10 +1389,9 @@ async function startServer() {
           players_count: parseInt(playersCount)
         };
 
-        // ✅ الإصلاح: استخدام مصفوفة قيم مرتبة
         await execQuery(
           `INSERT INTO player_requests (id, booking_id, time_slot_id, requester_name, requester_age, comment, players_count) 
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
           [
             newRequest.id, newRequest.booking_id, newRequest.time_slot_id,
             newRequest.requester_name, newRequest.requester_age, newRequest.comment,
@@ -1757,8 +1417,8 @@ async function startServer() {
         const { bookingId } = req.params;
         
         const requests = await execQuery(
-          'SELECT * FROM player_requests WHERE booking_id = ? AND status = "pending" ORDER BY created_at DESC',
-          [bookingId]
+          'SELECT * FROM player_requests WHERE booking_id = $1 AND status = $2 ORDER BY created_at DESC',
+          [bookingId, 'pending']
         );
 
         res.json(requests);
@@ -1781,7 +1441,7 @@ async function startServer() {
         const status = action === 'accept' ? 'accepted' : 'rejected';
 
         await execQuery(
-          'UPDATE player_requests SET status = ? WHERE id = ?',
+          'UPDATE player_requests SET status = $1 WHERE id = $2',
           [status, requestId]
         );
 
@@ -1841,7 +1501,7 @@ async function startServer() {
 
         // التحقق من التكرار
         const existingUsers = await execQuery(
-          'SELECT id FROM users WHERE username = ? OR email = ? OR phone = ? LIMIT 1',
+          'SELECT id FROM users WHERE username = $1 OR email = $2 OR phone = $3 LIMIT 1',
           [username, email, phone]
         );
 
@@ -1860,11 +1520,11 @@ async function startServer() {
           phone: sanitizeInput(phone),
           password: hash,
           role: role === 'admin' ? 'admin' : (role === 'manager' ? 'manager' : 'user'),
-          approved: role === 'user' ? 1 : 0,
+          approved: role === 'user' ? true : false,
           provider: 'local',
-          emailVerified: 0,
-          verificationToken,
-          createdAt: new Date(),
+          email_verified: false,
+          verification_token: verificationToken,
+          created_at: new Date(),
           stats: JSON.stringify({
             totalBookings: 0,
             successfulBookings: 0,
@@ -1873,30 +1533,29 @@ async function startServer() {
           })
         };
 
-        // ✅ الإصلاح: استخدام مصفوفة قيم مرتبة
         await execQuery(
-          `INSERT INTO users (id, username, email, phone, password, role, approved, provider, emailVerified, verificationToken, createdAt, stats)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO users (id, username, email, phone, password, role, approved, provider, email_verified, verification_token, created_at, stats)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
           [
             newUser.id, newUser.username, newUser.email, newUser.phone, newUser.password,
-            newUser.role, newUser.approved, newUser.provider, newUser.emailVerified,
-            newUser.verificationToken, newUser.createdAt, newUser.stats
+            newUser.role, newUser.approved, newUser.provider, newUser.email_verified,
+            newUser.verification_token, newUser.created_at, newUser.stats
           ]
         );
 
         // إنشاء الملف الشخصي
         await execQuery(
-          `INSERT INTO user_profiles (userId, nickname, age, bio, joinDate, lastUpdated)
-           VALUES (?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO user_profiles (user_id, nickname, age, bio, join_date, last_updated)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
           [userId, nickname || username, age || null, bio || '', new Date(), new Date()]
         );
 
         // إذا كان مدير، إنشاء سجل مدير
         if (role === 'manager') {
           await execQuery(
-            `INSERT INTO managers (id, userId, pitchIds, approved, createdAt)
-             VALUES (?, ?, ?, ?, ?)`,
-            [uuidv4(), userId, JSON.stringify(pitchIds || []), 0, new Date()]
+            `INSERT INTO managers (id, user_id, pitch_ids, approved, created_at)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [uuidv4(), userId, JSON.stringify(pitchIds || []), false, new Date()]
           );
         }
 
@@ -1958,7 +1617,7 @@ async function startServer() {
       }
 
       try {
-        const users = await execQuery('SELECT id FROM users WHERE verificationToken = ?', [token]);
+        const users = await execQuery('SELECT id FROM users WHERE verification_token = $1', [token]);
         
         if (users.length === 0) {
           return res.status(400).send(`
@@ -1971,7 +1630,7 @@ async function startServer() {
         }
         
         await execQuery(
-          'UPDATE users SET emailVerified = 1, verificationToken = NULL WHERE verificationToken = ?',
+          'UPDATE users SET email_verified = TRUE, verification_token = NULL WHERE verification_token = $1',
           [token]
         );
         
@@ -2000,7 +1659,7 @@ async function startServer() {
         }
 
         const users = await execQuery(
-          'SELECT * FROM users WHERE email = ? AND provider = ?',
+          'SELECT * FROM users WHERE email = $1 AND provider = $2',
           [email, 'local']
         );
         
@@ -2015,7 +1674,7 @@ async function startServer() {
           return res.status(401).json({ message: 'البريد أو كلمة المرور غير صحيحة' });
         }
 
-        if (!user.emailVerified) {
+        if (!user.email_verified) {
           return res.status(403).json({ message: 'لم يتم تفعيل البريد الإلكتروني بعد' });
         }
 
@@ -2025,7 +1684,7 @@ async function startServer() {
 
         // تحديث آخر دخول
         await execQuery(
-          'UPDATE users SET lastLogin = ? WHERE id = ?',
+          'UPDATE users SET last_login = $1 WHERE id = $2',
           [new Date(), user.id]
         );
 
@@ -2085,7 +1744,7 @@ async function startServer() {
 
         // التحقق من عدم وجود حجز مسبق
         const existingBookings = await execQuery(
-          'SELECT id FROM bookings WHERE pitchId = ? AND date = ? AND time = ? AND status IN (?, ?)',
+          'SELECT id FROM bookings WHERE pitch_id = $1 AND date = $2 AND time = $3 AND status IN ($4, $5)',
           [pitchId, date, time, BOOKING_STATUS.CONFIRMED, BOOKING_STATUS.PENDING]
         );
 
@@ -2102,7 +1761,7 @@ async function startServer() {
         // تطبيق كود الخصم إذا كان موجوداً
         if (discountCode) {
           const discountCodes = await execQuery(
-            'SELECT * FROM discount_codes WHERE code = ? AND status = ?',
+            'SELECT * FROM discount_codes WHERE code = $1 AND status = $2',
             [discountCode.toUpperCase(), 'active']
           );
 
@@ -2124,45 +1783,44 @@ async function startServer() {
 
         const newBooking = {
           id: uuidv4(),
-          pitchId: parseInt(pitchId),
-          pitchName: pitch.name,
-          pitchLocation: pitch.location,
-          pitchPrice: pitch.price,
-          depositAmount: depositAmount,
+          pitch_id: parseInt(pitchId),
+          pitch_name: pitch.name,
+          pitch_location: pitch.location,
+          pitch_price: pitch.price,
+          deposit_amount: depositAmount,
           date,
           time,
-          customerName: sanitizeInput(name),
-          customerPhone: sanitizeInput(phone),
-          customerEmail: sanitizeInput(email || req.session.user.email),
-          userId: req.session.user.id,
-          userType: userType || 'customer',
+          customer_name: sanitizeInput(name),
+          customer_phone: sanitizeInput(phone),
+          customer_email: sanitizeInput(email || req.session.user.email),
+          user_id: req.session.user.id,
+          user_type: userType || 'customer',
           status: BOOKING_STATUS.PENDING,
           amount: amount,
-          paidAmount: 0,
-          remainingAmount: remainingAmount,
-          finalAmount: finalAmount,
-          appliedDiscount: appliedDiscount ? JSON.stringify(appliedDiscount) : null,
-          discountCode: discountCode || null,
-          paymentType: PAYMENT_TYPES.DEPOSIT,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          paymentDeadline: new Date(selectedDate.getTime() - 24 * 60 * 60 * 1000).toISOString()
+          paid_amount: 0,
+          remaining_amount: remainingAmount,
+          final_amount: finalAmount,
+          applied_discount: appliedDiscount ? JSON.stringify(appliedDiscount) : null,
+          discount_code: discountCode || null,
+          payment_type: PAYMENT_TYPES.DEPOSIT,
+          created_at: new Date(),
+          updated_at: new Date(),
+          payment_deadline: new Date(selectedDate.getTime() - 24 * 60 * 60 * 1000).toISOString()
         };
 
-        // ✅ الإصلاح: استخدام مصفوفة قيم مرتبة
         await execQuery(
-          `INSERT INTO bookings (id, pitchId, pitchName, pitchLocation, pitchPrice, depositAmount, date, time, 
-           customerName, customerPhone, customerEmail, userId, userType, status, amount, paidAmount, 
-           remainingAmount, finalAmount, appliedDiscount, discountCode, paymentType, createdAt, updatedAt, paymentDeadline)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO bookings (id, pitch_id, pitch_name, pitch_location, pitch_price, deposit_amount, date, time, 
+           customer_name, customer_phone, customer_email, user_id, user_type, status, amount, paid_amount, 
+           remaining_amount, final_amount, applied_discount, discount_code, payment_type, created_at, updated_at, payment_deadline)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)`,
           [
-            newBooking.id, newBooking.pitchId, newBooking.pitchName, newBooking.pitchLocation,
-            newBooking.pitchPrice, newBooking.depositAmount, newBooking.date, newBooking.time,
-            newBooking.customerName, newBooking.customerPhone, newBooking.customerEmail,
-            newBooking.userId, newBooking.userType, newBooking.status, newBooking.amount,
-            newBooking.paidAmount, newBooking.remainingAmount, newBooking.finalAmount,
-            newBooking.appliedDiscount, newBooking.discountCode, newBooking.paymentType,
-            newBooking.createdAt, newBooking.updatedAt, newBooking.paymentDeadline
+            newBooking.id, newBooking.pitch_id, newBooking.pitch_name, newBooking.pitch_location,
+            newBooking.pitch_price, newBooking.deposit_amount, newBooking.date, newBooking.time,
+            newBooking.customer_name, newBooking.customer_phone, newBooking.customer_email,
+            newBooking.user_id, newBooking.user_type, newBooking.status, newBooking.amount,
+            newBooking.paid_amount, newBooking.remaining_amount, newBooking.final_amount,
+            newBooking.applied_discount, newBooking.discount_code, newBooking.payment_type,
+            newBooking.created_at, newBooking.updated_at, newBooking.payment_deadline
           ]
         );
 
@@ -2194,14 +1852,14 @@ async function startServer() {
         const bookingId = req.params.id;
         const { cancellationReason } = req.body;
         
-        const bookings = await execQuery('SELECT * FROM bookings WHERE id = ?', [bookingId]);
+        const bookings = await execQuery('SELECT * FROM bookings WHERE id = $1', [bookingId]);
         const booking = bookings[0];
         
         if (!booking) {
           return res.status(404).json({ message: 'الحجز غير موجود' });
         }
 
-        const isOwner = booking.userId === req.session.user.id;
+        const isOwner = booking.user_id === req.session.user.id;
         const isAdmin = req.session.user.role === 'admin';
         
         if (!isOwner && !isAdmin) {
@@ -2219,7 +1877,7 @@ async function startServer() {
 
         // تحديد سياسة الإلغاء
         if (hoursDiff > 48) {
-          refundAmount = booking.paidAmount;
+          refundAmount = booking.paid_amount;
           compensationCode = await generateCompensationCode(booking, 'full_refund');
         } else if (hoursDiff > 24) {
           compensationCode = await generateCompensationCode(booking, 'partial_refund');
@@ -2227,8 +1885,8 @@ async function startServer() {
 
         // تحديث حالة الحجز
         await execQuery(
-          `UPDATE bookings SET status = ?, updatedAt = ?, cancellationTime = ?, 
-           cancellationReason = ?, refundAmount = ?, compensationCode = ? WHERE id = ?`,
+          `UPDATE bookings SET status = $1, updated_at = $2, cancellation_time = $3, 
+           cancellation_reason = $4, refund_amount = $5, compensation_code = $6 WHERE id = $7`,
           [BOOKING_STATUS.CANCELLED, new Date(), new Date(), cancellationReason, refundAmount, 
            compensationCode ? compensationCode.code : null, bookingId]
         );
@@ -2289,14 +1947,14 @@ async function startServer() {
       }
       
       res.json({
-        pitchId: pendingBooking.pitchId,
-        field: pendingBooking.pitchName,
+        pitchId: pendingBooking.pitch_id,
+        field: pendingBooking.pitch_name,
         date: pendingBooking.date,
         time: pendingBooking.time,
         hours: 1,
-        amount: pendingBooking.finalAmount,
+        amount: pendingBooking.final_amount,
         originalAmount: pendingBooking.amount,
-        discount: pendingBooking.appliedDiscount
+        discount: pendingBooking.applied_discount
       });
     });
 
@@ -2320,7 +1978,7 @@ async function startServer() {
 
         // ✅ الإصلاح: استخدام parseFloat للمقارنة الدقيقة
         const paidAmount = parseFloat(amount);
-        const expectedAmount = parseFloat(pendingBooking.depositAmount);
+        const expectedAmount = parseFloat(pendingBooking.deposit_amount);
         
         if (isNaN(paidAmount) || Math.abs(paidAmount - expectedAmount) > 0.001) {
           return res.status(400).json({ 
@@ -2328,115 +1986,104 @@ async function startServer() {
           });
         }
 
-        const connection = await pool.getConnection();
-        
-        try {
-          await connection.beginTransaction();
-
+        const result = await withTransaction(async (client) => {
           // تحديث حالة الكود إذا كان مستخدماً
-          if (pendingBooking.discountCode) {
-            await connection.execute(
-              'UPDATE discount_codes SET status = "used", usedBy = ?, usedAt = ?, usedForBooking = ? WHERE code = ?',
-              [req.session.user.id, new Date(), pendingBooking.id, pendingBooking.discountCode]
+          if (pendingBooking.discount_code) {
+            await client.query(
+              'UPDATE discount_codes SET status = $1, used_by = $2, used_at = $3, used_for_booking = $4 WHERE code = $5',
+              ['used', req.session.user.id, new Date(), pendingBooking.id, pendingBooking.discount_code]
             );
           }
 
           // تسجيل الدفعة
           const paymentRecord = {
             id: uuidv4(),
-            bookingId: pendingBooking.id,
-            payerName: req.session.user.username,
+            booking_id: pendingBooking.id,
+            payer_name: req.session.user.username,
             email: req.session.user.email,
             phone: req.session.user.phone,
-            field: pendingBooking.pitchName,
+            field: pendingBooking.pitch_name,
             hours: 1,
-            transactionId,
+            transaction_id: transactionId,
             amount: paidAmount,
-            paymentType: PAYMENT_TYPES.DEPOSIT,
-            originalAmount: pendingBooking.amount,
-            remainingAmount: pendingBooking.remainingAmount,
-            discountApplied: pendingBooking.appliedDiscount ? JSON.parse(pendingBooking.appliedDiscount).value : 0,
+            payment_type: PAYMENT_TYPES.DEPOSIT,
+            original_amount: pendingBooking.amount,
+            remaining_amount: pendingBooking.remaining_amount,
+            discount_applied: pendingBooking.applied_discount ? JSON.parse(pendingBooking.applied_discount).value : 0,
             provider: provider,
-            providerName: paymentConfig[provider].name,
-            receiptPath: req.file ? `/uploads/${req.file.filename}` : null,
+            provider_name: paymentConfig[provider].name,
+            receipt_path: req.file ? `/uploads/${req.file.filename}` : null,
             date: new Date(),
             status: 'confirmed'
           };
 
-          // ✅ الإصلاح: استخدام مصفوفة قيم مرتبة
-          await connection.execute(
-            `INSERT INTO payments (id, bookingId, payerName, email, phone, field, hours, transactionId, amount, 
-             paymentType, originalAmount, remainingAmount, discountApplied, provider, providerName, receiptPath, date, status)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          await client.query(
+            `INSERT INTO payments (id, booking_id, payer_name, email, phone, field, hours, transaction_id, amount, 
+             payment_type, original_amount, remaining_amount, discount_applied, provider, provider_name, receipt_path, date, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
             [
-              paymentRecord.id, paymentRecord.bookingId, paymentRecord.payerName, paymentRecord.email,
-              paymentRecord.phone, paymentRecord.field, paymentRecord.hours, paymentRecord.transactionId,
-              paymentRecord.amount, paymentRecord.paymentType, paymentRecord.originalAmount,
-              paymentRecord.remainingAmount, paymentRecord.discountApplied, paymentRecord.provider,
-              paymentRecord.providerName, paymentRecord.receiptPath, paymentRecord.date, paymentRecord.status
+              paymentRecord.id, paymentRecord.booking_id, paymentRecord.payer_name, paymentRecord.email,
+              paymentRecord.phone, paymentRecord.field, paymentRecord.hours, paymentRecord.transaction_id,
+              paymentRecord.amount, paymentRecord.payment_type, paymentRecord.original_amount,
+              paymentRecord.remaining_amount, paymentRecord.discount_applied, paymentRecord.provider,
+              paymentRecord.provider_name, paymentRecord.receipt_path, paymentRecord.date, paymentRecord.status
             ]
           );
 
           // تحديث حالة الحجز
-          await connection.execute(
-            'UPDATE bookings SET status = ?, paidAmount = ?, remainingAmount = ?, updatedAt = ? WHERE id = ?',
+          await client.query(
+            'UPDATE bookings SET status = $1, paid_amount = $2, remaining_amount = $3, updated_at = $4 WHERE id = $5',
             [BOOKING_STATUS.CONFIRMED, paidAmount, pendingBooking.amount - paidAmount, new Date(), pendingBooking.id]
           );
 
-          await connection.commit();
+          return paymentRecord;
+        });
 
-          // تحديث إحصائيات المستخدم
-          await updateUserStats(req.session.user.id, pendingBooking, 'confirmation');
+        // تحديث إحصائيات المستخدم
+        await updateUserStats(req.session.user.id, pendingBooking, 'confirmation');
 
-          // مسح الحجز المعلق من الجلسة
-          delete req.session.pendingBooking;
+        // مسح الحجز المعلق من الجلسة
+        delete req.session.pendingBooking;
 
-          // إرسال بريد التأكيد
-          try {
-            await sendEmailSafe({
-              to: req.session.user.email,
-              subject: 'تم تأكيد حجزك - احجزلي',
-              html: `
-                <div style="font-family: 'Cairo', Arial, sans-serif; direction: rtl; padding: 20px; background: #f8f9fa;">
-                  <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                    <h2 style="color: #1a7f46; text-align: center; margin-bottom: 20px;">تم تأكيد حجزك بنجاح! 🎉</h2>
-                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                      <h3 style="color: #333; margin-bottom: 15px;">تفاصيل الحجز:</h3>
-                      <p><strong>الملعب:</strong> ${pendingBooking.pitchName}</p>
-                      <p><strong>الموقع:</strong> ${pendingBooking.pitchLocation}</p>
-                      <p><strong>التاريخ:</strong> ${pendingBooking.date}</p>
-                      <p><strong>الوقت:</strong> ${pendingBooking.time}</p>
-                      <p><strong>السعر الكامل:</strong> ${pendingBooking.amount} جنيه</p>
-                      <p><strong>العربون المدفوع:</strong> ${amount} جنيه</p>
-                      <p><strong>المبلغ المتبقي:</strong> ${pendingBooking.remainingAmount} جنيه</p>
-                      ${pendingBooking.appliedDiscount ? `
-                        <p><strong>الخصم:</strong> ${JSON.parse(pendingBooking.appliedDiscount).value} جنيه</p>
-                        <p><strong>كود الخصم:</strong> ${JSON.parse(pendingBooking.appliedDiscount).code}</p>
-                      ` : ''}
-                      <p><strong>طريقة الدفع:</strong> ${paymentConfig[provider].name}</p>
-                      <p style="color: #e74c3c; font-weight: bold;">يرجى دفع المبلغ المتبقي قبل 48 ساعة من موعد الحجز</p>
-                    </div>
-                    <p style="text-align: center; color: #666; margin-top: 20px;">نتمنى لك وقتاً ممتعاً!</p>
+        // إرسال بريد التأكيد
+        try {
+          await sendEmailSafe({
+            to: req.session.user.email,
+            subject: 'تم تأكيد حجزك - احجزلي',
+            html: `
+              <div style="font-family: 'Cairo', Arial, sans-serif; direction: rtl; padding: 20px; background: #f8f9fa;">
+                <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                  <h2 style="color: #1a7f46; text-align: center; margin-bottom: 20px;">تم تأكيد حجزك بنجاح! 🎉</h2>
+                  <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h3 style="color: #333; margin-bottom: 15px;">تفاصيل الحجز:</h3>
+                    <p><strong>الملعب:</strong> ${pendingBooking.pitch_name}</p>
+                    <p><strong>الموقع:</strong> ${pendingBooking.pitch_location}</p>
+                    <p><strong>التاريخ:</strong> ${pendingBooking.date}</p>
+                    <p><strong>الوقت:</strong> ${pendingBooking.time}</p>
+                    <p><strong>السعر الكامل:</strong> ${pendingBooking.amount} جنيه</p>
+                    <p><strong>العربون المدفوع:</strong> ${amount} جنيه</p>
+                    <p><strong>المبلغ المتبقي:</strong> ${pendingBooking.remaining_amount} جنيه</p>
+                    ${pendingBooking.applied_discount ? `
+                      <p><strong>الخصم:</strong> ${JSON.parse(pendingBooking.applied_discount).value} جنيه</p>
+                      <p><strong>كود الخصم:</strong> ${JSON.parse(pendingBooking.applied_discount).code}</p>
+                    ` : ''}
+                    <p><strong>طريقة الدفع:</strong> ${paymentConfig[provider].name}</p>
+                    <p style="color: #e74c3c; font-weight: bold;">يرجى دفع المبلغ المتبقي قبل 48 ساعة من موعد الحجز</p>
                   </div>
+                  <p style="text-align: center; color: #666; margin-top: 20px;">نتمنى لك وقتاً ممتعاً!</p>
                 </div>
-              `
-            });
-          } catch (emailError) {
-            logger.error('Failed to send confirmation email', emailError);
-          }
-
-          res.json({ 
-            message: 'تم دفع العربون بنجاح وتأكيد الحجز', 
-            paymentId: paymentRecord.id,
-            success: true
+              </div>
+            `
           });
-
-        } catch (error) {
-          await connection.rollback();
-          throw error;
-        } finally {
-          connection.release();
+        } catch (emailError) {
+          logger.error('Failed to send confirmation email', emailError);
         }
+
+        res.json({ 
+          message: 'تم دفع العربون بنجاح وتأكيد الحجز', 
+          paymentId: result.id,
+          success: true
+        });
 
       } catch (error) {
         logger.error('Payment error', error);
@@ -2447,7 +2094,7 @@ async function startServer() {
     // معالجة الدفع بالأكواد
     app.post('/api/process-voucher-payment', paymentLimiter, async (req, res) => {
       try {
-        await withTransaction(async (connection) => {
+        await withTransaction(async (client) => {
           const { bookingId, voucherCodes = [] } = req.body;
           
           if (!bookingId) {
@@ -2455,16 +2102,16 @@ async function startServer() {
           }
 
           // الحصول على معلومات الحجز
-          const [bookings] = await connection.execute(
-            'SELECT * FROM new_bookings WHERE id = ? FOR UPDATE',
+          const bookings = await client.query(
+            'SELECT * FROM new_bookings WHERE id = $1',
             [bookingId]
           );
 
-          if (bookings.length === 0) {
+          if (bookings.rows.length === 0) {
             throw { status: 404, message: 'الحجز غير موجود' };
           }
 
-          const booking = bookings[0];
+          const booking = bookings.rows[0];
 
           let totalVoucherValue = 0;
           const usedCodes = new Set();
@@ -2476,16 +2123,16 @@ async function startServer() {
               throw { status: 400, message: `الكود ${voucherCode} مكرر` };
             }
 
-            const [vouchers] = await connection.execute(
-              'SELECT * FROM voucher_codes WHERE code = ? AND is_used = FALSE FOR UPDATE',
+            const vouchers = await client.query(
+              'SELECT * FROM voucher_codes WHERE code = $1 AND is_used = FALSE',
               [voucherCode.toUpperCase()]
             );
 
-            if (vouchers.length === 0) {
+            if (vouchers.rows.length === 0) {
               throw { status: 400, message: `الكود ${voucherCode} غير صالح` };
             }
 
-            const voucher = vouchers[0];
+            const voucher = vouchers.rows[0];
             totalVoucherValue += parseFloat(voucher.value);
             validVouchers.push(voucher);
             usedCodes.add(voucherCode);
@@ -2498,22 +2145,22 @@ async function startServer() {
 
           // تحديث حالة الأكواد كمستعملة
           for (const voucher of validVouchers) {
-            await connection.execute(
-              'UPDATE voucher_codes SET is_used = TRUE, used_at = NOW(), used_for_booking = ? WHERE id = ?',
+            await client.query(
+              'UPDATE voucher_codes SET is_used = TRUE, used_at = NOW(), used_for_booking = $1 WHERE id = $2',
               [bookingId, voucher.id]
             );
           }
 
           // تحديث حالة الحجز
-          await connection.execute(
-            'UPDATE new_bookings SET deposit_paid = TRUE, status = "confirmed", remaining_amount = ? WHERE id = ?',
-            [parseFloat(booking.total_amount) - parseFloat(booking.deposit_amount), bookingId]
+          await client.query(
+            'UPDATE new_bookings SET deposit_paid = TRUE, status = $1, remaining_amount = $2 WHERE id = $3',
+            ['confirmed', parseFloat(booking.total_amount) - parseFloat(booking.deposit_amount), bookingId]
           );
 
           // تحديث حالة الساعة
-          await connection.execute(
-            'UPDATE time_slots SET status = "booked" WHERE id = ?',
-            [booking.time_slot_id]
+          await client.query(
+            'UPDATE time_slots SET status = $1 WHERE id = $2',
+            ['booked', booking.time_slot_id]
           );
 
           return { 
@@ -2542,47 +2189,35 @@ async function startServer() {
     // إنشاء أكواد جديدة
     app.post('/api/admin/vouchers', requireAdmin, async (req, res) => {
       try {
-        const { value, quantity = 1 } = req.body;
+        const { value, quantity = 1, type = 'VOUCHER' } = req.body;
         
         if (!value || value <= 0) {
           return res.status(400).json({ message: 'قيمة الكود مطلوبة ويجب أن تكون أكبر من الصفر' });
         }
 
         const vouchers = [];
-        const connection = await pool.getConnection();
 
-        try {
-          await connection.beginTransaction();
+        for (let i = 0; i < quantity; i++) {
+          const voucher = {
+            id: uuidv4(),
+            code: generateVoucherCode(),
+            value: parseFloat(value),
+            expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 يوم
+            type: type
+          };
 
-          for (let i = 0; i < quantity; i++) {
-            const voucher = {
-              id: uuidv4(),
-              code: generateVoucherCode(),
-              value: parseFloat(value),
-              expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 يوم
-            };
+          await execQuery(
+            'INSERT INTO voucher_codes (id, code, value, expires_at, type) VALUES ($1, $2, $3, $4, $5)',
+            [voucher.id, voucher.code, voucher.value, voucher.expires_at, voucher.type]
+          );
 
-            // ✅ الإصلاح: استخدام مصفوفة قيم مرتبة
-            await connection.execute(
-              'INSERT INTO voucher_codes (id, code, value, expires_at) VALUES (?, ?, ?, ?)',
-              [voucher.id, voucher.code, voucher.value, voucher.expires_at]
-            );
-
-            vouchers.push(voucher);
-          }
-
-          await connection.commit();
-          res.json({ 
-            message: `تم إنشاء ${quantity} كود بنجاح`,
-            vouchers: vouchers
-          });
-
-        } catch (error) {
-          await connection.rollback();
-          throw error;
-        } finally {
-          connection.release();
+          vouchers.push(voucher);
         }
+
+        res.json({ 
+          message: `تم إنشاء ${quantity} كود بنجاح`,
+          vouchers: vouchers
+        });
 
       } catch (error) {
         logger.error('Create vouchers error', error);
@@ -2602,56 +2237,43 @@ async function startServer() {
         }
 
         const newCodes = [];
-        const connection = await pool.getConnection();
 
-        try {
-          await connection.beginTransaction();
+        for (let i = 0; i < quantity; i++) {
+          const code = generateDiscountCode(8);
+          const pitch = pitchId ? pitchesData.find(p => p.id === parseInt(pitchId)) : null;
+          
+          const newCode = {
+            id: uuidv4(),
+            code: code,
+            value: parseInt(value),
+            type: type,
+            pitch_id: pitchId ? parseInt(pitchId) : null,
+            pitch_name: pitch ? pitch.name : null,
+            source: source,
+            status: 'active',
+            created_at: new Date(),
+            expires_at: expiresAt || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            message: type === CODE_TYPES.COMPENSATION ? 
+              'هذا الكود التعويضي صالح لمدة 14 يوم من تاريخ الإلغاء' : null
+          };
 
-          for (let i = 0; i < quantity; i++) {
-            const code = generateDiscountCode(8);
-            const pitch = pitchId ? pitchesData.find(p => p.id === parseInt(pitchId)) : null;
-            
-            const newCode = {
-              id: uuidv4(),
-              code: code,
-              value: parseInt(value),
-              type: type,
-              pitchId: pitchId ? parseInt(pitchId) : null,
-              pitchName: pitch ? pitch.name : null,
-              source: source,
-              status: 'active',
-              createdAt: new Date(),
-              expiresAt: expiresAt || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-              message: type === CODE_TYPES.COMPENSATION ? 
-                'هذا الكود التعويضي صالح لمدة 14 يوم من تاريخ الإلغاء' : null
-            };
+          await execQuery(
+            `INSERT INTO discount_codes (id, code, value, type, pitch_id, pitch_name, source, status, created_at, expires_at, message)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+            [
+              newCode.id, newCode.code, newCode.value, newCode.type, newCode.pitch_id,
+              newCode.pitch_name, newCode.source, newCode.status, newCode.created_at,
+              newCode.expires_at, newCode.message
+            ]
+          );
 
-            // ✅ الإصلاح: استخدام مصفوفة قيم مرتبة
-            await connection.execute(
-              `INSERT INTO discount_codes (id, code, value, type, pitchId, pitchName, source, status, createdAt, expiresAt, message)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              [
-                newCode.id, newCode.code, newCode.value, newCode.type, newCode.pitchId,
-                newCode.pitchName, newCode.source, newCode.status, newCode.createdAt,
-                newCode.expiresAt, newCode.message
-              ]
-            );
-
-            newCodes.push(newCode);
-          }
-
-          await connection.commit();
-          res.json({ 
-            message: `تم إنشاء ${quantity} كود بنجاح`,
-            codes: newCodes
-          });
-
-        } catch (error) {
-          await connection.rollback();
-          throw error;
-        } finally {
-          connection.release();
+          newCodes.push(newCode);
         }
+
+        res.json({ 
+          message: `تم إنشاء ${quantity} كود بنجاح`,
+          codes: newCodes
+        });
 
       } catch (error) {
         logger.error('Create discount codes error', error);
@@ -2662,7 +2284,7 @@ async function startServer() {
     // الحصول على جميع الأكواد
     app.get('/api/admin/discount-codes', requireAdmin, async (req, res) => {
       try {
-        const discountCodes = await execQuery('SELECT * FROM discount_codes ORDER BY createdAt DESC');
+        const discountCodes = await execQuery('SELECT * FROM discount_codes ORDER BY created_at DESC');
         res.json(discountCodes);
       } catch (error) {
         logger.error('Get discount codes error', error);
@@ -2680,7 +2302,7 @@ async function startServer() {
         }
 
         const discountCodes = await execQuery(
-          'SELECT * FROM discount_codes WHERE code = ? AND status = ?',
+          'SELECT * FROM discount_codes WHERE code = $1 AND status = $2',
           [code.toUpperCase(), 'active']
         );
 
@@ -2692,15 +2314,15 @@ async function startServer() {
 
         // التحقق من تاريخ الصلاحية
         const now = new Date();
-        const expiresAt = new Date(discountCode.expiresAt);
+        const expiresAt = new Date(discountCode.expires_at);
         if (now > expiresAt) {
           return res.status(400).json({ message: 'الكود منتهي الصلاحية' });
         }
 
         // التحقق من أن الكود خاص بملعب معين
-        if (discountCode.type === CODE_TYPES.PITCH && discountCode.pitchId !== parseInt(pitchId)) {
+        if (discountCode.type === CODE_TYPES.PITCH && discountCode.pitch_id !== parseInt(pitchId)) {
           return res.status(400).json({ 
-            message: `هذا الكود خاص بملعب: ${discountCode.pitchName}` 
+            message: `هذا الكود خاص بملعب: ${discountCode.pitch_name}` 
           });
         }
 
@@ -2727,50 +2349,42 @@ async function startServer() {
           return res.status(400).json({ message: 'الكود ومعرف الحجز مطلوبان' });
         }
 
-        const connection = await pool.getConnection();
-        
-        try {
-          await connection.beginTransaction();
-          
-          const [discountCodes] = await connection.execute(
-            'SELECT * FROM discount_codes WHERE code = ? FOR UPDATE',
+        await withTransaction(async (client) => {
+          const discountCodes = await client.query(
+            'SELECT * FROM discount_codes WHERE code = $1',
             [code.toUpperCase()]
           );
           
-          const discountCode = discountCodes[0];
+          const discountCode = discountCodes.rows[0];
           if (!discountCode) {
-            await connection.rollback();
-            return res.status(404).json({ message: 'الكود غير موجود' });
+            throw { status: 404, message: 'الكود غير موجود' };
           }
 
           if (discountCode.status !== 'active') {
-            await connection.rollback();
-            return res.status(400).json({ message: 'الكود مستخدم بالفعل' });
+            throw { status: 400, message: 'الكود مستخدم بالفعل' };
           }
 
           // تحديث حالة الكود
-          await connection.execute(
-            'UPDATE discount_codes SET status = "used", usedBy = ?, usedAt = ?, usedForBooking = ? WHERE code = ?',
-            [req.session.user.id, new Date(), bookingId, code.toUpperCase()]
+          await client.query(
+            'UPDATE discount_codes SET status = $1, used_by = $2, used_at = $3, used_for_booking = $4 WHERE code = $5',
+            ['used', req.session.user.id, new Date(), bookingId, code.toUpperCase()]
           );
 
-          await connection.commit();
-          
-          res.json({
-            message: 'تم استخدام الكود بنجاح',
-            discount: discountCode.value
-          });
-
-        } catch (error) {
-          await connection.rollback();
-          throw error;
-        } finally {
-          connection.release();
-        }
+          return discountCode.value;
+        });
+        
+        res.json({
+          message: 'تم استخدام الكود بنجاح',
+          discount: discountCode.value
+        });
 
       } catch (error) {
         logger.error('Use discount code error', error);
-        res.status(500).json({ message: 'حدث خطأ أثناء استخدام الكود' });
+        if (error.status) {
+          res.status(error.status).json({ message: error.message });
+        } else {
+          res.status(500).json({ message: 'حدث خطأ أثناء استخدام الكود' });
+        }
       }
     });
 
@@ -2792,7 +2406,7 @@ async function startServer() {
 
         // التحقق من عدم وجود تقييم سابق
         const existingRatings = await execQuery(
-          'SELECT id FROM ratings WHERE pitchId = ? AND userId = ?',
+          'SELECT id FROM ratings WHERE pitch_id = $1 AND user_id = $2',
           [pitchId, req.session.user.id]
         );
 
@@ -2802,23 +2416,22 @@ async function startServer() {
 
         const newRating = {
           id: uuidv4(),
-          pitchId: parseInt(pitchId),
-          userId: req.session.user.id,
+          pitch_id: parseInt(pitchId),
+          user_id: req.session.user.id,
           username: req.session.user.username,
           rating: parseInt(rating),
           comment: comment || '',
-          bookingId: bookingId || null,
-          createdAt: new Date(),
+          booking_id: bookingId || null,
+          created_at: new Date(),
           status: 'active'
         };
 
-        // ✅ الإصلاح: استخدام مصفوفة قيم مرتبة
         await execQuery(
-          `INSERT INTO ratings (id, pitchId, userId, username, rating, comment, bookingId, createdAt, status)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO ratings (id, pitch_id, user_id, username, rating, comment, booking_id, created_at, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
           [
-            newRating.id, newRating.pitchId, newRating.userId, newRating.username,
-            newRating.rating, newRating.comment, newRating.bookingId, newRating.createdAt,
+            newRating.id, newRating.pitch_id, newRating.user_id, newRating.username,
+            newRating.rating, newRating.comment, newRating.booking_id, newRating.created_at,
             newRating.status
           ]
         );
@@ -2842,7 +2455,7 @@ async function startServer() {
       try {
         const pitchId = parseInt(req.params.id);
         const ratings = await execQuery(
-          'SELECT * FROM ratings WHERE pitchId = ? AND status = ? ORDER BY createdAt DESC',
+          'SELECT * FROM ratings WHERE pitch_id = $1 AND status = $2 ORDER BY created_at DESC',
           [pitchId, 'active']
         );
 
@@ -2860,7 +2473,7 @@ async function startServer() {
     app.get('/api/user/profile', requireLogin, async (req, res) => {
       try {
         const userProfiles = await execQuery(
-          'SELECT * FROM user_profiles WHERE userId = ?',
+          'SELECT * FROM user_profiles WHERE user_id = $1',
           [req.session.user.id]
         );
         
@@ -2872,7 +2485,7 @@ async function startServer() {
 
         // إحصائيات المستخدم
         const bookings = await execQuery(
-          'SELECT * FROM bookings WHERE userId = ?',
+          'SELECT * FROM bookings WHERE user_id = $1',
           [req.session.user.id]
         );
         
@@ -2882,7 +2495,7 @@ async function startServer() {
           cancelledBookings: bookings.filter(b => b.status === 'cancelled').length,
           totalSpent: bookings
             .filter(b => b.status === 'confirmed')
-            .reduce((total, booking) => total + (booking.finalAmount || booking.amount), 0)
+            .reduce((total, booking) => total + (booking.final_amount || booking.amount), 0)
         };
 
         res.json({
@@ -2905,7 +2518,7 @@ async function startServer() {
           nickname: nickname || null,
           age: age ? parseInt(age) : null,
           bio: bio || '',
-          lastUpdated: new Date()
+          last_updated: new Date()
         };
 
         if (req.file) {
@@ -2913,8 +2526,8 @@ async function startServer() {
         }
 
         await execQuery(
-          'UPDATE user_profiles SET ? WHERE userId = ?',
-          [updateData, req.session.user.id]
+          'UPDATE user_profiles SET nickname = $1, age = $2, bio = $3, avatar = $4, last_updated = $5 WHERE user_id = $6',
+          [updateData.nickname, updateData.age, updateData.bio, updateData.avatar, updateData.last_updated, req.session.user.id]
         );
 
         res.json({
@@ -2932,14 +2545,14 @@ async function startServer() {
     app.get('/api/user/compensation-codes', requireLogin, async (req, res) => {
       try {
         const discountCodes = await execQuery(
-          'SELECT * FROM discount_codes WHERE userId = ? AND type = ? AND status = ?',
+          'SELECT * FROM discount_codes WHERE user_id = $1 AND type = $2 AND status = $3',
           [req.session.user.id, CODE_TYPES.COMPENSATION, 'active']
         );
 
         // إزالة الأكواد المنتهية الصلاحية
         const now = new Date();
         const validCodes = discountCodes.filter(dc => {
-          const expiresAt = new Date(dc.expiresAt);
+          const expiresAt = new Date(dc.expires_at);
           return expiresAt > now;
         });
 
@@ -2964,16 +2577,16 @@ async function startServer() {
 
         const result = await execQuery(
           `INSERT INTO stadiums (name, description, images, max_daily_hours, max_weekly_hours) 
-           VALUES (?, ?, ?, ?, ?)`,
+           VALUES ($1, $2, $3, $4, $5) RETURNING id`,
           [name, description, JSON.stringify(images || []), max_daily_hours, max_weekly_hours]
         );
 
         // إنشاء الساعات الافتراضية للملعب الجديد
-        await createDefaultTimeSlots(result.insertId);
+        await createDefaultTimeSlots(result[0].id);
 
         res.json({ 
           message: 'تم إضافة الملعب بنجاح',
-          stadiumId: result.insertId,
+          stadiumId: result[0].id,
           success: true 
         });
 
@@ -3016,7 +2629,7 @@ async function startServer() {
                   (SELECT COUNT(*) FROM new_bookings b 
                    WHERE b.time_slot_id = ts.id AND b.status IN ('pending', 'confirmed')) as booking_count
            FROM time_slots ts 
-           WHERE ts.stadium_id = ? AND ts.date = ? 
+           WHERE ts.stadium_id = $1 AND ts.date = $2 
            ORDER BY ts.start_time`,
           [stadiumId, date]
         );
@@ -3039,13 +2652,13 @@ async function startServer() {
 
         const result = await execQuery(
           `INSERT INTO time_slots (stadium_id, date, start_time, end_time, price, status) 
-           VALUES (?, ?, ?, ?, ?, 'available')`,
+           VALUES ($1, $2, $3, $4, $5, 'available') RETURNING id`,
           [stadiumId, date, startTime, endTime, price]
         );
 
         res.json({ 
           message: 'تم إضافة الساعة بنجاح',
-          timeSlotId: result.insertId,
+          timeSlotId: result[0].id,
           success: true 
         });
 
@@ -3060,11 +2673,11 @@ async function startServer() {
     // الإحصائيات
     app.get('/api/admin/stats', requireAdmin, async (req, res) => {
       try {
-        const [bookings] = await execQuery('SELECT * FROM bookings');
-        const [payments] = await execQuery('SELECT * FROM payments');
-        const [users] = await execQuery('SELECT * FROM users');
-        const [discountCodes] = await execQuery('SELECT * FROM discount_codes');
-        const [managers] = await execQuery('SELECT * FROM managers');
+        const bookings = await execQuery('SELECT * FROM bookings');
+        const payments = await execQuery('SELECT * FROM payments');
+        const users = await execQuery('SELECT * FROM users');
+        const discountCodes = await execQuery('SELECT * FROM discount_codes');
+        const managers = await execQuery('SELECT * FROM managers');
         
         const now = new Date();
         const currentMonth = now.getMonth();
@@ -3072,19 +2685,19 @@ async function startServer() {
         
         // الحجوزات الناجحة هذا الشهر
         const currentMonthBookings = bookings.filter(booking => {
-          const bookingDate = new Date(booking.createdAt);
+          const bookingDate = new Date(booking.created_at);
           return bookingDate.getMonth() === currentMonth && 
                  bookingDate.getFullYear() === currentYear &&
                  booking.status === 'confirmed';
         });
         
         // إحصائيات مالية
-        const currentMonthRevenue = currentMonthBookings.reduce((total, booking) => total + (booking.finalAmount || booking.amount), 0);
+        const currentMonthRevenue = currentMonthBookings.reduce((total, booking) => total + (booking.final_amount || booking.amount), 0);
         
         // المستخدمين النشطين
         const activeUsers = users.filter(u => {
-          if (!u.lastLogin) return false;
-          const lastLogin = new Date(u.lastLogin);
+          if (!u.last_login) return false;
+          const lastLogin = new Date(u.last_login);
           const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
           return lastLogin > thirtyDaysAgo;
         }).length;
@@ -3100,7 +2713,7 @@ async function startServer() {
             total: users.length,
             active: activeUsers,
             newThisMonth: users.filter(u => {
-              const userDate = new Date(u.createdAt);
+              const userDate = new Date(u.created_at);
               return userDate.getMonth() === currentMonth && 
                      userDate.getFullYear() === currentYear;
             }).length
@@ -3127,7 +2740,7 @@ async function startServer() {
     // الحجوزات للمدير
     app.get('/api/admin/bookings', requireAdmin, async (req, res) => {
       try {
-        const bookings = await execQuery('SELECT * FROM bookings ORDER BY createdAt DESC');
+        const bookings = await execQuery('SELECT * FROM bookings ORDER BY created_at DESC');
         res.json(bookings);
       } catch (error) {
         logger.error('Admin bookings error', error);
@@ -3138,7 +2751,7 @@ async function startServer() {
     // المستخدمين
     app.get('/api/admin/users', requireAdmin, async (req, res) => {
       try {
-        const users = await execQuery('SELECT id, username, email, phone, role, approved, createdAt, lastLogin FROM users');
+        const users = await execQuery('SELECT id, username, email, phone, role, approved, created_at, last_login FROM users');
         res.json(users);
       } catch (error) {
         logger.error('Admin users error', error);
@@ -3162,8 +2775,8 @@ async function startServer() {
       try {
         const paymentId = req.params.id;
         await execQuery(
-          'UPDATE payments SET status = "confirmed", confirmedAt = ?, confirmedBy = ? WHERE id = ?',
-          [new Date(), req.session.user.email, paymentId]
+          'UPDATE payments SET status = $1, confirmed_at = $2, confirmed_by = $3 WHERE id = $4',
+          ['confirmed', new Date(), req.session.user.email, paymentId]
         );
         res.json({ message: 'تم تأكيد الدفعة بنجاح' });
       } catch (error) {
@@ -3177,8 +2790,8 @@ async function startServer() {
       try {
         const userId = req.params.id;
         await execQuery(
-          'UPDATE users SET approved = 1, updatedAt = ? WHERE id = ?',
-          [new Date(), userId]
+          'UPDATE users SET approved = $1, updated_at = $2 WHERE id = $3',
+          [true, new Date(), userId]
         );
         res.json({ message: 'تم تفعيل المستخدم بنجاح' });
       } catch (error) {
@@ -3193,8 +2806,8 @@ async function startServer() {
     app.get('/api/manager/pitches', requireManager, async (req, res) => {
       try {
         const managers = await execQuery(
-          'SELECT * FROM managers WHERE userId = ? AND approved = 1',
-          [req.session.user.id]
+          'SELECT * FROM managers WHERE user_id = $1 AND approved = $2',
+          [req.session.user.id, true]
         );
         
         if (managers.length === 0) {
@@ -3205,7 +2818,7 @@ async function startServer() {
         let pitchIds = [];
         
         try {
-          pitchIds = JSON.parse(userManager.pitchIds);
+          pitchIds = JSON.parse(userManager.pitch_ids);
         } catch {
           pitchIds = [];
         }
@@ -3226,8 +2839,8 @@ async function startServer() {
     app.get('/api/manager/bookings', requireManager, async (req, res) => {
       try {
         const managers = await execQuery(
-          'SELECT * FROM managers WHERE userId = ? AND approved = 1',
-          [req.session.user.id]
+          'SELECT * FROM managers WHERE user_id = $1 AND approved = $2',
+          [req.session.user.id, true]
         );
         
         if (managers.length === 0) {
@@ -3238,13 +2851,13 @@ async function startServer() {
         let pitchIds = [];
         
         try {
-          pitchIds = JSON.parse(userManager.pitchIds);
+          pitchIds = JSON.parse(userManager.pitch_ids);
         } catch {
           pitchIds = [];
         }
 
         const managerBookings = await execQuery(
-          'SELECT * FROM bookings WHERE pitchId IN (?) ORDER BY createdAt DESC',
+          'SELECT * FROM bookings WHERE pitch_id = ANY($1) ORDER BY created_at DESC',
           [pitchIds]
         );
 
@@ -3263,8 +2876,8 @@ async function startServer() {
         const { cancellationReason } = req.body;
         
         const managers = await execQuery(
-          'SELECT * FROM managers WHERE userId = ? AND approved = 1',
-          [req.session.user.id]
+          'SELECT * FROM managers WHERE user_id = $1 AND approved = $2',
+          [req.session.user.id, true]
         );
         
         if (managers.length === 0) {
@@ -3275,12 +2888,12 @@ async function startServer() {
         let pitchIds = [];
         
         try {
-          pitchIds = JSON.parse(userManager.pitchIds);
+          pitchIds = JSON.parse(userManager.pitch_ids);
         } catch {
           pitchIds = [];
         }
 
-        const bookings = await execQuery('SELECT * FROM bookings WHERE id = ?', [bookingId]);
+        const bookings = await execQuery('SELECT * FROM bookings WHERE id = $1', [bookingId]);
         const booking = bookings[0];
         
         if (!booking) {
@@ -3288,7 +2901,7 @@ async function startServer() {
         }
 
         // التحقق من أن المدير يملك صلاحية إلغاء هذا الحجز
-        if (!pitchIds.includes(booking.pitchId)) {
+        if (!pitchIds.includes(booking.pitch_id)) {
           return res.status(403).json({ message: 'غير مسموح لك بإلغاء هذا الحجز' });
         }
 
@@ -3303,7 +2916,7 @@ async function startServer() {
 
         // تحديد سياسة الإلغاء
         if (hoursDiff > 48) {
-          refundAmount = booking.paidAmount;
+          refundAmount = booking.paid_amount;
           compensationCode = await generateCompensationCode(booking, 'full_refund');
         } else if (hoursDiff > 24) {
           compensationCode = await generateCompensationCode(booking, 'partial_refund');
@@ -3311,8 +2924,8 @@ async function startServer() {
 
         // تحديث حالة الحجز
         await execQuery(
-          `UPDATE bookings SET status = ?, updatedAt = ?, cancellationTime = ?, 
-           cancellationReason = ?, refundAmount = ?, compensationCode = ?, cancelledBy = ? WHERE id = ?`,
+          `UPDATE bookings SET status = $1, updated_at = $2, cancellation_time = $3, 
+           cancellation_reason = $4, refund_amount = $5, compensation_code = $6, cancelled_by = $7 WHERE id = $8`,
           [BOOKING_STATUS.CANCELLED, new Date(), new Date(), cancellationReason || 'إلغاء من المدير', 
            refundAmount, compensationCode ? compensationCode.code : null, req.session.user.id, bookingId]
         );
@@ -3338,14 +2951,15 @@ async function startServer() {
         const managers = await execQuery(
           `SELECT m.*, u.username, u.email, u.phone
            FROM managers m
-           LEFT JOIN users u ON m.userId = u.id
-           WHERE m.approved = 0`
+           LEFT JOIN users u ON m.user_id = u.id
+           WHERE m.approved = $1`,
+          [false]
         );
         
         const pendingManagers = managers.map(manager => {
           let pitchIds = [];
           try {
-            pitchIds = JSON.parse(manager.pitchIds);
+            pitchIds = JSON.parse(manager.pitch_ids);
           } catch {
             pitchIds = [];
           }
@@ -3370,39 +2984,35 @@ async function startServer() {
     app.put('/api/admin/managers/:id/approve', requireAdmin, async (req, res) => {
       try {
         const managerId = req.params.id;
-        const connection = await pool.getConnection();
         
-        try {
-          await connection.beginTransaction();
-          
-          const [managers] = await connection.execute(
-            'SELECT * FROM managers WHERE id = ? FOR UPDATE',
+        await withTransaction(async (client) => {
+          const managers = await client.query(
+            'SELECT * FROM managers WHERE id = $1',
             [managerId]
           );
           
-          const manager = managers[0];
+          const manager = managers.rows[0];
           if (!manager) {
-            await connection.rollback();
-            return res.status(404).json({ message: 'طلب المدير غير موجود' });
+            throw { status: 404, message: 'طلب المدير غير موجود' };
           }
 
-          await connection.execute(
-            'UPDATE managers SET approved = 1, approvedAt = ?, approvedBy = ? WHERE id = ?',
-            [new Date(), req.session.user.id, managerId]
+          await client.query(
+            'UPDATE managers SET approved = $1, approved_at = $2, approved_by = $3 WHERE id = $4',
+            [true, new Date(), req.session.user.id, managerId]
           );
           
-          await connection.execute(
-            'UPDATE users SET approved = 1 WHERE id = ?',
-            [manager.userId]
+          await client.query(
+            'UPDATE users SET approved = $1 WHERE id = $2',
+            [true, manager.user_id]
           );
 
           // إرسال بريد الإعلام
-          const [users] = await connection.execute(
-            'SELECT email, username FROM users WHERE id = ?',
-            [manager.userId]
+          const users = await client.query(
+            'SELECT email, username FROM users WHERE id = $1',
+            [manager.user_id]
           );
           
-          const user = users[0];
+          const user = users.rows[0];
           if (user) {
             try {
               await sendEmailSafe({
@@ -3427,20 +3037,17 @@ async function startServer() {
               logger.error('Failed to send approval email:', emailError);
             }
           }
+        });
 
-          await connection.commit();
-          res.json({ message: 'تمت الموافقة على المدير بنجاح' });
-
-        } catch (error) {
-          await connection.rollback();
-          throw error;
-        } finally {
-          connection.release();
-        }
+        res.json({ message: 'تمت الموافقة على المدير بنجاح' });
 
       } catch (error) {
         logger.error('Approve manager error', error);
-        res.status(500).json({ message: 'حدث خطأ أثناء الموافقة على المدير' });
+        if (error.status) {
+          res.status(error.status).json({ message: error.message });
+        } else {
+          res.status(500).json({ message: 'حدث خطأ أثناء الموافقة على المدير' });
+        }
       }
     });
 
@@ -3450,38 +3057,33 @@ async function startServer() {
         const managerId = req.params.id;
         const { rejectionReason } = req.body;
         
-        const connection = await pool.getConnection();
-        
-        try {
-          await connection.beginTransaction();
-          
-          const [managers] = await connection.execute(
-            'SELECT * FROM managers WHERE id = ? FOR UPDATE',
+        await withTransaction(async (client) => {
+          const managers = await client.query(
+            'SELECT * FROM managers WHERE id = $1',
             [managerId]
           );
           
-          const manager = managers[0];
+          const manager = managers.rows[0];
           if (!manager) {
-            await connection.rollback();
-            return res.status(404).json({ message: 'طلب المدير غير موجود' });
+            throw { status: 404, message: 'طلب المدير غير موجود' };
           }
 
           // حذف طلب المدير
-          await connection.execute('DELETE FROM managers WHERE id = ?', [managerId]);
+          await client.query('DELETE FROM managers WHERE id = $1', [managerId]);
           
           // تحديث حالة المستخدم
-          await connection.execute(
-            'UPDATE users SET role = "user", approved = 0 WHERE id = ?',
-            [manager.userId]
+          await client.query(
+            'UPDATE users SET role = $1, approved = $2 WHERE id = $3',
+            ['user', false, manager.user_id]
           );
 
           // إرسال بريد الرفض
-          const [users] = await connection.execute(
-            'SELECT email, username FROM users WHERE id = ?',
-            [manager.userId]
+          const users = await client.query(
+            'SELECT email, username FROM users WHERE id = $1',
+            [manager.user_id]
           );
           
-          const user = users[0];
+          const user = users.rows[0];
           if (user) {
             try {
               await sendEmailSafe({
@@ -3508,16 +3110,9 @@ async function startServer() {
               logger.error('Failed to send rejection email:', emailError);
             }
           }
+        });
 
-          await connection.commit();
-          res.json({ message: 'تم رفض طلب المدير بنجاح' });
-
-        } catch (error) {
-          await connection.rollback();
-          throw error;
-        } finally {
-          connection.release();
-        }
+        res.json({ message: 'تم رفض طلب المدير بنجاح' });
 
       } catch (error) {
         logger.error('Reject manager error', error);
@@ -3532,7 +3127,7 @@ async function startServer() {
       try {
         const { id } = req.params;
         const policies = await execQuery(
-          'SELECT * FROM stadium_deposit_policies WHERE stadium_id = ?',
+          'SELECT * FROM deposit_rules WHERE stadium_id = $1',
           [id]
         );
 
@@ -3559,22 +3154,22 @@ async function startServer() {
         const { less_than_24_hours, between_24_48_hours, more_than_48_hours } = req.body;
 
         const existingPolicies = await execQuery(
-          'SELECT id FROM stadium_deposit_policies WHERE stadium_id = ?',
+          'SELECT id FROM deposit_rules WHERE stadium_id = $1',
           [id]
         );
 
         if (existingPolicies.length > 0) {
           await execQuery(
-            `UPDATE stadium_deposit_policies 
-             SET less_than_24_hours = ?, between_24_48_hours = ?, more_than_48_hours = ?, updated_at = ?
-             WHERE stadium_id = ?`,
+            `UPDATE deposit_rules 
+             SET less_than_24_hours = $1, between_24_48_hours = $2, more_than_48_hours = $3, updated_at = $4
+             WHERE stadium_id = $5`,
             [less_than_24_hours, between_24_48_hours, more_than_48_hours, new Date(), id]
           );
         } else {
           await execQuery(
-            `INSERT INTO stadium_deposit_policies 
+            `INSERT INTO deposit_rules 
              (stadium_id, less_than_24_hours, between_24_48_hours, more_than_48_hours) 
-             VALUES (?, ?, ?, ?)`,
+             VALUES ($1, $2, $3, $4)`,
             [id, less_than_24_hours, between_24_48_hours, more_than_48_hours]
           );
         }
@@ -3594,7 +3189,7 @@ async function startServer() {
           `SELECT sm.*, u.username, u.email, u.phone 
            FROM stadium_managers sm 
            JOIN users u ON sm.user_id = u.id 
-           WHERE sm.stadium_id = ? AND sm.is_active = TRUE 
+           WHERE sm.stadium_id = $1 AND sm.is_active = TRUE 
            ORDER BY sm.created_at DESC`,
           [id]
         );
@@ -3612,14 +3207,14 @@ async function startServer() {
         const { user_id, role, permissions } = req.body;
 
         // التحقق من وجود المستخدم
-        const users = await execQuery('SELECT id FROM users WHERE id = ?', [user_id]);
+        const users = await execQuery('SELECT id FROM users WHERE id = $1', [user_id]);
         if (users.length === 0) {
           return res.status(404).json({ message: 'المستخدم غير موجود' });
         }
 
         // التحقق من عدم تكرار المدير
         const existingManagers = await execQuery(
-          'SELECT id FROM stadium_managers WHERE stadium_id = ? AND user_id = ?',
+          'SELECT id FROM stadium_managers WHERE stadium_id = $1 AND user_id = $2',
           [id, user_id]
         );
 
@@ -3629,7 +3224,7 @@ async function startServer() {
 
         await execQuery(
           `INSERT INTO stadium_managers (stadium_id, user_id, role, permissions) 
-           VALUES (?, ?, ?, ?)`,
+           VALUES ($1, $2, $3, $4)`,
           [id, user_id, role, JSON.stringify(permissions || {})]
         );
 
@@ -3645,7 +3240,7 @@ async function startServer() {
         const { stadiumId, managerId } = req.params;
         
         await execQuery(
-          'UPDATE stadium_managers SET is_active = FALSE WHERE stadium_id = ? AND id = ?',
+          'UPDATE stadium_managers SET is_active = FALSE WHERE stadium_id = $1 AND id = $2',
           [stadiumId, managerId]
         );
 
@@ -3664,7 +3259,7 @@ async function startServer() {
           `SELECT bs.*, u.username as created_by_name 
            FROM blocked_slots bs 
            LEFT JOIN users u ON bs.created_by = u.id 
-           WHERE bs.stadium_id = ? AND bs.is_active = TRUE 
+           WHERE bs.stadium_id = $1 AND bs.is_active = TRUE 
            ORDER BY bs.start_date, bs.start_time`,
           [id]
         );
@@ -3690,7 +3285,7 @@ async function startServer() {
         await execQuery(
           `INSERT INTO blocked_slots 
            (stadium_id, start_date, end_date, start_time, end_time, reason, is_emergency, created_by) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
           [id, start_date, end_date, start_time, end_time, reason, is_emergency || false, req.session.user.id]
         );
 
@@ -3708,7 +3303,7 @@ async function startServer() {
 
         // الحصول على معلومات الموعد المحجوز للتحقق من الصلاحيات
         const blockedSlots = await execQuery(
-          'SELECT stadium_id FROM blocked_slots WHERE id = ?',
+          'SELECT stadium_id FROM blocked_slots WHERE id = $1',
           [id]
         );
 
@@ -3723,7 +3318,7 @@ async function startServer() {
         }
 
         await execQuery(
-          'UPDATE blocked_slots SET is_active = ?, updated_at = ? WHERE id = ?',
+          'UPDATE blocked_slots SET is_active = $1, updated_at = $2 WHERE id = $3',
           [is_active, new Date(), id]
         );
 
@@ -3738,7 +3333,7 @@ async function startServer() {
     // 4. نظام الحجز المحسن مع كل الإصلاحات
     app.post('/api/bookings/enhanced', apiLimiter, async (req, res) => {
       try {
-        const result = await withTransaction(async (connection) => {
+        const result = await withTransaction(async (client) => {
           const { stadiumId, date, startTime, endTime, customerName, customerPhone, playersNeeded = 0, voucherCodes = [] } = req.body;
           
           if (!stadiumId || !date || !startTime || !endTime || !customerName || !customerPhone) {
@@ -3752,20 +3347,19 @@ async function startServer() {
           }
 
           // البحث عن الساعة المتاحة
-          const [timeSlots] = await connection.execute(
+          const timeSlots = await client.query(
             `SELECT ts.*, s.name as stadium_name, s.price as stadium_price 
              FROM time_slots ts 
              JOIN stadiums s ON ts.stadium_id = s.id 
-             WHERE ts.stadium_id = ? AND ts.date = ? AND ts.start_time = ? AND ts.end_time = ? AND ts.status = "available" 
-             FOR UPDATE`,
-            [stadiumId, date, startTime, endTime]
+             WHERE ts.stadium_id = $1 AND ts.date = $2 AND ts.start_time = $3 AND ts.end_time = $4 AND ts.status = $5`,
+            [stadiumId, date, startTime, endTime, 'available']
           );
 
-          if (timeSlots.length === 0) {
+          if (timeSlots.rows.length === 0) {
             throw { status: 400, message: 'هذه الساعة غير متاحة للحجز' };
           }
 
-          const timeSlot = timeSlots[0];
+          const timeSlot = timeSlots.rows[0];
 
           // حساب العربون الديناميكي
           const bookingDateTime = `${date}T${startTime}`;
@@ -3776,16 +3370,16 @@ async function startServer() {
           const usedVouchers = [];
 
           for (const voucherCode of voucherCodes) {
-            const [vouchers] = await connection.execute(
-              'SELECT * FROM voucher_codes WHERE code = ? AND is_used = FALSE FOR UPDATE',
+            const vouchers = await client.query(
+              'SELECT * FROM voucher_codes WHERE code = $1 AND is_used = FALSE',
               [voucherCode.toUpperCase()]
             );
 
-            if (vouchers.length === 0) {
+            if (vouchers.rows.length === 0) {
               throw { status: 400, message: `الكود ${voucherCode} غير صالح` };
             }
 
-            const voucher = vouchers[0];
+            const voucher = vouchers.rows[0];
             totalVoucherValue += parseFloat(voucher.value);
             usedVouchers.push(voucher);
           }
@@ -3811,10 +3405,10 @@ async function startServer() {
           };
 
           // حفظ الحجز
-          await connection.execute(
+          await client.query(
             `INSERT INTO new_bookings (id, time_slot_id, customer_name, customer_phone, total_amount, 
              deposit_amount, players_needed, countdown_end, remaining_amount) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
             [
               newBooking.id, newBooking.time_slot_id, newBooking.customer_name, 
               newBooking.customer_phone, newBooking.total_amount, newBooking.deposit_amount,
@@ -3824,15 +3418,15 @@ async function startServer() {
 
           // تحديث حالة الساعة
           const newStatus = playersNeeded > 0 ? 'golden' : 'pending';
-          await connection.execute(
-            'UPDATE time_slots SET status = ?, is_golden = ? WHERE id = ?',
+          await client.query(
+            'UPDATE time_slots SET status = $1, is_golden = $2 WHERE id = $3',
             [newStatus, playersNeeded > 0, timeSlot.id]
           );
 
           // تحديث حالة الأكواد المستخدمة
           for (const voucher of usedVouchers) {
-            await connection.execute(
-              'UPDATE voucher_codes SET is_used = TRUE, used_at = NOW(), used_for_booking = ? WHERE id = ?',
+            await client.query(
+              'UPDATE voucher_codes SET is_used = TRUE, used_at = NOW(), used_for_booking = $1 WHERE id = $2',
               [newBooking.id, voucher.id]
             );
           }
@@ -3868,21 +3462,21 @@ async function startServer() {
         const { bookingId } = req.params;
         const { cancellationReason, cancellationType = 'user' } = req.body;
 
-        const result = await withTransaction(async (connection) => {
+        const result = await withTransaction(async (client) => {
           // الحصول على معلومات الحجز
-          const [bookings] = await connection.execute(
+          const bookings = await client.query(
             `SELECT b.*, ts.stadium_id, ts.date, ts.start_time 
              FROM new_bookings b 
              JOIN time_slots ts ON b.time_slot_id = ts.id 
-             WHERE b.id = ? FOR UPDATE`,
+             WHERE b.id = $1`,
             [bookingId]
           );
 
-          if (bookings.length === 0) {
+          if (bookings.rows.length === 0) {
             throw { status: 404, message: 'الحجز غير موجود' };
           }
 
-          const booking = bookings[0];
+          const booking = bookings.rows[0];
 
           // حساب الوقت المتبقي للحجز
           const bookingDateTime = `${booking.date}T${booking.start_time}`;
@@ -3902,9 +3496,9 @@ async function startServer() {
           }
 
           // تحديث حالة الحجز
-          await connection.execute(
-            'UPDATE new_bookings SET status = "cancelled" WHERE id = ?',
-            [bookingId]
+          await client.query(
+            'UPDATE new_bookings SET status = $1 WHERE id = $2',
+            ['cancelled', bookingId]
           );
 
           // إعادة الساعة للمتاحة
@@ -3949,7 +3543,7 @@ async function startServer() {
                   (SELECT COUNT(*) FROM new_bookings b 
                    WHERE b.time_slot_id = ts.id AND b.status IN ('pending', 'confirmed')) as booking_count
            FROM time_slots ts 
-           WHERE ts.stadium_id = ? AND ts.date = ? 
+           WHERE ts.stadium_id = $1 AND ts.date = $2 
            ORDER BY ts.start_time`,
           [id, date]
         );
@@ -3988,19 +3582,19 @@ async function startServer() {
           stadiums.map(async (stadium) => {
             // عدد المديرين
             const [managers] = await execQuery(
-              'SELECT COUNT(*) as count FROM stadium_managers WHERE stadium_id = ? AND is_active = TRUE',
+              'SELECT COUNT(*) as count FROM stadium_managers WHERE stadium_id = $1 AND is_active = TRUE',
               [stadium.id]
             );
 
             // سياسة العربون
             const [policies] = await execQuery(
-              'SELECT * FROM stadium_deposit_policies WHERE stadium_id = ?',
+              'SELECT * FROM deposit_rules WHERE stadium_id = $1',
               [stadium.id]
             );
 
             // عدد المواعيد المحجوزة ثابتاً
             const [blockedSlots] = await execQuery(
-              'SELECT COUNT(*) as count FROM blocked_slots WHERE stadium_id = ? AND is_active = TRUE',
+              'SELECT COUNT(*) as count FROM blocked_slots WHERE stadium_id = $1 AND is_active = TRUE',
               [stadium.id]
             );
 
@@ -4026,7 +3620,7 @@ async function startServer() {
     // تحديث نظام الدفع ليدعم الحساب المحسن مع الأكواد
     app.post('/api/process-enhanced-payment', paymentLimiter, async (req, res) => {
       try {
-        await withTransaction(async (connection) => {
+        await withTransaction(async (client) => {
           const { bookingId, voucherCodes = [], paymentMethod } = req.body;
           
           if (!bookingId) {
@@ -4034,32 +3628,32 @@ async function startServer() {
           }
 
           // الحصول على معلومات الحجز
-          const [bookings] = await connection.execute(
-            'SELECT * FROM new_bookings WHERE id = ? FOR UPDATE',
+          const bookings = await client.query(
+            'SELECT * FROM new_bookings WHERE id = $1',
             [bookingId]
           );
 
-          if (bookings.length === 0) {
+          if (bookings.rows.length === 0) {
             throw { status: 404, message: 'الحجز غير موجود' };
           }
 
-          const booking = bookings[0];
+          const booking = bookings.rows[0];
 
           let totalVoucherValue = 0;
           const usedVouchers = [];
 
           // معالجة الأكواد
           for (const voucherCode of voucherCodes) {
-            const [vouchers] = await connection.execute(
-              'SELECT * FROM voucher_codes WHERE code = ? AND is_used = FALSE FOR UPDATE',
+            const vouchers = await client.query(
+              'SELECT * FROM voucher_codes WHERE code = $1 AND is_used = FALSE',
               [voucherCode.toUpperCase()]
             );
 
-            if (vouchers.length === 0) {
+            if (vouchers.rows.length === 0) {
               throw { status: 400, message: `الكود ${voucherCode} غير صالح` };
             }
 
-            const voucher = vouchers[0];
+            const voucher = vouchers.rows[0];
             totalVoucherValue += parseFloat(voucher.value);
             usedVouchers.push(voucher);
           }
@@ -4073,22 +3667,22 @@ async function startServer() {
 
           // تحديث حالة الأكواد
           for (const voucher of usedVouchers) {
-            await connection.execute(
-              'UPDATE voucher_codes SET is_used = TRUE, used_at = NOW(), used_for_booking = ? WHERE id = ?',
+            await client.query(
+              'UPDATE voucher_codes SET is_used = TRUE, used_at = NOW(), used_for_booking = $1 WHERE id = $2',
               [bookingId, voucher.id]
             );
           }
 
           // تحديث حالة الحجز
-          await connection.execute(
-            'UPDATE new_bookings SET deposit_paid = TRUE, status = "confirmed", remaining_amount = ? WHERE id = ?',
-            [remainingAmount, bookingId]
+          await client.query(
+            'UPDATE new_bookings SET deposit_paid = TRUE, status = $1, remaining_amount = $2 WHERE id = $3',
+            ['confirmed', remainingAmount, bookingId]
           );
 
           // تحديث حالة الساعة
-          await connection.execute(
-            'UPDATE time_slots SET status = "booked" WHERE id = ?',
-            [booking.time_slot_id]
+          await client.query(
+            'UPDATE time_slots SET status = $1 WHERE id = $2',
+            ['booked', booking.time_slot_id]
           );
 
           return { 
@@ -4195,7 +3789,7 @@ async function startServer() {
     // بدء السيرفر
     app.listen(PORT, () => {
       logger.info(`✅ Server running on ${APP_URL}`);
-      logger.info(`🔌 MySQL connected: ${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`);
+      logger.info(`🔌 PostgreSQL connected successfully`);
       logger.info(`📧 Email service: ${process.env.EMAIL_HOST ? 'Configured' : 'Mock'}`);
       logger.info(`🌐 Environment: ${isProduction ? 'Production' : 'Development'}`);
       logger.info(`🏟️  Loaded ${pitchesData.length} pitches`);
@@ -4215,6 +3809,7 @@ async function startServer() {
       logger.info(`   ⏱️  Countdown System`);
       logger.info(`   ⭐ Ratings System`);
       logger.info(`   👥 Player Requests System`);
+      logger.info(`   🗄️  Full PostgreSQL Support`);
     });
   } catch (error) {
     logger.error('Failed to start server', error);
