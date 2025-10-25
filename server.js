@@ -27,12 +27,19 @@ const cookieParser = require('cookie-parser');
 const csrf = require('csurf');
 
 /* ========= PostgreSQL Database ========= */
-const { execQuery, withTransaction, createTables } = require('./db');
+const { execQuery, withTransaction, createTables, pool } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const APP_URL = process.env.APP_URL || `http://localhost:${PORT}`;
 const isProduction = process.env.NODE_ENV === 'production';
+
+/* ========= فحص اتصال PostgreSQL عند بداية التشغيل ========= */
+pool.query('SELECT NOW()').then(res => {
+  console.log('🟢 PostgreSQL Ready:', res.rows[0].now);
+}).catch(err => {
+  console.error('🔴 PostgreSQL Connection Failed:', err);
+});
 
 /* ========= نظام التسجيل (Logging) ========= */
 const logger = {
