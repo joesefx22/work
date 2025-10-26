@@ -209,6 +209,47 @@
       font-size: 0.7rem;
       font-weight: 600;
     }
+
+    /* Toast Notifications */
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 9999;
+    }
+    
+    .custom-toast {
+      border: none;
+      border-radius: 10px;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+    }
+    
+    .toast-success {
+      background: linear-gradient(135deg, #00b09b, #96c93d);
+    }
+    
+    .toast-error {
+      background: linear-gradient(135deg, #ff416c, #ff4b2b);
+    }
+    
+    .toast-warning {
+      background: linear-gradient(135deg, #f7971e, #ffd200);
+    }
+    
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #3498db;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
@@ -318,10 +359,10 @@
             </div>
             <div class="col-md-6 text-left">
               <div class="btn-group btn-group-sm">
-                <button class="btn btn-outline-primary active" onclick="filterSlots('all')">الكل</button>
-                <button class="btn btn-outline-primary" onclick="filterSlots('today')">اليوم</button>
-                <button class="btn btn-outline-primary" onclick="filterSlots('tomorrow')">غداً</button>
-                <button class="btn btn-outline-primary" onclick="filterSlots('weekend')">نهاية الأسبوع</button>
+                <button class="btn btn-outline-primary active" onclick="playersSystem.filterSlots('all')">الكل</button>
+                <button class="btn btn-outline-primary" onclick="playersSystem.filterSlots('today')">اليوم</button>
+                <button class="btn btn-outline-primary" onclick="playersSystem.filterSlots('tomorrow')">غداً</button>
+                <button class="btn btn-outline-primary" onclick="playersSystem.filterSlots('weekend')">نهاية الأسبوع</button>
               </div>
             </div>
           </div>
@@ -351,10 +392,10 @@
             </div>
             <div class="col-md-6 text-left">
               <div class="btn-group btn-group-sm">
-                <button class="btn btn-outline-primary active" onclick="filterMyRequests('all')">الكل</button>
-                <button class="btn btn-outline-primary" onclick="filterMyRequests('pending')">قيد الانتظار</button>
-                <button class="btn btn-outline-primary" onclick="filterMyRequests('accepted')">مقبولة</button>
-                <button class="btn btn-outline-primary" onclick="filterMyRequests('rejected')">مرفوضة</button>
+                <button class="btn btn-outline-primary active" onclick="playersSystem.filterMyRequests('all')">الكل</button>
+                <button class="btn btn-outline-primary" onclick="playersSystem.filterMyRequests('pending')">قيد الانتظار</button>
+                <button class="btn btn-outline-primary" onclick="playersSystem.filterMyRequests('accepted')">مقبولة</button>
+                <button class="btn btn-outline-primary" onclick="playersSystem.filterMyRequests('rejected')">مرفوضة</button>
               </div>
             </div>
           </div>
@@ -381,10 +422,10 @@
             </div>
             <div class="col-md-6 text-left">
               <div class="btn-group btn-group-sm">
-                <button class="btn btn-outline-primary active" onclick="filterReceivedRequests('all')">الكل</button>
-                <button class="btn btn-outline-primary" onclick="filterReceivedRequests('pending')">قيد الانتظار</button>
-                <button class="btn btn-outline-primary" onclick="filterReceivedRequests('accepted')">مقبولة</button>
-                <button class="btn btn-outline-primary" onclick="filterReceivedRequests('rejected')">مرفوضة</button>
+                <button class="btn btn-outline-primary active" onclick="playersSystem.filterReceivedRequests('all')">الكل</button>
+                <button class="btn btn-outline-primary" onclick="playersSystem.filterReceivedRequests('pending')">قيد الانتظار</button>
+                <button class="btn btn-outline-primary" onclick="playersSystem.filterReceivedRequests('accepted')">مقبولة</button>
+                <button class="btn btn-outline-primary" onclick="playersSystem.filterReceivedRequests('rejected')">مرفوضة</button>
               </div>
             </div>
           </div>
@@ -489,7 +530,7 @@
     </div>
   </div>
 
-  <!-- 🆕 مودال طلب الانضمام -->
+  <!-- مودال طلب الانضمام -->
   <div class="modal fade" id="joinRequestModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
@@ -535,7 +576,7 @@
               <textarea class="form-control" id="requestComment" rows="3" placeholder="أخبر المنظم عن مستواك في اللعب أو أي ملاحظات..."></textarea>
             </div>
             
-            <button type="submit" class="btn btn-warning w-100 text-white fw-bold">
+            <button type="submit" class="btn btn-warning w-100 text-white fw-bold" id="submitRequestBtn">
               <i class="bi bi-send me-2"></i>إرسال طلب الانضمام
             </button>
           </form>
@@ -544,7 +585,7 @@
     </div>
   </div>
 
-  <!-- 🆕 مودال تفاصيل الساعة الذهبية -->
+  <!-- مودال تفاصيل الساعة الذهبية -->
   <div class="modal fade" id="slotDetailsModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
       <div class="modal-content">
@@ -561,9 +602,12 @@
     </div>
   </div>
 
+  <!-- Toast Container -->
+  <div class="toast-container"></div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    // 🆕 نظام لاعبوني معاكم المتكامل
+    // 🎯 نظام لاعبوني معاكم المتكامل والمحسن
     class PlayersSystem {
       constructor() {
         this.goldenSlots = [];
@@ -575,36 +619,92 @@
           acceptedRequests: 0,
           activePlayers: 0
         };
-        this.init();
+        this.intervalId = null;
+        this.isAuthenticated = false;
+        this.authToken = localStorage.getItem('authToken');
       }
 
-      init() {
+      async init() {
+        await this.checkAuth();
+        if (!this.isAuthenticated) return;
+
         this.setupEventListeners();
-        this.loadAllData();
+        await this.loadAllData();
         this.startAutoRefresh();
+        this.prefillUserData();
+      }
+
+      async checkAuth() {
+        try {
+          if (!this.authToken) {
+            this.showToast('يجب تسجيل الدخول أولاً', 'error');
+            setTimeout(() => window.location.href = '/login.html', 2000);
+            return;
+          }
+
+          const response = await fetch('/api/auth/check', {
+            headers: {
+              'Authorization': `Bearer ${this.authToken}`
+            }
+          });
+
+          if (response.ok) {
+            this.isAuthenticated = true;
+          } else {
+            throw new Error('Not authenticated');
+          }
+        } catch (error) {
+          this.showToast('جلسة العمل منتهية، يرجى تسجيل الدخول مرة أخرى', 'error');
+          setTimeout(() => window.location.href = '/login.html', 2000);
+        }
+      }
+
+      async safeFetch(url, options = {}) {
+        try {
+          const defaultOptions = {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${this.authToken}`,
+              ...options.headers
+            }
+          };
+
+          const response = await fetch(url, { ...defaultOptions, ...options });
+          
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          return await response.json();
+        } catch (error) {
+          console.error('Fetch error:', error);
+          throw error;
+        }
       }
 
       async loadAllData() {
         try {
+          this.showLoadingState();
           await Promise.all([
             this.loadGoldenSlots(),
             this.loadMyRequests(),
             this.loadReceivedRequests(),
             this.loadStats()
           ]);
+          this.hideLoadingState();
         } catch (error) {
           console.error('Error loading players data:', error);
+          this.showToast('حدث خطأ في تحميل البيانات', 'error');
+          this.hideLoadingState();
         }
       }
 
       async loadGoldenSlots() {
         try {
-          const response = await fetch('/api/golden-slots');
-          if (response.ok) {
-            this.goldenSlots = await response.json();
-            this.displayGoldenSlots();
-            this.updateStats();
-          }
+          const data = await this.safeFetch('/api/golden-slots');
+          this.goldenSlots = data;
+          this.displayGoldenSlots();
+          this.updateStats();
         } catch (error) {
           console.error('Error loading golden slots:', error);
           // بيانات تجريبية للعرض
@@ -615,39 +715,38 @@
 
       async loadMyRequests() {
         try {
-          const response = await fetch('/api/user/player-requests/sent');
-          if (response.ok) {
-            this.myRequests = await response.json();
-            this.displayMyRequests();
-            this.updateStats();
-          }
+          const data = await this.safeFetch('/api/user/player-requests/sent');
+          this.myRequests = data;
+          this.displayMyRequests();
+          this.updateStats();
         } catch (error) {
           console.error('Error loading my requests:', error);
+          this.myRequests = [];
+          this.displayMyRequests();
         }
       }
 
       async loadReceivedRequests() {
         try {
-          const response = await fetch('/api/user/player-requests/received');
-          if (response.ok) {
-            this.receivedRequests = await response.json();
-            this.displayReceivedRequests();
-            this.updateStats();
-          }
+          const data = await this.safeFetch('/api/user/player-requests/received');
+          this.receivedRequests = data;
+          this.displayReceivedRequests();
+          this.updateStats();
         } catch (error) {
           console.error('Error loading received requests:', error);
+          this.receivedRequests = [];
+          this.displayReceivedRequests();
         }
       }
 
       async loadStats() {
         try {
-          const response = await fetch('/api/players/stats');
-          if (response.ok) {
-            this.stats = await response.json();
-            this.updateStatsDisplay();
-          }
+          const data = await this.safeFetch('/api/players/stats');
+          this.stats = data;
+          this.updateStatsDisplay();
         } catch (error) {
           console.error('Error loading stats:', error);
+          this.updateStats();
         }
       }
 
@@ -824,7 +923,7 @@
           </div>
         `;
 
-        // تعبئة البيانات من الملف الشخصي إذا كانت متاحة
+        // تعبئة البيانات من الملف الشخصي
         this.prefillUserData();
 
         const modal = new bootstrap.Modal(document.getElementById('joinRequestModal'));
@@ -866,75 +965,90 @@
       }
 
       async submitJoinRequest(formData) {
+        const submitBtn = document.getElementById('submitRequestBtn');
+        const originalText = submitBtn.innerHTML;
+        
         try {
-          const response = await fetch('/api/player-requests', {
+          // التحقق من البيانات
+          if (!this.validateJoinRequest(formData)) {
+            return;
+          }
+
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<span class="loading-spinner"></span> جاري الإرسال...';
+
+          const response = await this.safeFetch('/api/player-requests', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
             body: JSON.stringify(formData)
           });
 
-          const result = await response.json();
-
-          if (response.ok) {
-            alert('✅ ' + result.message);
-            bootstrap.Modal.getInstance(document.getElementById('joinRequestModal')).hide();
-            this.loadAllData();
-          } else {
-            alert('❌ ' + result.message);
-          }
+          this.showToast('✅ تم إرسال طلب الانضمام بنجاح', 'success');
+          bootstrap.Modal.getInstance(document.getElementById('joinRequestModal')).hide();
+          await this.loadAllData();
+          
         } catch (error) {
           console.error('Error submitting join request:', error);
-          alert('❌ حدث خطأ أثناء إرسال الطلب');
+          this.showToast('❌ حدث خطأ أثناء إرسال الطلب', 'error');
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalText;
         }
       }
 
-      async cancelRequest(requestId) {
-        if (confirm('هل أنت متأكد من إلغاء هذا الطلب؟')) {
-          try {
-            const response = await fetch(`/api/player-requests/${requestId}/cancel`, {
-              method: 'DELETE'
-            });
+      validateJoinRequest(formData) {
+        if (!formData.requesterName || formData.requesterName.trim().length < 2) {
+          this.showToast('الرجاء إدخال اسم صحيح', 'error');
+          return false;
+        }
 
-            if (response.ok) {
-              alert('✅ تم إلغاء الطلب بنجاح');
-              this.loadAllData();
-            } else {
-              alert('❌ حدث خطأ أثناء إلغاء الطلب');
-            }
-          } catch (error) {
-            console.error('Error cancelling request:', error);
-            alert('❌ حدث خطأ أثناء إلغاء الطلب');
-          }
+        if (!formData.requesterAge || formData.requesterAge < 15 || formData.requesterAge > 60) {
+          this.showToast('الرجاء إدخال عمر بين 15 و 60 سنة', 'error');
+          return false;
+        }
+
+        if (!formData.playersCount || formData.playersCount < 1 || formData.playersCount > 10) {
+          this.showToast('الرجاء إدخال عدد لاعبين بين 1 و 10', 'error');
+          return false;
+        }
+
+        return true;
+      }
+
+      async cancelRequest(requestId) {
+        if (!confirm('هل أنت متأكد من إلغاء هذا الطلب؟')) return;
+
+        try {
+          await this.safeFetch(`/api/player-requests/${requestId}/cancel`, {
+            method: 'DELETE'
+          });
+
+          this.showToast('✅ تم إلغاء الطلب بنجاح', 'success');
+          await this.loadAllData();
+        } catch (error) {
+          console.error('Error cancelling request:', error);
+          this.showToast('❌ حدث خطأ أثناء إلغاء الطلب', 'error');
         }
       }
 
       async respondToRequest(requestId, action) {
         try {
-          const response = await fetch(`/api/player-requests/${requestId}/respond`, {
+          await this.safeFetch(`/api/player-requests/${requestId}/respond`, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
             body: JSON.stringify({ action })
           });
 
-          if (response.ok) {
-            alert(`✅ تم ${action === 'accept' ? 'قبول' : 'رفض'} الطلب بنجاح`);
-            this.loadAllData();
-          } else {
-            alert('❌ حدث خطأ أثناء معالجة الطلب');
-          }
+          const actionText = action === 'accept' ? 'قبول' : 'رفض';
+          this.showToast(`✅ تم ${actionText} الطلب بنجاح`, 'success');
+          await this.loadAllData();
         } catch (error) {
           console.error('Error responding to request:', error);
-          alert('❌ حدث خطأ أثناء معالجة الطلب');
+          this.showToast('❌ حدث خطأ أثناء معالجة الطلب', 'error');
         }
       }
 
       viewRequestDetails(requestId) {
         // يمكن تطوير هذه الدالة لعرض تفاصيل إضافية عن الطلب
-        alert('عرض تفاصيل الطلب - قيد التطوير');
+        this.showToast('عرض تفاصيل الطلب - قيد التطوير', 'warning');
       }
 
       prefillUserData() {
@@ -952,6 +1066,7 @@
         this.stats.totalGoldenSlots = this.goldenSlots.length;
         this.stats.totalRequests = this.myRequests.length;
         this.stats.acceptedRequests = this.myRequests.filter(req => req.status === 'accepted').length;
+        this.stats.activePlayers = this.stats.totalRequests + this.stats.acceptedRequests;
         this.updateStatsDisplay();
       }
 
@@ -959,9 +1074,164 @@
         document.getElementById('totalGoldenSlots').textContent = this.stats.totalGoldenSlots;
         document.getElementById('totalRequests').textContent = this.stats.totalRequests;
         document.getElementById('acceptedRequests').textContent = this.stats.acceptedRequests;
-        document.getElementById('activePlayers').textContent = this.stats.activePlayers || this.stats.totalRequests;
+        document.getElementById('activePlayers').textContent = this.stats.activePlayers;
       }
 
+      // دوال الفلترة
+      filterSlots(filter) {
+        // سيتم تطويرها لاحقاً
+        this.showToast(`تم تطبيق فلتر: ${filter}`, 'warning');
+        
+        // تحديث أزرار الفلترة
+        document.querySelectorAll('#golden-slots .btn-group .btn').forEach(btn => {
+          btn.classList.remove('active');
+        });
+        event.target.classList.add('active');
+      }
+
+      filterMyRequests(filter) {
+        const requests = document.querySelectorAll('#myRequestsContainer .request-card');
+        requests.forEach(request => {
+          const status = request.classList.contains('pending') ? 'pending' : 
+                        request.classList.contains('accepted') ? 'accepted' : 'rejected';
+          let show = true;
+          
+          if (filter !== 'all' && status !== filter) {
+            show = false;
+          }
+          
+          request.style.display = show ? 'block' : 'none';
+        });
+
+        // تحديث أزرار الفلترة
+        document.querySelectorAll('#my-requests .btn-group .btn').forEach(btn => {
+          btn.classList.remove('active');
+        });
+        event.target.classList.add('active');
+      }
+
+      filterReceivedRequests(filter) {
+        const requests = document.querySelectorAll('#receivedRequestsContainer .request-card');
+        requests.forEach(request => {
+          const status = request.classList.contains('pending') ? 'pending' : 
+                        request.classList.contains('accepted') ? 'accepted' : 'rejected';
+          let show = true;
+          
+          if (filter !== 'all' && status !== filter) {
+            show = false;
+          }
+          
+          request.style.display = show ? 'block' : 'none';
+        });
+
+        // تحديث أزرار الفلترة
+        document.querySelectorAll('#received-requests .btn-group .btn').forEach(btn => {
+          btn.classList.remove('active');
+        });
+        event.target.classList.add('active');
+      }
+
+      showToast(message, type = 'info') {
+        const toastContainer = document.querySelector('.toast-container');
+        const toastId = 'toast-' + Date.now();
+        
+        const toast = document.createElement('div');
+        toast.className = `toast custom-toast toast-${type} show`;
+        toast.setAttribute('role', 'alert');
+        toast.innerHTML = `
+          <div class="toast-header text-white border-0">
+            <i class="bi ${this.getToastIcon(type)} me-2"></i>
+            <strong class="me-auto">${this.getToastTitle(type)}</strong>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+          </div>
+          <div class="toast-body text-white">
+            ${message}
+          </div>
+        `;
+
+        toastContainer.appendChild(toast);
+
+        // إزالة التوست بعد 5 ثواني
+        setTimeout(() => {
+          if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+          }
+        }, 5000);
+      }
+
+      getToastIcon(type) {
+        const icons = {
+          'success': 'bi-check-circle',
+          'error': 'bi-exclamation-circle',
+          'warning': 'bi-exclamation-triangle',
+          'info': 'bi-info-circle'
+        };
+        return icons[type] || 'bi-info-circle';
+      }
+
+      getToastTitle(type) {
+        const titles = {
+          'success': 'نجاح',
+          'error': 'خطأ',
+          'warning': 'تحذير',
+          'info': 'معلومة'
+        };
+        return titles[type] || 'معلومة';
+      }
+
+      showLoadingState() {
+        // يمكن إضافة مؤشر تحميل
+        document.querySelectorAll('.empty-state h5').forEach(h5 => {
+          if (h5.textContent.includes('جاري تحميل')) return;
+          h5.innerHTML = '<span class="loading-spinner"></span> جاري التحميل...';
+        });
+      }
+
+      hideLoadingState() {
+        // إزالة مؤشر التحميل
+      }
+
+      startAutoRefresh() {
+        this.intervalId = setInterval(() => {
+          this.loadGoldenSlots();
+        }, 30000);
+      }
+
+      stopAutoRefresh() {
+        if (this.intervalId) {
+          clearInterval(this.intervalId);
+        }
+      }
+
+      setupEventListeners() {
+        // نموذج طلب الانضمام
+        document.getElementById('joinRequestForm').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          
+          const formData = {
+            timeSlotId: parseInt(document.getElementById('selectedTimeSlotId').value),
+            requesterName: document.getElementById('requesterName').value.trim(),
+            requesterAge: parseInt(document.getElementById('requesterAge').value),
+            playersCount: parseInt(document.getElementById('playersCount').value),
+            skillLevel: document.getElementById('skillLevel').value,
+            comment: document.getElementById('requestComment').value.trim()
+          };
+
+          await this.submitJoinRequest(formData);
+        });
+
+        // إلغاء التحديث التلقائي عند مغادرة الصفحة
+        window.addEventListener('beforeunload', () => {
+          this.stopAutoRefresh();
+        });
+
+        // تحديث الإحصائيات تلقائياً
+        setInterval(() => {
+          this.updateStats();
+        }, 10000);
+      }
+
+      // دوال مساعدة
       getAreaName(area) {
         const areas = {
           'mokatam': 'المقطم',
@@ -972,9 +1242,13 @@
       }
 
       formatDate(dateString) {
-        const date = new Date(dateString);
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        return date.toLocaleDateString('ar-EG', options);
+        try {
+          const date = new Date(dateString);
+          const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+          return date.toLocaleDateString('ar-EG', options);
+        } catch {
+          return dateString;
+        }
       }
 
       getRequestStatusClass(status) {
@@ -1003,36 +1277,6 @@
           'expert': 'محترف'
         };
         return levels[level] || level;
-      }
-
-      startAutoRefresh() {
-        // تحديث البيانات كل 30 ثانية
-        setInterval(() => {
-          this.loadGoldenSlots();
-        }, 30000);
-      }
-
-      setupEventListeners() {
-        // نموذج طلب الانضمام
-        document.getElementById('joinRequestForm').addEventListener('submit', async (e) => {
-          e.preventDefault();
-          
-          const formData = {
-            timeSlotId: parseInt(document.getElementById('selectedTimeSlotId').value),
-            requesterName: document.getElementById('requesterName').value,
-            requesterAge: parseInt(document.getElementById('requesterAge').value),
-            playersCount: parseInt(document.getElementById('playersCount').value),
-            skillLevel: document.getElementById('skillLevel').value,
-            comment: document.getElementById('requestComment').value
-          };
-
-          await this.submitJoinRequest(formData);
-        });
-
-        // تحديث الإحصائيات تلقائياً
-        setInterval(() => {
-          this.updateStats();
-        }, 10000);
       }
 
       // بيانات تجريبية للعرض
@@ -1070,63 +1314,16 @@
       }
     }
 
-    // 🆕 دوال الفلترة
-    function filterSlots(filter) {
-      // سيتم تطويرها لاحقاً
-      console.log('تصفية الساعات:', filter);
-    }
-
-    function filterMyRequests(filter) {
-      const requests = document.querySelectorAll('#myRequestsContainer .request-card');
-      requests.forEach(request => {
-        const status = request.classList.contains('pending') ? 'pending' : 
-                      request.classList.contains('accepted') ? 'accepted' : 'rejected';
-        let show = true;
-        
-        if (filter !== 'all' && status !== filter) {
-          show = false;
-        }
-        
-        request.style.display = show ? 'block' : 'none';
-      });
-
-      // تحديث أزرار الفلترة
-      document.querySelectorAll('#golden-slots .btn-group .btn').forEach(btn => {
-        btn.classList.remove('active');
-      });
-      event.target.classList.add('active');
-    }
-
-    function filterReceivedRequests(filter) {
-      const requests = document.querySelectorAll('#receivedRequestsContainer .request-card');
-      requests.forEach(request => {
-        const status = request.classList.contains('pending') ? 'pending' : 
-                      request.classList.contains('accepted') ? 'accepted' : 'rejected';
-        let show = true;
-        
-        if (filter !== 'all' && status !== filter) {
-          show = false;
-        }
-        
-        request.style.display = show ? 'block' : 'none';
-      });
-
-      // تحديث أزرار الفلترة
-      document.querySelectorAll('#received-requests .btn-group .btn').forEach(btn => {
-        btn.classList.remove('active');
-      });
-      event.target.classList.add('active');
-    }
-
     // تسجيل الخروج
-    function logout() {
-      fetch('/logout', { method: 'POST' })
-        .then(() => {
-          window.location.href = '/login.html';
-        })
-        .catch(() => {
-          window.location.href = '/login.html';
-        });
+    async function logout() {
+      try {
+        await fetch('/logout', { method: 'POST' });
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userProfile');
+        window.location.href = '/login.html';
+      } catch (error) {
+        window.location.href = '/login.html';
+      }
     }
 
     // تهيئة النظام
