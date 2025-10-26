@@ -304,7 +304,7 @@
       <!-- رأس الملف الشخصي -->
       <div class="profile-header">
         <div class="avatar-container">
-          <img id="avatarImage" src="/images/default-avatar.png" alt="الصورة الشخصية" class="avatar">
+          <img id="avatarImage" src="/images/default-avatar.png" alt="الصورة الشخصية" class="avatar" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDEyMCAxMjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiByeD0iNjAiIGZpbGw9IiNkZGRkZGQiLz4KPHBhdGggZD0iTTYwIDMwQzY2LjYgMzAgNzIgMzUuNCA3MiA0MkM3MiA0OC42IDY2LjYgNTQgNjAgNTRDNTMuNCA1NCA0OCA0OC42IDQ4IDQyQzQ4IDM1LjQgNTMuNCAzMCA2MCAzMFpNNjAgOTBDNzMgOTAgODQgODQgODQgNzJWNTZDODQgNDQgNzMgMzggNjAgMzhDNDcgMzggMzYgNDQgMzYgNTZWNzJDMzYgODQgNDcgOTAgNjAgOTBaIiBmaWxsPSIjOTk5OTk5Ii8+Cjwvc3ZnPgo='">
           <button class="avatar-edit" onclick="document.getElementById('avatarInput').click()">
             <i class="bi bi-camera"></i>
           </button>
@@ -541,6 +541,27 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
+    // 🆕 نظام التوثيق المرن (JWT + Cookies)
+    function getAuthHeaders(contentType = 'application/json') {
+      const headers = {
+        'Content-Type': contentType
+      };
+      
+      // 🆕 دعم JWT من localStorage
+      const token = localStorage.getItem('token');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      // 🆕 دعم CSRF Token إذا كان موجوداً
+      const csrfToken = document.getElementById('csrfToken')?.value;
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
+      }
+      
+      return headers;
+    }
+
     // 🆕 دالة لعرض التنبيهات - آمنة ضد XSS
     function showAlert(message, type = 'info') {
       const alertsContainer = document.getElementById('alertsContainer');
@@ -570,6 +591,13 @@
       }, 5000);
     }
 
+    // 🆕 دالة Sanitize للوقاية من XSS
+    function sanitizeHTML(str) {
+      const temp = document.createElement('div');
+      temp.textContent = str;
+      return temp.innerHTML;
+    }
+
     // 🆕 نظام الملف الشخصي المتطور
     class AdvancedProfileSystem {
       constructor() {
@@ -577,14 +605,15 @@
         this.playerRequests = [];
         this.compensationCodes = [];
         this.userStats = {};
-        this.lastProfileData = null; // 🆕 cache للبيانات
+        this.lastProfileData = null;
+        this.isPageVisible = true;
         this.init();
       }
 
       init() {
         this.setupEventListeners();
         this.loadUserProfile();
-        this.startAutoRefresh();
+        this.startSmartAutoRefresh();
       }
 
       async loadUserProfile() {
@@ -626,7 +655,8 @@
       async loadBasicProfile() {
         try {
           const response = await fetch('/api/user/profile', { 
-            credentials: 'include' 
+            credentials: 'include',
+            headers: getAuthHeaders()
           });
           
           if (!response.ok) throw new Error(`Server error: ${response.status}`);
@@ -645,7 +675,7 @@
           this.displayProfile(profile, stats);
           this.userStats = stats;
           this.updateStatsGrid();
-          this.lastProfileData = { profile, stats }; // 🆕 حفظ آخر بيانات
+          this.lastProfileData = { profile, stats };
         } catch (error) {
           console.error('Error loading profile:', error);
           throw error;
@@ -666,7 +696,8 @@
       async loadCurrentBookings() {
         try {
           const response = await fetch('/api/user/bookings', { 
-            credentials: 'include' 
+            credentials: 'include',
+            headers: getAuthHeaders()
           });
           
           if (!response.ok) throw new Error(`Server error: ${response.status}`);
@@ -684,7 +715,8 @@
       async loadPlayerRequests() {
         try {
           const response = await fetch('/api/user/player-requests', { 
-            credentials: 'include' 
+            credentials: 'include',
+            headers: getAuthHeaders()
           });
           
           if (!response.ok) throw new Error(`Server error: ${response.status}`);
@@ -701,7 +733,8 @@
       async loadCompensationCodes() {
         try {
           const response = await fetch('/api/user/compensation-codes', { 
-            credentials: 'include' 
+            credentials: 'include',
+            headers: getAuthHeaders()
           });
           
           if (!response.ok) throw new Error(`Server error: ${response.status}`);
@@ -717,7 +750,8 @@
       async loadActivityTimeline() {
         try {
           const response = await fetch('/api/user/activity', { 
-            credentials: 'include' 
+            credentials: 'include',
+            headers: getAuthHeaders()
           });
           
           if (!response.ok) throw new Error(`Server error: ${response.status}`);
@@ -731,10 +765,10 @@
       }
 
       displayProfile(profile, stats) {
-        document.getElementById('profileName').textContent = profile.nickname || 'الاسم المستعار';
+        // 🆕 استخدام Sanitize لجميع البيانات
+        document.getElementById('profileName').textContent = sanitizeHTML(profile.nickname || 'الاسم المستعار');
         document.getElementById('profileAge').textContent = profile.age ? `العمر: ${profile.age}` : 'العمر: غير محدد';
         
-        // ✅ إصلاح مشكلة joinDate
         const joinDate = profile.join_date || profile.joinDate;
         document.getElementById('memberSince').textContent = `عضو منذ: ${new Date(joinDate).toLocaleDateString('ar-EG')}`;
         
@@ -749,26 +783,34 @@
         // 🆕 دعم نظام المديرين
         if (profile.role === 'admin') {
           document.getElementById('profileLink').innerHTML = '<i class="bi bi-speedometer2 me-1"></i>لوحة التحكم';
+          document.getElementById('profileLink').href = '/admin.html';
         } else if (profile.role === 'manager') {
           document.getElementById('profileLink').innerHTML = '<i class="bi bi-building me-1"></i>إدارة الملاعب';
+          document.getElementById('profileLink').href = '/manager.html';
         }
         
-        // تحديث مستوى المستخدم
         this.updateUserLevel(stats);
       }
 
       updateStatsGrid() {
         const stats = this.userStats;
-        document.getElementById('totalBookings').textContent = stats.totalBookings || 0;
-        document.getElementById('successfulBookings').textContent = stats.successfulBookings || 0;
-        document.getElementById('cancelledBookings').textContent = stats.cancelledBookings || 0;
-        document.getElementById('totalSpent').textContent = stats.totalSpent || 0;
-        document.getElementById('playerRequestsSent').textContent = stats.requestsSent || 0;
-        document.getElementById('playerRequestsReceived').textContent = stats.requestsReceived || 0;
+        // 🆕 دعم snake_case و camelCase
+        document.getElementById('totalBookings').textContent = 
+          stats.totalBookings || stats.total_bookings || 0;
+        document.getElementById('successfulBookings').textContent = 
+          stats.successfulBookings || stats.successful_bookings || 0;
+        document.getElementById('cancelledBookings').textContent = 
+          stats.cancelledBookings || stats.cancelled_bookings || 0;
+        document.getElementById('totalSpent').textContent = 
+          stats.totalSpent || stats.total_spent || 0;
+        document.getElementById('playerRequestsSent').textContent = 
+          stats.requestsSent || stats.requests_sent || 0;
+        document.getElementById('playerRequestsReceived').textContent = 
+          stats.requestsReceived || stats.requests_received || 0;
       }
 
       updateUserLevel(stats) {
-        const totalBookings = stats.totalBookings || 0;
+        const totalBookings = stats.totalBookings || stats.total_bookings || 0;
         let level = 'مبتدئ';
         let points = totalBookings * 10;
         
@@ -800,7 +842,7 @@
           <div class="booking-card ${booking.playersNeeded > 0 ? 'golden' : ''}">
             <div class="d-flex justify-content-between align-items-start">
               <div>
-                <h6 class="mb-1">${booking.pitchName}</h6>
+                <h6 class="mb-1">${sanitizeHTML(booking.pitchName)}</h6>
                 <p class="mb-1 text-muted">
                   <i class="bi bi-calendar me-1"></i>${booking.date}
                   <i class="bi bi-clock ms-2 me-1"></i>${booking.time}
@@ -822,7 +864,6 @@
           </div>
         `).join('');
 
-        // بدء العد التنازلي للحجوزات
         upcoming.forEach(booking => {
           this.startBookingCountdown(booking.id, booking.date, booking.time);
         });
@@ -845,7 +886,7 @@
           <div class="booking-card ${this.getBookingStatusClass(booking.status)}">
             <div class="d-flex justify-content-between align-items-center">
               <div>
-                <h6 class="mb-1">${booking.pitchName}</h6>
+                <h6 class="mb-1">${sanitizeHTML(booking.pitchName)}</h6>
                 <p class="mb-1 text-muted">
                   <i class="bi bi-calendar me-1"></i>${booking.date}
                   <i class="bi bi-clock ms-2 me-1"></i>${booking.time}
@@ -873,7 +914,6 @@
         const sentRequests = this.playerRequests.filter(req => req.type === 'sent');
         const receivedRequests = this.playerRequests.filter(req => req.type === 'received');
 
-        // الطلبات المرسلة
         if (sentRequests.length === 0) {
           sentContainer.innerHTML = `
             <div class="text-center py-4">
@@ -886,7 +926,7 @@
             <div class="player-request-card ${request.status}">
               <div class="d-flex justify-content-between align-items-start">
                 <div>
-                  <h6 class="mb-1">${request.stadiumName}</h6>
+                  <h6 class="mb-1">${sanitizeHTML(request.stadiumName)}</h6>
                   <p class="mb-1 text-muted">
                     <i class="bi bi-calendar me-1"></i>${request.date}
                     <i class="bi bi-clock ms-2 me-1"></i>${request.time}
@@ -901,7 +941,6 @@
           `).join('');
         }
 
-        // الطلبات المستلمة
         if (receivedRequests.length === 0) {
           receivedContainer.innerHTML = `
             <div class="text-center py-4">
@@ -914,9 +953,9 @@
             <div class="player-request-card ${request.status}">
               <div class="d-flex justify-content-between align-items-start">
                 <div>
-                  <h6 class="mb-1">${request.requesterName} (${request.requesterAge} سنة)</h6>
+                  <h6 class="mb-1">${sanitizeHTML(request.requesterName)} (${request.requesterAge} سنة)</h6>
                   <p class="mb-1 text-muted">${request.playersCount} لاعب</p>
-                  <p class="mb-1">${request.comment || 'لا توجد ملاحظات'}</p>
+                  <p class="mb-1">${sanitizeHTML(request.comment || 'لا توجد ملاحظات')}</p>
                   <p class="mb-1">الحالة: <span class="badge ${this.getRequestStatusClass(request.status)}">${this.getRequestStatusText(request.status)}</span></p>
                 </div>
                 <div class="text-left">
@@ -957,10 +996,10 @@
             <div class="d-flex justify-content-between align-items-center">
               <div>
                 <h6 class="mb-1">كود التعويض</h6>
-                <div class="code-value">${code.code}</div>
+                <div class="code-value">${sanitizeHTML(code.code)}</div>
                 <p class="mb-1">قيمة الكود: ${code.value} جنيه</p>
                 <p class="mb-1">صالح حتى: ${new Date(code.expiresAt).toLocaleDateString('ar-EG')}</p>
-                <p class="mb-0"><small>${code.message}</small></p>
+                <p class="mb-0"><small>${sanitizeHTML(code.message)}</small></p>
               </div>
               <div class="text-left">
                 <span class="badge bg-light text-dark">نشط</span>
@@ -970,7 +1009,6 @@
           </div>
         `).join('');
 
-        // بدء العد التنازلي للأكواد
         this.compensationCodes.forEach(code => {
           this.startCodeCountdown(code.id, code.expiresAt);
         });
@@ -991,8 +1029,8 @@
 
         container.innerHTML = activities.map(activity => `
           <div class="activity-item">
-            <h6 class="mb-1">${activity.title}</h6>
-            <p class="mb-1 text-muted">${activity.description}</p>
+            <h6 class="mb-1">${sanitizeHTML(activity.title)}</h6>
+            <p class="mb-1 text-muted">${sanitizeHTML(activity.description)}</p>
             <small class="text-muted">${new Date(activity.timestamp).toLocaleDateString('ar-EG')}</small>
           </div>
         `).join('');
@@ -1001,10 +1039,28 @@
       startBookingCountdown(bookingId, date, time) {
         const countdownElement = document.getElementById(`countdown-${bookingId}`);
         
-        // ✅ إصلاح مشكلة تنسيق الوقت
-        const timeParts = time.split(':');
-        const formattedTime = timeParts.length >= 2 ? `${timeParts[0]}:${timeParts[1]}` : time;
-        const bookingDateTime = new Date(`${date}T${formattedTime}`);
+        // 🆕 إصلاح مشكلة تنسيق الوقت
+        let bookingDateTime;
+        try {
+          // محاولة ISO format أولاً
+          if (time.includes('T')) {
+            bookingDateTime = new Date(time);
+          } else {
+            // محاولة تنسيق مخصص
+            bookingDateTime = new Date(`${date} ${time}`);
+          }
+          
+          // إذا فشل كل شيء، استخدم التاريخ الحالي + الوقت
+          if (isNaN(bookingDateTime.getTime())) {
+            const [hours, minutes] = time.split(':');
+            bookingDateTime = new Date(date);
+            bookingDateTime.setHours(parseInt(hours), parseInt(minutes || 0), 0, 0);
+          }
+        } catch (error) {
+          console.error('Error parsing date:', error);
+          countdownElement.textContent = 'خطأ في التاريخ';
+          return;
+        }
         
         function updateCountdown() {
           const now = new Date();
@@ -1013,7 +1069,7 @@
           if (timeLeft <= 0) {
             countdownElement.textContent = 'انتهى الوقت';
             countdownElement.className = 'countdown-timer bg-secondary';
-            countdownElement.style.background = 'linear-gradient(135deg, #95a5a6, #7f8c8d)'; // 🆕 إصلاح اللون
+            countdownElement.style.background = 'linear-gradient(135deg, #95a5a6, #7f8c8d)';
             return;
           }
           
@@ -1029,7 +1085,7 @@
             countdownElement.textContent = `متبقي: ${minutes} دقيقة`;
           }
           
-          if (timeLeft < 2 * 60 * 60 * 1000) { // أقل من ساعتين
+          if (timeLeft < 2 * 60 * 60 * 1000) {
             countdownElement.style.background = 'linear-gradient(135deg, #e74c3c, #c0392b)';
           }
         }
@@ -1069,40 +1125,55 @@
 
         const modalContent = document.getElementById('bookingDetailsContent');
         
-        // 🆕 إصلاح مشكلة المبالغ المالية
+        // 🆕 استخدام createElement بدلاً من innerHTML للوقاية من XSS
+        modalContent.innerHTML = '';
+        
+        const row = document.createElement('div');
+        row.className = 'row';
+        
+        const col1 = document.createElement('div');
+        col1.className = 'col-md-6';
+        col1.innerHTML = `
+          <h6>معلومات الحجز</h6>
+          <p><strong>الملعب:</strong> ${sanitizeHTML(booking.pitchName)}</p>
+          <p><strong>الموقع:</strong> ${sanitizeHTML(booking.pitchLocation)}</p>
+          <p><strong>التاريخ:</strong> ${booking.date}</p>
+          <p><strong>الوقت:</strong> ${booking.time}</p>
+          <p><strong>الحالة:</strong> <span class="badge ${this.getStatusBadgeClass(booking.status)}">${this.getStatusText(booking.status)}</span></p>
+        `;
+        
+        const col2 = document.createElement('div');
+        col2.className = 'col-md-6';
+        
         const paidAmount = booking.paidAmount || 0;
         const remainingAmount = booking.remainingAmount || 
                               (booking.finalAmount || booking.amount || 0) - paidAmount;
         
-        modalContent.innerHTML = `
-          <div class="row">
-            <div class="col-md-6">
-              <h6>معلومات الحجز</h6>
-              <p><strong>الملعب:</strong> ${booking.pitchName}</p>
-              <p><strong>الموقع:</strong> ${booking.pitchLocation}</p>
-              <p><strong>التاريخ:</strong> ${booking.date}</p>
-              <p><strong>الوقت:</strong> ${booking.time}</p>
-              <p><strong>الحالة:</strong> <span class="badge ${this.getStatusBadgeClass(booking.status)}">${this.getStatusText(booking.status)}</span></p>
-            </div>
-            <div class="col-md-6">
-              <h6>المعلومات المالية</h6>
-              <p><strong>السعر الكامل:</strong> ${booking.finalAmount || booking.amount} ج.م</p>
-              <p><strong>المبلغ المدفوع:</strong> ${paidAmount} ج.م</p>
-              <p><strong>المبلغ المتبقي:</strong> ${remainingAmount} ج.م</p>
-              ${booking.playersNeeded > 0 ? `<p><strong>اللاعبين المطلوبين:</strong> ${booking.playersNeeded}</p>` : ''}
-            </div>
-          </div>
-          ${booking.status === 'confirmed' && new Date(booking.date) > new Date() ? `
-            <div class="mt-3">
-              <button class="btn btn-warning me-2" onclick="profileSystem.requestPlayers('${booking.id}')">
-                <i class="bi bi-people me-1"></i>طلب لاعبين
-              </button>
-              <button class="btn btn-danger" onclick="profileSystem.cancelBooking('${booking.id}')">
-                <i class="bi bi-x-circle me-1"></i>إلغاء الحجز
-              </button>
-            </div>
-          ` : ''}
+        col2.innerHTML = `
+          <h6>المعلومات المالية</h6>
+          <p><strong>السعر الكامل:</strong> ${booking.finalAmount || booking.amount} ج.م</p>
+          <p><strong>المبلغ المدفوع:</strong> ${paidAmount} ج.م</p>
+          <p><strong>المبلغ المتبقي:</strong> ${remainingAmount} ج.م</p>
+          ${booking.playersNeeded > 0 ? `<p><strong>اللاعبين المطلوبين:</strong> ${booking.playersNeeded}</p>` : ''}
         `;
+        
+        row.appendChild(col1);
+        row.appendChild(col2);
+        modalContent.appendChild(row);
+
+        if (booking.status === 'confirmed' && new Date(booking.date) > new Date()) {
+          const actions = document.createElement('div');
+          actions.className = 'mt-3';
+          actions.innerHTML = `
+            <button class="btn btn-warning me-2" onclick="profileSystem.requestPlayers('${booking.id}')">
+              <i class="bi bi-people me-1"></i>طلب لاعبين
+            </button>
+            <button class="btn btn-danger" onclick="profileSystem.cancelBooking('${booking.id}')">
+              <i class="bi bi-x-circle me-1"></i>إلغاء الحجز
+            </button>
+          `;
+          modalContent.appendChild(actions);
+        }
 
         const modal = new bootstrap.Modal(document.getElementById('bookingDetailsModal'));
         modal.show();
@@ -1115,10 +1186,7 @@
             const response = await fetch(`/api/bookings/${bookingId}/request-players`, {
               method: 'POST',
               credentials: 'include',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': document.getElementById('csrfToken').value
-              },
+              headers: getAuthHeaders(),
               body: JSON.stringify({
                 playersNeeded: parseInt(playersNeeded)
               })
@@ -1143,10 +1211,7 @@
             const response = await fetch(`/api/bookings/${bookingId}/cancel`, {
               method: 'PUT',
               credentials: 'include',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': document.getElementById('csrfToken').value
-              }
+              headers: getAuthHeaders()
             });
 
             if (response.ok) {
@@ -1168,10 +1233,7 @@
           const response = await fetch(`/api/player-requests/${requestId}/respond`, {
             method: 'POST',
             credentials: 'include',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRF-Token': document.getElementById('csrfToken').value
-            },
+            headers: getAuthHeaders(),
             body: JSON.stringify({ action })
           });
 
@@ -1184,6 +1246,74 @@
         } catch (error) {
           console.error('Error responding to request:', error);
           showAlert('❌ حدث خطأ أثناء معالجة الطلب', 'danger');
+        }
+      }
+
+      // 🆕 تحديث ذكي للتحديث التلقائي
+      startSmartAutoRefresh() {
+        // تحديث فقط عندما تكون الصفحة مرئية
+        document.addEventListener('visibilitychange', () => {
+          this.isPageVisible = !document.hidden;
+        });
+
+        setInterval(() => {
+          if (this.isPageVisible) {
+            this.loadUserProfile();
+          }
+        }, 180000); // 3 دقائق
+      }
+
+      setupEventListeners() {
+        // 🆕 محاولة جلب CSRF Token إذا كان مدعوماً
+        fetch('/csrf-token', { credentials: 'include' })
+          .then(r => {
+            if (r.ok) return r.json();
+            // إذا لم يكن مدعوماً، تجاهل الخطأ
+            return null;
+          })
+          .then(d => {
+            if (d?.csrfToken) {
+              document.getElementById('csrfToken').value = d.csrfToken;
+            }
+          })
+          .catch(() => {
+            // تجاهل الخطأ - قد لا يكون CSRF مدعوماً
+            console.log('CSRF token not supported, using JWT only');
+          });
+
+        document.getElementById('profileForm').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          await this.updateProfile(e.target);
+        });
+      }
+
+      async updateProfile(form) {
+        const formData = new FormData(form);
+        
+        try {
+          const response = await fetch('/api/user/profile', {
+            method: 'PUT',
+            credentials: 'include',
+            headers: getAuthHeaders('multipart/form-data'),
+            body: formData
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`خطأ في السيرفر: ${response.status} - ${errorText}`);
+          }
+
+          const data = await response.json();
+
+          if (data.success || response.ok) {
+            showAlert('✅ ' + (data.message || 'تم تحديث الملف الشخصي بنجاح'), 'success');
+            this.loadUserProfile();
+          } else {
+            showAlert('❌ ' + (data.message || 'لم يتم التأكيد من السيرفر، تأكد من حفظ البيانات'), 'warning');
+          }
+        } catch (error) {
+          console.error('Error updating profile:', error);
+          showAlert('❌ حدث خطأ أثناء تحديث الملف الشخصي', 'danger');
         }
       }
 
@@ -1234,67 +1364,9 @@
         };
         return texts[status] || status;
       }
-
-      startAutoRefresh() {
-        // ✅ تحديث كل 3 دقائق بدل دقيقة لتقليل الضغط
-        setInterval(() => {
-          this.loadUserProfile();
-        }, 180000); // 3 دقائق
-      }
-
-      setupEventListeners() {
-        // ✅ CSRF Token مع credentials
-        fetch('/csrf-token', { credentials: 'include' })
-          .then(r => r.ok ? r.json() : null)
-          .then(d => {
-            if (d?.csrfToken) {
-              document.getElementById('csrfToken').value = d.csrfToken;
-            }
-          })
-          .catch(err => {
-            console.error('Failed to fetch CSRF token:', err);
-          });
-
-        // نموذج تعديل الملف
-        document.getElementById('profileForm').addEventListener('submit', async (e) => {
-          e.preventDefault();
-          await this.updateProfile(e.target);
-        });
-      }
-
-      async updateProfile(form) {
-        const formData = new FormData(form);
-        
-        try {
-          const response = await fetch('/api/user/profile', {
-            method: 'PUT',
-            credentials: 'include',
-            body: formData
-          });
-
-          // ✅ التعامل مع أخطاء السيرفر
-          if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`خطأ في السيرفر: ${response.status} - ${errorText}`);
-          }
-
-          const data = await response.json();
-
-          // 🆕 إصلاح مشكلة استجابة السيرفر
-          if (data.success || response.ok) {
-            showAlert('✅ ' + (data.message || 'تم تحديث الملف الشخصي بنجاح'), 'success');
-            this.loadUserProfile();
-          } else {
-            showAlert('❌ ' + (data.message || 'لم يتم التأكيد من السيرفر، تأكد من حفظ البيانات'), 'warning');
-          }
-        } catch (error) {
-          console.error('Error updating profile:', error);
-          showAlert('❌ حدث خطأ أثناء تحديث الملف الشخصي', 'danger');
-        }
-      }
     }
 
-    // 🆕 دالة فلترة الحجوزات - معدلة
+    // 🆕 دالة فلترة الحجوزات
     function filterBookings(filter, event) {
       const bookings = document.querySelectorAll('#allBookingsContainer .booking-card');
       bookings.forEach(booking => {
@@ -1318,7 +1390,6 @@
         booking.style.display = show ? 'block' : 'none';
       });
 
-      // ✅ تحديث أزرار الفلترة مع event
       if (event) {
         document.querySelectorAll('#bookings .btn-group .btn').forEach(btn => {
           btn.classList.remove('active');
@@ -1340,16 +1411,19 @@
 
     // تسجيل الخروج
     function logout() {
-      // 🆕 إصلاح مسار تسجيل الخروج
+      // 🆕 تنظيف كامل للبيانات المحلية
+      localStorage.removeItem('token');
+      sessionStorage.clear();
+      
       fetch('/api/logout', { 
         method: 'POST',
-        credentials: 'include'
+        credentials: 'include',
+        headers: getAuthHeaders()
       })
         .then(() => {
           window.location.href = '/login.html';
         })
         .catch(() => {
-          // Fallback في حالة فشل الطلب
           window.location.href = '/login.html';
         });
     }
@@ -1357,7 +1431,10 @@
     // تهيئة النظام
     let profileSystem;
     document.addEventListener('DOMContentLoaded', function() {
-      fetch('/api/current-user', { credentials: 'include' })
+      fetch('/api/current-user', { 
+        credentials: 'include',
+        headers: getAuthHeaders()
+      })
         .then(r => {
           if (!r.ok) throw new Error('Not logged in');
           return r.json();
