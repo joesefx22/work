@@ -255,6 +255,14 @@
       background: var(--gold-color);
       color: #000;
     }
+
+    /* 🆕 أنماط التنبيهات */
+    .alert {
+      border: none;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 1rem;
+    }
   </style>
 </head>
 <body>
@@ -301,6 +309,9 @@
           <span class="badge bg-warning text-dark" id="loyaltyPoints">0 نقطة</span>
         </div>
       </div>
+
+      <!-- 🆕 نظام التنبيهات -->
+      <div id="alertsContainer" aria-live="polite" aria-atomic="true"></div>
 
       <!-- تبويبات الصفحة -->
       <div class="container mt-4">
@@ -359,7 +370,7 @@
               </div>
             </div>
 
-            <!-- 🆕 الحجوزات القادمة -->
+            <!-- الحجوزات القادمة -->
             <div class="form-section">
               <h5 class="mb-3"><i class="bi bi-clock me-2"></i>حجوزاتي القادمة</h5>
               <div id="upcomingBookings">
@@ -370,7 +381,7 @@
               </div>
             </div>
 
-            <!-- 🆕 أكواد التعويض -->
+            <!-- أكواد التعويض -->
             <div class="form-section">
               <h5 class="mb-3"><i class="bi bi-ticket-perforated me-2"></i>أكواد التعويض</h5>
               <div id="compensationCodes">
@@ -381,7 +392,7 @@
               </div>
             </div>
 
-            <!-- 🆕 آخر النشاطات -->
+            <!-- آخر النشاطات -->
             <div class="form-section">
               <h5 class="mb-3"><i class="bi bi-activity me-2"></i>آخر النشاطات</h5>
               <div class="activity-timeline" id="activityTimeline">
@@ -398,10 +409,10 @@
             <div class="d-flex justify-content-between align-items-center mb-4">
               <h5><i class="bi bi-calendar-check me-2"></i>جميع حجوزاتي</h5>
               <div class="btn-group">
-                <button class="btn btn-outline-primary btn-sm active" onclick="filterBookings('all')">الكل</button>
-                <button class="btn btn-outline-primary btn-sm" onclick="filterBookings('upcoming')">القادمة</button>
-                <button class="btn btn-outline-primary btn-sm" onclick="filterBookings('completed')">المنتهية</button>
-                <button class="btn btn-outline-primary btn-sm" onclick="filterBookings('cancelled')">الملغاة</button>
+                <button class="btn btn-outline-primary btn-sm active" onclick="filterBookings('all', event)">الكل</button>
+                <button class="btn btn-outline-primary btn-sm" onclick="filterBookings('upcoming', event)">القادمة</button>
+                <button class="btn btn-outline-primary btn-sm" onclick="filterBookings('completed', event)">المنتهية</button>
+                <button class="btn btn-outline-primary btn-sm" onclick="filterBookings('cancelled', event)">الملغاة</button>
               </div>
             </div>
             <div id="allBookingsContainer">
@@ -496,7 +507,7 @@
     </div>
   </div>
 
-  <!-- 🆕 مودال تفاصيل الحجز -->
+  <!-- مودال تفاصيل الحجز -->
   <div class="modal fade" id="bookingDetailsModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
       <div class="modal-content">
@@ -513,6 +524,36 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
+    // 🆕 دالة لعرض التنبيهات - آمنة ضد XSS
+    function showAlert(message, type = 'info') {
+      const alertsContainer = document.getElementById('alertsContainer');
+      const alertId = 'alert-' + Date.now();
+      
+      const div = document.createElement('div');
+      div.id = alertId;
+      div.className = `alert alert-${type} alert-dismissible fade show`;
+      div.setAttribute('role', 'alert');
+      div.textContent = message; // ✅ استخدم textContent بدل innerHTML
+      
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn-close';
+      btn.setAttribute('data-bs-dismiss', 'alert');
+      btn.setAttribute('aria-label', 'إغلاق');
+      
+      div.appendChild(btn);
+      alertsContainer.innerHTML = '';
+      alertsContainer.appendChild(div);
+      
+      // إزالة التنبيه تلقائياً بعد 5 ثواني
+      setTimeout(() => {
+        const alertElement = document.getElementById(alertId);
+        if (alertElement) {
+          alertElement.remove();
+        }
+      }, 5000);
+    }
+
     // 🆕 نظام الملف الشخصي المتطور
     class AdvancedProfileSystem {
       constructor() {
@@ -540,66 +581,110 @@
           ]);
         } catch (error) {
           console.error('Error loading profile:', error);
+          showAlert('❌ حدث خطأ أثناء تحميل البيانات', 'danger');
         }
       }
 
       async loadBasicProfile() {
-        const response = await fetch('/api/user/profile');
-        if (response.ok) {
+        try {
+          const response = await fetch('/api/user/profile', { 
+            credentials: 'include' 
+          });
+          
+          if (!response.ok) throw new Error(`Server error: ${response.status}`);
+          
           const data = await response.json();
           this.displayProfile(data);
-          this.userStats = data.stats;
+          this.userStats = data.stats || {};
           this.updateStatsGrid();
+        } catch (error) {
+          console.error('Error loading profile:', error);
+          throw error;
         }
       }
 
       async loadCurrentBookings() {
-        const response = await fetch('/api/user/bookings');
-        if (response.ok) {
+        try {
+          const response = await fetch('/api/user/bookings', { 
+            credentials: 'include' 
+          });
+          
+          if (!response.ok) throw new Error(`Server error: ${response.status}`);
+          
           const bookings = await response.json();
           this.currentBookings = bookings;
           this.displayUpcomingBookings();
           this.displayAllBookings();
+        } catch (error) {
+          console.error('Error loading bookings:', error);
+          throw error;
         }
       }
 
       async loadPlayerRequests() {
-        const response = await fetch('/api/user/player-requests');
-        if (response.ok) {
+        try {
+          const response = await fetch('/api/user/player-requests', { 
+            credentials: 'include' 
+          });
+          
+          if (!response.ok) throw new Error(`Server error: ${response.status}`);
+          
           const requests = await response.json();
           this.playerRequests = requests;
           this.displayPlayerRequests();
+        } catch (error) {
+          console.error('Error loading player requests:', error);
+          throw error;
         }
       }
 
       async loadCompensationCodes() {
-        const response = await fetch('/api/user/compensation-codes');
-        if (response.ok) {
+        try {
+          const response = await fetch('/api/user/compensation-codes', { 
+            credentials: 'include' 
+          });
+          
+          if (!response.ok) throw new Error(`Server error: ${response.status}`);
+          
           this.compensationCodes = await response.json();
           this.displayCompensationCodes();
+        } catch (error) {
+          console.error('Error loading compensation codes:', error);
+          throw error;
         }
       }
 
       async loadActivityTimeline() {
-        const response = await fetch('/api/user/activity');
-        if (response.ok) {
+        try {
+          const response = await fetch('/api/user/activity', { 
+            credentials: 'include' 
+          });
+          
+          if (!response.ok) throw new Error(`Server error: ${response.status}`);
+          
           const activities = await response.json();
           this.displayActivityTimeline(activities);
+        } catch (error) {
+          console.error('Error loading activity:', error);
+          throw error;
         }
       }
 
       displayProfile(data) {
         const { profile, stats } = data;
         
-        document.getElementById('profileName').textContent = profile.nickname;
+        document.getElementById('profileName').textContent = profile.nickname || 'الاسم المستعار';
         document.getElementById('profileAge').textContent = profile.age ? `العمر: ${profile.age}` : 'العمر: غير محدد';
-        document.getElementById('memberSince').textContent = `عضو منذ: ${new Date(profile.joinDate).toLocaleDateString('ar-EG')}`;
+        
+        // ✅ إصلاح مشكلة joinDate
+        const joinDate = profile.join_date || profile.joinDate;
+        document.getElementById('memberSince').textContent = `عضو منذ: ${new Date(joinDate).toLocaleDateString('ar-EG')}`;
         
         if (profile.avatar) {
           document.getElementById('avatarImage').src = profile.avatar;
         }
         
-        document.getElementById('nickname').value = profile.nickname;
+        document.getElementById('nickname').value = profile.nickname || '';
         if (profile.age) document.getElementById('age').value = profile.age;
         document.getElementById('bio').value = profile.bio || '';
         
@@ -850,7 +935,11 @@
 
       startBookingCountdown(bookingId, date, time) {
         const countdownElement = document.getElementById(`countdown-${bookingId}`);
-        const bookingDateTime = new Date(`${date}T${time}`);
+        
+        // ✅ إصلاح مشكلة تنسيق الوقت
+        const timeParts = time.split(':');
+        const formattedTime = timeParts.length >= 2 ? `${timeParts[0]}:${timeParts[1]}` : time;
+        const bookingDateTime = new Date(`${date}T${formattedTime}`);
         
         function updateCountdown() {
           const now = new Date();
@@ -953,8 +1042,10 @@
           try {
             const response = await fetch(`/api/bookings/${bookingId}/request-players`, {
               method: 'POST',
+              credentials: 'include',
               headers: {
                 'Content-Type': 'application/json',
+                'X-CSRF-Token': document.getElementById('csrfToken').value
               },
               body: JSON.stringify({
                 playersNeeded: parseInt(playersNeeded)
@@ -962,14 +1053,14 @@
             });
 
             if (response.ok) {
-              alert('✅ تم طلب اللاعبين بنجاح! ستظهر ساعتك في "لاعبوني معاكم"');
+              showAlert('✅ تم طلب اللاعبين بنجاح! ستظهر ساعتك في "لاعبوني معاكم"', 'success');
               this.loadUserProfile();
             } else {
-              alert('❌ حدث خطأ أثناء طلب اللاعبين');
+              showAlert('❌ حدث خطأ أثناء طلب اللاعبين', 'danger');
             }
           } catch (error) {
             console.error('Error requesting players:', error);
-            alert('❌ حدث خطأ أثناء طلب اللاعبين');
+            showAlert('❌ حدث خطأ أثناء طلب اللاعبين', 'danger');
           }
         }
       }
@@ -979,21 +1070,23 @@
           try {
             const response = await fetch(`/api/bookings/${bookingId}/cancel`, {
               method: 'PUT',
+              credentials: 'include',
               headers: {
                 'Content-Type': 'application/json',
+                'X-CSRF-Token': document.getElementById('csrfToken').value
               }
             });
 
             if (response.ok) {
-              alert('✅ تم إلغاء الحجز بنجاح');
+              showAlert('✅ تم إلغاء الحجز بنجاح', 'success');
               this.loadUserProfile();
               bootstrap.Modal.getInstance(document.getElementById('bookingDetailsModal')).hide();
             } else {
-              alert('❌ حدث خطأ أثناء إلغاء الحجز');
+              showAlert('❌ حدث خطأ أثناء إلغاء الحجز', 'danger');
             }
           } catch (error) {
             console.error('Error cancelling booking:', error);
-            alert('❌ حدث خطأ أثناء إلغاء الحجز');
+            showAlert('❌ حدث خطأ أثناء إلغاء الحجز', 'danger');
           }
         }
       }
@@ -1002,21 +1095,23 @@
         try {
           const response = await fetch(`/api/player-requests/${requestId}/respond`, {
             method: 'POST',
+            credentials: 'include',
             headers: {
               'Content-Type': 'application/json',
+              'X-CSRF-Token': document.getElementById('csrfToken').value
             },
             body: JSON.stringify({ action })
           });
 
           if (response.ok) {
-            alert(`✅ تم ${action === 'accept' ? 'قبول' : 'رفض'} الطلب بنجاح`);
+            showAlert(`✅ تم ${action === 'accept' ? 'قبول' : 'رفض'} الطلب بنجاح`, 'success');
             this.loadUserProfile();
           } else {
-            alert('❌ حدث خطأ أثناء معالجة الطلب');
+            showAlert('❌ حدث خطأ أثناء معالجة الطلب', 'danger');
           }
         } catch (error) {
           console.error('Error responding to request:', error);
-          alert('❌ حدث خطأ أثناء معالجة الطلب');
+          showAlert('❌ حدث خطأ أثناء معالجة الطلب', 'danger');
         }
       }
 
@@ -1069,20 +1164,23 @@
       }
 
       startAutoRefresh() {
-        // تحديث البيانات كل دقيقة
+        // ✅ تحديث كل 3 دقائق بدل دقيقة لتقليل الضغط
         setInterval(() => {
           this.loadUserProfile();
-        }, 60000);
+        }, 180000); // 3 دقائق
       }
 
       setupEventListeners() {
-        // CSRF Token
-        fetch('/csrf-token')
+        // ✅ CSRF Token مع credentials
+        fetch('/csrf-token', { credentials: 'include' })
           .then(r => r.ok ? r.json() : null)
           .then(d => {
             if (d?.csrfToken) {
               document.getElementById('csrfToken').value = d.csrfToken;
             }
+          })
+          .catch(err => {
+            console.error('Failed to fetch CSRF token:', err);
           });
 
         // نموذج تعديل الملف
@@ -1098,26 +1196,33 @@
         try {
           const response = await fetch('/api/user/profile', {
             method: 'PUT',
+            credentials: 'include',
             body: formData
           });
 
+          // ✅ التعامل مع أخطاء السيرفر
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`خطأ في السيرفر: ${response.status} - ${errorText}`);
+          }
+
           const data = await response.json();
 
-          if (response.ok) {
-            alert('✅ ' + data.message);
+          if (data.success) {
+            showAlert('✅ ' + (data.message || 'تم تحديث الملف الشخصي بنجاح'), 'success');
             this.loadUserProfile();
           } else {
-            alert('❌ ' + data.message);
+            showAlert('❌ ' + (data.message || 'حدث خطأ أثناء تحديث الملف'), 'danger');
           }
         } catch (error) {
           console.error('Error updating profile:', error);
-          alert('❌ حدث خطأ أثناء تحديث الملف الشخصي');
+          showAlert('❌ حدث خطأ أثناء تحديث الملف الشخصي', 'danger');
         }
       }
     }
 
-    // 🆕 دالة فلترة الحجوزات
-    function filterBookings(filter) {
+    // 🆕 دالة فلترة الحجوزات - معدلة
+    function filterBookings(filter, event) {
       const bookings = document.querySelectorAll('#allBookingsContainer .booking-card');
       bookings.forEach(booking => {
         const status = booking.querySelector('.badge').textContent;
@@ -1140,11 +1245,13 @@
         booking.style.display = show ? 'block' : 'none';
       });
 
-      // تحديث أزرار الفلترة
-      document.querySelectorAll('#bookings .btn-group .btn').forEach(btn => {
-        btn.classList.remove('active');
-      });
-      event.target.classList.add('active');
+      // ✅ تحديث أزرار الفلترة مع event
+      if (event) {
+        document.querySelectorAll('#bookings .btn-group .btn').forEach(btn => {
+          btn.classList.remove('active');
+        });
+        event.target.classList.add('active');
+      }
     }
 
     // معاينة الصورة الشخصية
@@ -1160,7 +1267,10 @@
 
     // تسجيل الخروج
     function logout() {
-      fetch('/logout', { method: 'POST' })
+      fetch('/logout', { 
+        method: 'POST',
+        credentials: 'include'
+      })
         .then(() => {
           window.location.href = '/login.html';
         })
@@ -1172,7 +1282,7 @@
     // تهيئة النظام
     let profileSystem;
     document.addEventListener('DOMContentLoaded', function() {
-      fetch('/api/current-user')
+      fetch('/api/current-user', { credentials: 'include' })
         .then(r => {
           if (!r.ok) throw new Error('Not logged in');
           return r.json();
