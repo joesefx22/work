@@ -263,6 +263,14 @@
       padding: 12px 16px;
       margin-bottom: 1rem;
     }
+
+    /* 🆕 أنماط الـ Loading */
+    .loading-spinner {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 3rem;
+    }
   </style>
 </head>
 <body>
@@ -280,7 +288,7 @@
           <a href="/players-with-you">
             <i class="bi bi-people me-1"></i> لاعبوني معاكم
           </a>
-          <a href="/profile">
+          <a href="/profile" id="profileLink">
             <i class="bi bi-person me-1"></i> ملفي الشخصي
           </a>
           <a href="#" onclick="logout()">
@@ -317,22 +325,22 @@
       <div class="container mt-4">
         <ul class="nav nav-pills nav-justified mb-4" id="profileTabs" role="tablist">
           <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button">
+            <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab" aria-controls="overview" aria-selected="true">
               <i class="bi bi-speedometer2 me-2"></i>نظرة عامة
             </button>
           </li>
           <li class="nav-item" role="presentation">
-            <button class="nav-link" id="bookings-tab" data-bs-toggle="tab" data-bs-target="#bookings" type="button">
+            <button class="nav-link" id="bookings-tab" data-bs-toggle="tab" data-bs-target="#bookings" type="button" role="tab" aria-controls="bookings" aria-selected="false">
               <i class="bi bi-calendar-check me-2"></i>حجوزاتي
             </button>
           </li>
           <li class="nav-item" role="presentation">
-            <button class="nav-link" id="players-tab" data-bs-toggle="tab" data-bs-target="#players" type="button">
+            <button class="nav-link" id="players-tab" data-bs-toggle="tab" data-bs-target="#players" type="button" role="tab" aria-controls="players" aria-selected="false">
               <i class="bi bi-people me-2"></i>طلبات اللاعبين
             </button>
           </li>
           <li class="nav-item" role="presentation">
-            <button class="nav-link" id="edit-tab" data-bs-toggle="tab" data-bs-target="#edit" type="button">
+            <button class="nav-link" id="edit-tab" data-bs-toggle="tab" data-bs-target="#edit" type="button" role="tab" aria-controls="edit" aria-selected="false">
               <i class="bi bi-pencil-square me-2"></i>تعديل الملف
             </button>
           </li>
@@ -341,7 +349,7 @@
         <div class="tab-content" id="profileTabContent">
           
           <!-- تبويب النظرة العامة -->
-          <div class="tab-pane fade show active" id="overview" role="tabpanel">
+          <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview-tab">
             <!-- شبكة الإحصائيات -->
             <div class="stats-grid">
               <div class="stat-card">
@@ -374,9 +382,10 @@
             <div class="form-section">
               <h5 class="mb-3"><i class="bi bi-clock me-2"></i>حجوزاتي القادمة</h5>
               <div id="upcomingBookings">
-                <div class="text-center py-4">
-                  <i class="bi bi-calendar-x display-4 text-muted"></i>
-                  <p class="text-muted mt-2">لا توجد حجوزات قادمة</p>
+                <div class="loading-spinner">
+                  <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">جاري التحميل...</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -385,9 +394,10 @@
             <div class="form-section">
               <h5 class="mb-3"><i class="bi bi-ticket-perforated me-2"></i>أكواد التعويض</h5>
               <div id="compensationCodes">
-                <div class="text-center py-4">
-                  <i class="bi bi-ticket-perforated display-4 text-muted"></i>
-                  <p class="text-muted mt-2">لا توجد أكواد تعويض نشطة</p>
+                <div class="loading-spinner">
+                  <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">جاري التحميل...</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -396,16 +406,17 @@
             <div class="form-section">
               <h5 class="mb-3"><i class="bi bi-activity me-2"></i>آخر النشاطات</h5>
               <div class="activity-timeline" id="activityTimeline">
-                <div class="text-center py-4">
-                  <i class="bi bi-inbox display-4 text-muted"></i>
-                  <p class="text-muted mt-2">لا توجد نشاطات حديثة</p>
+                <div class="loading-spinner">
+                  <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">جاري التحميل...</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
           <!-- تبويب الحجوزات -->
-          <div class="tab-pane fade" id="bookings" role="tabpanel">
+          <div class="tab-pane fade" id="bookings" role="tabpanel" aria-labelledby="bookings-tab">
             <div class="d-flex justify-content-between align-items-center mb-4">
               <h5><i class="bi bi-calendar-check me-2"></i>جميع حجوزاتي</h5>
               <div class="btn-group">
@@ -416,20 +427,25 @@
               </div>
             </div>
             <div id="allBookingsContainer">
-              <!-- سيتم تعبئة الحجوزات هنا -->
+              <div class="loading-spinner">
+                <div class="spinner-border text-primary" role="status">
+                  <span class="visually-hidden">جاري التحميل...</span>
+                </div>
+              </div>
             </div>
           </div>
 
           <!-- تبويب طلبات اللاعبين -->
-          <div class="tab-pane fade" id="players" role="tabpanel">
+          <div class="tab-pane fade" id="players" role="tabpanel" aria-labelledby="players-tab">
             <div class="row">
               <div class="col-md-6">
                 <div class="form-section">
                   <h5 class="mb-3"><i class="bi bi-send me-2"></i>طلباتي المرسلة</h5>
                   <div id="sentRequestsContainer">
-                    <div class="text-center py-4">
-                      <i class="bi bi-send display-4 text-muted"></i>
-                      <p class="text-muted mt-2">لم تقم بإرسال أي طلبات</p>
+                    <div class="loading-spinner">
+                      <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">جاري التحميل...</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -438,9 +454,10 @@
                 <div class="form-section">
                   <h5 class="mb-3"><i class="bi bi-inbox me-2"></i>طلباتي المستلمة</h5>
                   <div id="receivedRequestsContainer">
-                    <div class="text-center py-4">
-                      <i class="bi bi-inbox display-4 text-muted"></i>
-                      <p class="text-muted mt-2">لا توجد طلبات مستلمة</p>
+                    <div class="loading-spinner">
+                      <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">جاري التحميل...</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -449,7 +466,7 @@
           </div>
 
           <!-- تبويب تعديل الملف -->
-          <div class="tab-pane fade" id="edit" role="tabpanel">
+          <div class="tab-pane fade" id="edit" role="tabpanel" aria-labelledby="edit-tab">
             <div class="edit-form">
               <h4 class="mb-4"><i class="bi bi-pencil-square me-2"></i>تعديل الملف الشخصي</h4>
               
@@ -533,7 +550,7 @@
       div.id = alertId;
       div.className = `alert alert-${type} alert-dismissible fade show`;
       div.setAttribute('role', 'alert');
-      div.textContent = message; // ✅ استخدم textContent بدل innerHTML
+      div.textContent = message;
       
       const btn = document.createElement('button');
       btn.type = 'button';
@@ -545,7 +562,6 @@
       alertsContainer.innerHTML = '';
       alertsContainer.appendChild(div);
       
-      // إزالة التنبيه تلقائياً بعد 5 ثواني
       setTimeout(() => {
         const alertElement = document.getElementById(alertId);
         if (alertElement) {
@@ -561,6 +577,7 @@
         this.playerRequests = [];
         this.compensationCodes = [];
         this.userStats = {};
+        this.lastProfileData = null; // 🆕 cache للبيانات
         this.init();
       }
 
@@ -572,6 +589,9 @@
 
       async loadUserProfile() {
         try {
+          // 🆕 عرض مؤقتات التحميل
+          this.showLoadingStates();
+          
           await Promise.all([
             this.loadBasicProfile(),
             this.loadCurrentBookings(),
@@ -585,6 +605,24 @@
         }
       }
 
+      // 🆕 دالة لعرض حالات التحميل
+      showLoadingStates() {
+        const loadingHTML = `
+          <div class="loading-spinner">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">جاري التحميل...</span>
+            </div>
+          </div>
+        `;
+        
+        document.getElementById('upcomingBookings').innerHTML = loadingHTML;
+        document.getElementById('allBookingsContainer').innerHTML = loadingHTML;
+        document.getElementById('compensationCodes').innerHTML = loadingHTML;
+        document.getElementById('activityTimeline').innerHTML = loadingHTML;
+        document.getElementById('sentRequestsContainer').innerHTML = loadingHTML;
+        document.getElementById('receivedRequestsContainer').innerHTML = loadingHTML;
+      }
+
       async loadBasicProfile() {
         try {
           const response = await fetch('/api/user/profile', { 
@@ -594,13 +632,35 @@
           if (!response.ok) throw new Error(`Server error: ${response.status}`);
           
           const data = await response.json();
-          this.displayProfile(data);
-          this.userStats = data.stats || {};
+          
+          // 🆕 إصلاح مشكلة هيكل البيانات
+          const profile = data.profile || data;
+          const stats = data.stats || {};
+          
+          // 🆕 التحقق من وجود تغييرات قبل التحديث
+          if (!this.hasProfileChanged(profile, stats)) {
+            return; // لا حاجة للتحديث
+          }
+          
+          this.displayProfile(profile, stats);
+          this.userStats = stats;
           this.updateStatsGrid();
+          this.lastProfileData = { profile, stats }; // 🆕 حفظ آخر بيانات
         } catch (error) {
           console.error('Error loading profile:', error);
           throw error;
         }
+      }
+
+      // 🆕 دالة للتحقق من تغيير البيانات
+      hasProfileChanged(newProfile, newStats) {
+        if (!this.lastProfileData) return true;
+        
+        const oldProfile = this.lastProfileData.profile;
+        const oldStats = this.lastProfileData.stats;
+        
+        return JSON.stringify(newProfile) !== JSON.stringify(oldProfile) ||
+               JSON.stringify(newStats) !== JSON.stringify(oldStats);
       }
 
       async loadCurrentBookings() {
@@ -670,9 +730,7 @@
         }
       }
 
-      displayProfile(data) {
-        const { profile, stats } = data;
-        
+      displayProfile(profile, stats) {
         document.getElementById('profileName').textContent = profile.nickname || 'الاسم المستعار';
         document.getElementById('profileAge').textContent = profile.age ? `العمر: ${profile.age}` : 'العمر: غير محدد';
         
@@ -687,6 +745,13 @@
         document.getElementById('nickname').value = profile.nickname || '';
         if (profile.age) document.getElementById('age').value = profile.age;
         document.getElementById('bio').value = profile.bio || '';
+        
+        // 🆕 دعم نظام المديرين
+        if (profile.role === 'admin') {
+          document.getElementById('profileLink').innerHTML = '<i class="bi bi-speedometer2 me-1"></i>لوحة التحكم';
+        } else if (profile.role === 'manager') {
+          document.getElementById('profileLink').innerHTML = '<i class="bi bi-building me-1"></i>إدارة الملاعب';
+        }
         
         // تحديث مستوى المستخدم
         this.updateUserLevel(stats);
@@ -948,6 +1013,7 @@
           if (timeLeft <= 0) {
             countdownElement.textContent = 'انتهى الوقت';
             countdownElement.className = 'countdown-timer bg-secondary';
+            countdownElement.style.background = 'linear-gradient(135deg, #95a5a6, #7f8c8d)'; // 🆕 إصلاح اللون
             return;
           }
           
@@ -1002,6 +1068,12 @@
         if (!booking) return;
 
         const modalContent = document.getElementById('bookingDetailsContent');
+        
+        // 🆕 إصلاح مشكلة المبالغ المالية
+        const paidAmount = booking.paidAmount || 0;
+        const remainingAmount = booking.remainingAmount || 
+                              (booking.finalAmount || booking.amount || 0) - paidAmount;
+        
         modalContent.innerHTML = `
           <div class="row">
             <div class="col-md-6">
@@ -1014,9 +1086,9 @@
             </div>
             <div class="col-md-6">
               <h6>المعلومات المالية</h6>
-              <p><strong>السعر الكامل:</strong> ${booking.amount} ج.م</p>
-              <p><strong>المبلغ المدفوع:</strong> ${booking.paidAmount} ج.م</p>
-              <p><strong>المبلغ المتبقي:</strong> ${booking.remainingAmount} ج.م</p>
+              <p><strong>السعر الكامل:</strong> ${booking.finalAmount || booking.amount} ج.م</p>
+              <p><strong>المبلغ المدفوع:</strong> ${paidAmount} ج.م</p>
+              <p><strong>المبلغ المتبقي:</strong> ${remainingAmount} ج.م</p>
               ${booking.playersNeeded > 0 ? `<p><strong>اللاعبين المطلوبين:</strong> ${booking.playersNeeded}</p>` : ''}
             </div>
           </div>
@@ -1208,11 +1280,12 @@
 
           const data = await response.json();
 
-          if (data.success) {
+          // 🆕 إصلاح مشكلة استجابة السيرفر
+          if (data.success || response.ok) {
             showAlert('✅ ' + (data.message || 'تم تحديث الملف الشخصي بنجاح'), 'success');
             this.loadUserProfile();
           } else {
-            showAlert('❌ ' + (data.message || 'حدث خطأ أثناء تحديث الملف'), 'danger');
+            showAlert('❌ ' + (data.message || 'لم يتم التأكيد من السيرفر، تأكد من حفظ البيانات'), 'warning');
           }
         } catch (error) {
           console.error('Error updating profile:', error);
@@ -1267,7 +1340,8 @@
 
     // تسجيل الخروج
     function logout() {
-      fetch('/logout', { 
+      // 🆕 إصلاح مسار تسجيل الخروج
+      fetch('/api/logout', { 
         method: 'POST',
         credentials: 'include'
       })
@@ -1275,6 +1349,7 @@
           window.location.href = '/login.html';
         })
         .catch(() => {
+          // Fallback في حالة فشل الطلب
           window.location.href = '/login.html';
         });
     }
