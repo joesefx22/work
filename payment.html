@@ -423,6 +423,15 @@
             background: #f8fff9;
         }
 
+        .free-booking {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
         @media (max-width: 768px) {
             .payment-container {
                 margin: 10px;
@@ -480,8 +489,18 @@
                 <div id="discountMessage"></div>
             </div>
 
+            <!-- حالة الحجز المجاني -->
+            <div class="free-booking" id="freeBookingSection" style="display: none;">
+                <h3>🎉 لا حاجة للدفع!</h3>
+                <p>بعد تطبيق الخصم، أصبح المبلغ المطلوب صفر.</p>
+                <button class="btn btn-success" onclick="confirmFreeBooking()">
+                    <i class="bi bi-check-circle me-2"></i>
+                    تأكيد الحجز مجاناً
+                </button>
+            </div>
+
             <!-- طرق الدفع -->
-            <div class="payment-methods">
+            <div class="payment-methods" id="paymentMethodsSection">
                 <h3>💳 اختر طريقة الدفع</h3>
                 <div class="payment-options">
                     <div class="payment-option" onclick="selectPaymentMethod('online')" id="option-online">
@@ -632,6 +651,8 @@
             first: null,
             second: null
         };
+        let pollingAttempts = 0;
+        const MAX_POLLING_ATTEMPTS = 60; // 3 دقائق (60 * 3 ثواني)
 
         // الحصول على توكن CSRF
         async function getCSRFToken() {
@@ -651,7 +672,10 @@
             try {
                 showLoading(true);
                 const response = await fetch('/api/booking-info', {
-                    credentials: 'include'
+                    credentials: 'include',
+                    headers: {
+                        'X-CSRF-Token': csrfToken
+                    }
                 });
                 
                 if (!response.ok) {
@@ -660,20 +684,87 @@
                 
                 const bookingInfo = await response.json();
                 
-                if (!bookingInfo.field) {
+                if (!bookingInfo.field && !bookingInfo.field_name) {
                     showAlert('لا يوجد حجز معلق للدفع', 'error');
                     return;
                 }
                 
                 currentBooking = bookingInfo;
+                
+                // التأكد من وجود البيانات الأساسية
+                if (!currentBooking.bookingId && currentBooking.id) {
+                    currentBooking.bookingId = currentBooking.id;
+                }
+                if (!currentBooking.pitchId && currentBooking.pitch_id) {
+                    currentBooking.pitchId = currentBooking.pitch_id;
+                }
+                if (!currentBooking.originalAmount && currentBooking.original_amount) {
+                    currentBooking.originalAmount = currentBooking.original_amount;
+                }
+                
                 displayBookingSummary();
                 
                 // تحديث المبلغ المطلوب في قسم الأكواد
                 document.getElementById('requiredAmount').textContent = currentBooking.amount;
                 
+                // التحقق إذا كان المبلغ صفر بعد الخصم
+                checkFreeBooking();
+                
             } catch (error) {
                 console.error('Error loading booking info:', error);
                 showAlert('حدث خطأ في تحميل بيانات الحجز', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // التحقق من الحجز المجاني
+        function checkFreeBooking() {
+            if (currentBooking.amount <= 0) {
+                document.getElementById('freeBookingSection').style.display = 'block';
+                document.getElementById('paymentMethodsSection').style.display = 'none';
+                document.getElementById('paymobSection').style.display = 'none';
+                document.getElementById('voucherSection').style.display = 'none';
+                document.getElementById('confirmPaymentBtn').style.display = 'none';
+            } else {
+                document.getElementById('freeBookingSection').style.display = 'none';
+                document.getElementById('paymentMethodsSection').style.display = 'block';
+            }
+        }
+
+        // تأكيد الحجز المجاني
+        async function confirmFreeBooking() {
+            showLoading(true);
+            
+            try {
+                const response = await fetch('/api/confirm-free-booking', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        bookingId: currentBooking.bookingId
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    showPaymentStatus('success', '✅ تم تأكيد الحجز بنجاح!');
+                    
+                    setTimeout(() => {
+                        window.location.href = '/profile';
+                    }, 2000);
+                    
+                } else {
+                    throw new Error(result.message || 'فشل في تأكيد الحجز');
+                }
+                
+            } catch (error) {
+                console.error('Error confirming free booking:', error);
+                showAlert(`❌ فشل في تأكيد الحجز: ${error.message}`, 'error');
             } finally {
                 showLoading(false);
             }
@@ -684,11 +775,11 @@
             const summaryItems = document.getElementById('summaryItems');
             
             const items = [
-                { label: 'الملعب', value: currentBooking.field || 'غير محدد' },
+                { label: 'الملعب', value: currentBooking.field || currentBooking.field_name || 'غير محدد' },
                 { label: 'التاريخ', value: currentBooking.date || 'غير محدد' },
                 { label: 'الوقت', value: currentBooking.time ? `${currentBooking.time}:00 - ${parseInt(currentBooking.time) + 1}:00` : 'غير محدد' },
                 { label: 'المدة', value: currentBooking.hours ? `${currentBooking.hours} ساعة` : '-' },
-                { label: 'السعر الأصلي', value: currentBooking.originalAmount ? `${currentBooking.originalAmount} جنيه` : '-' }
+                { label: 'السعر الأصلي', value: currentBooking.originalAmount ? `${currentBooking.originalAmount} جنيه` : (currentBooking.amount ? `${currentBooking.amount} جنيه` : '-') }
             ];
             
             if (currentBooking.discount) {
@@ -739,6 +830,7 @@
                 document.getElementById('paymobSection').style.display = 'block';
                 document.getElementById('voucherSection').style.display = 'none';
                 document.getElementById('confirmPaymentBtn').style.display = 'none';
+                resetCodeValidation(); // إعادة تعيين الأكواد
             } else if (method === 'voucher') {
                 document.getElementById('paymobSection').style.display = 'none';
                 document.getElementById('voucherSection').style.display = 'block';
@@ -777,6 +869,11 @@
         // إعادة تعيين تحقق الأكواد
         function resetCodeValidation() {
             validatedCodes = { single: null, first: null, second: null };
+            
+            // إعادة تعيين الحقول
+            document.getElementById('singleVoucherCode').value = '';
+            document.getElementById('firstVoucherCode').value = '';
+            document.getElementById('secondVoucherCode').value = '';
             
             document.getElementById('code1Validation').innerHTML = `
                 <i class="bi bi-dash-circle"></i>
@@ -846,6 +943,9 @@
                     
                     // تحديث المبلغ المطلوب في قسم الأكواد
                     document.getElementById('requiredAmount').textContent = currentBooking.amount;
+                    
+                    // التحقق إذا أصبح الحجز مجاني
+                    checkFreeBooking();
                     
                 } else {
                     discountMessage.innerHTML = `<p style="color: #dc3545;">❌ ${result.message || 'كود غير صالح'}</p>`;
@@ -996,7 +1096,8 @@
             let isReady = false;
             
             if (selectedCodeOption === 1) {
-                isReady = validatedCodes.single !== null && validatedCodes.single.value >= currentBooking.amount;
+                isReady = validatedCodes.single !== null && 
+                          validatedCodes.single.value >= currentBooking.amount;
             } else if (selectedCodeOption === 2) {
                 isReady = validatedCodes.first !== null && 
                           validatedCodes.second !== null && 
@@ -1062,11 +1163,24 @@
         // تتبع حالة الدفع
         function startPaymentPolling() {
             if (pollingInterval) clearInterval(pollingInterval);
+            pollingAttempts = 0;
             
             pollingInterval = setInterval(async () => {
+                pollingAttempts++;
+                
+                // إيقاف التتبع بعد 3 دقائق
+                if (pollingAttempts > MAX_POLLING_ATTEMPTS) {
+                    clearInterval(pollingInterval);
+                    showPaymentStatus('error', '⏰ انتهى الوقت المسموح للدفع. يرجى المحاولة مرة أخرى.');
+                    return;
+                }
+                
                 try {
                     const response = await fetch(`/api/paymob/status?orderId=${paymobOrderId}`, {
-                        credentials: 'include'
+                        credentials: 'include',
+                        headers: {
+                            'X-CSRF-Token': csrfToken
+                        }
                     });
                     
                     const result = await response.json();
@@ -1094,7 +1208,7 @@
 
         // تأكيد الدفع باستخدام الأكواد
         async function confirmPayment() {
-            if (!selectedPaymentMethod === 'voucher') {
+            if (selectedPaymentMethod !== 'voucher') {
                 return;
             }
 
@@ -1109,7 +1223,8 @@
                     voucherCodes = [validatedCodes.first.code, validatedCodes.second.code];
                 }
                 
-                const response = await fetch('/api/confirm-voucher-payment', {
+                // استخدام نفس الـ endpoint للتحقق مع التأكيد
+                const response = await fetch('/api/validate-voucher', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1117,9 +1232,9 @@
                     },
                     credentials: 'include',
                     body: JSON.stringify({
-                        bookingId: currentBooking.bookingId,
                         voucherCodes: voucherCodes,
-                        totalAmount: currentBooking.amount
+                        bookingId: currentBooking.bookingId,
+                        confirmPayment: true // إشارة للتأكيد النهائي
                     })
                 });
                 
