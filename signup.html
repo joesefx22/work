@@ -229,6 +229,12 @@
       background: transparent;
       z-index: 10;
     }
+
+    /* 🆕 ستايل للزر المعطل */
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
   </style>
 </head>
 <body>
@@ -245,13 +251,14 @@
   <main class="signup-container">
     <div class="logo">
       <i class="bi bi-soccer-ball"></i>
-      <h2 class="h4 mb-3">إنشاء حساب جديد</h2>
+      <h2 class="h4 mb-3" id="formTitle">إنشاء حساب جديد</h2>
     </div>
 
     <!-- 🆕 نظام التنبيهات مع ARIA -->
     <div id="alertsContainer" aria-live="polite" aria-atomic="true"></div>
 
-    <form id="signupForm" novalidate>
+    <!-- ✅ إضافة role و aria-labelledby للنموذج -->
+    <form id="signupForm" novalidate role="form" aria-labelledby="formTitle">
       <!-- CSRF Token -->
       <input type="hidden" name="_csrf" id="csrfToken">
       
@@ -637,7 +644,7 @@
     // ✅ متغير لمنع الإرسال المتكرر
     let submitting = false;
 
-    // ✅ إرسال النموذج المحسّن مع الحماية
+    // ✅ إرسال النموذج المحسّن مع الحماية والتعامل مع الأخطاء المحسّن
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       
@@ -676,7 +683,7 @@
       try {
         const res = await fetch('/signup', {
           method: 'POST',
-          credentials: 'include', // ✅ إضافة credentials
+          credentials: 'include',
           headers: { 
             'Content-Type': 'application/json',
             'X-CSRF-Token': _csrf
@@ -687,10 +694,19 @@
           })
         });
 
+        // ✅ التعامل مع أخطاء السيرفر
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(`خطأ في السيرفر: ${res.status} - ${errorText}`);
+        }
+
         const data = await res.json();
 
-        if (res.ok && data.success) {
-          showAlert('✅ ' + (data.message || 'تم إنشاء الحساب بنجاح!'), 'success');
+        if (data.success) {
+          // ✅ رسالة نجاح محسّنة مع تأكيد البريد
+          const successMessage = data.message || 'تم إنشاء الحساب بنجاح! يُرجى تأكيد البريد الإلكتروني عبر الرابط المرسل.';
+          showAlert('✅ ' + successMessage, 'success');
+          
           form.reset();
           
           // إعادة تعيين التصميم
@@ -706,11 +722,25 @@
             window.location.href = '/login';
           }, 3000);
         } else {
-          showAlert('❌ ' + (data.message || 'حدث خطأ أثناء التسجيل. يرجى المحاولة مرة أخرى.'), 'danger');
+          // ✅ عرض رسالة الخطأ من السيرفر بشكل واضح
+          const errorMessage = data.message || 'حدث خطأ أثناء التسجيل. يرجى المحاولة مرة أخرى.';
+          showAlert('❌ ' + errorMessage, 'danger');
         }
       } catch (error) {
         console.error('Error:', error);
-        showAlert('❌ تعذر الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت.', 'danger');
+        
+        // ✅ رسالة خطأ محسّنة مع اقتراح إعادة المحاولة
+        let errorMessage = 'تعذر الاتصال بالخادم. ';
+        
+        if (error.message.includes('خطأ في السيرفر')) {
+          errorMessage += 'حدث خطأ تقني. يرجى المحاولة مرة أخرى بعد قليل.';
+        } else if (error.message.includes('Failed to fetch')) {
+          errorMessage += 'يرجى التحقق من اتصال الإنترنت والمحاولة مرة أخرى.';
+        } else {
+          errorMessage += 'يرجى المحاولة مرة أخرى أو الاتصال بالدعم الفني.';
+        }
+        
+        showAlert('❌ ' + errorMessage, 'danger');
       } finally {
         // إعادة تمكين الزر
         submitting = false;
@@ -808,6 +838,13 @@
           }
         })
         .catch(console.error);
+        
+      // ✅ إضافة تحسينات إضافية للوصول
+      const formTitle = document.getElementById('formTitle');
+      if (formTitle) {
+        formTitle.setAttribute('role', 'heading');
+        formTitle.setAttribute('aria-level', '2');
+      }
     });
   </script>
 </body>
