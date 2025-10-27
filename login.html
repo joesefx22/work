@@ -209,13 +209,11 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
-    /* 🆕 إضافة ستايل للزر المعطل */
     .btn:disabled {
       opacity: 0.6;
       cursor: not-allowed;
     }
 
-    /* 🆕 رسالة الترحيب */
     .welcome-message {
       background: linear-gradient(135deg, #e8f5e8, #f0fff0);
       border: 1px solid #2ecc71;
@@ -338,7 +336,6 @@
       alertsContainer.innerHTML = '';
       alertsContainer.appendChild(div);
       
-      // إزالة التنبيه تلقائياً بعد 5 ثواني
       setTimeout(() => {
         const alertElement = document.getElementById(alertId);
         if (alertElement) {
@@ -421,7 +418,6 @@
       const rememberMe = document.getElementById('rememberMe').checked;
       const _csrf = document.getElementById('csrfToken').value;
 
-      // تعطيل الزر وعرض loading
       submitting = true;
       submitBtn.disabled = true;
       submitBtn.innerHTML = '<i class="bi bi-arrow-repeat spinner me-2"></i> جاري تسجيل الدخول...';
@@ -437,7 +433,6 @@
           body: JSON.stringify({ email, password, rememberMe })
         });
 
-        // ✅ التعامل مع أخطاء السيرفر
         if (!res.ok) {
           const errorText = await res.text();
           throw new Error(`خطأ في السيرفر: ${res.status} - ${errorText}`);
@@ -446,28 +441,29 @@
         const data = await res.json();
 
         if (data.success) {
-          // ✅ رسالة ترحيب محسنة
           const welcomeMessage = `🎉 مرحباً بعودتك! جاري توجيهك إلى لوحة التحكم...`;
           showAlert(welcomeMessage, 'success');
           
-          // ✅ حفظ البريد إذا تم اختيار تذكرني
           if (rememberMe) {
             localStorage.setItem('rememberedEmail', email);
           } else {
             localStorage.removeItem('rememberedEmail');
           }
 
-          // ✅ التعديل 3: التحقق من حالة الحساب
+          // ✅ التعديل: حفظ userId بعد تسجيل الدخول
+          if (data.userId) {
+            localStorage.setItem('userId', data.userId);
+            console.log('✅ User ID saved:', data.userId);
+          }
+
           if (data.role !== 'user' && !data.approved) {
             showAlert('⚠️ حسابك قيد المراجعة من الإدارة. سيتم تفعيله قريبًا.', 'warning');
-            // إعادة تمكين الزر دون توجيه
             submitting = false;
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalBtnText;
             return;
           }
 
-          // ✅ التعديل 4: حفظ بيانات المستخدم في localStorage
           localStorage.setItem('userRole', data.role);
           localStorage.setItem('userEmail', email);
           if (data.pitchIds) {
@@ -477,16 +473,12 @@
             localStorage.setItem('username', data.username);
           }
 
-          // ✅ التعديل 5: تأخير التوجيه 1.5 ثانية
           setTimeout(() => {
-            // ✅ التعديل 1 و 2: التوجيه حسب نوع الحساب وعدد الملاعب
             if (data.role === 'admin') {
               window.location.href = '/admin.html';
             } else if (data.role === 'multi_manager') {
-              // ✅ التعديل 1: دعم multi_manager
               window.location.href = '/admin-overview.html';
             } else if (data.role === 'manager') {
-              // ✅ التعديل 2: التوجيه حسب عدد الملاعب
               if (data.pitchIds && data.pitchIds.length > 1) {
                 window.location.href = '/admin-overview.html';
               } else if (data.pitchIds && data.pitchIds.length === 1) {
@@ -497,17 +489,15 @@
             } else {
               window.location.href = '/index.html';
             }
-          }, 1500); // ✅ تأخير 1.5 ثانية
+          }, 1500);
 
         } else {
-          // ✅ عرض رسالة الخطأ من السيرفر بشكل واضح
           const errorMessage = data.message || 'حدث خطأ أثناء تسجيل الدخول. يرجى المحاولة مرة أخرى.';
           showAlert('❌ ' + errorMessage, 'danger');
         }
       } catch (error) {
         console.error('Error:', error);
         
-        // ✅ رسالة خطأ محسّنة مع اقتراح إعادة المحاولة
         let errorMessage = 'تعذر الاتصال بالخادم. ';
         
         if (error.message.includes('خطأ في السيرفر')) {
@@ -520,7 +510,6 @@
         
         showAlert('❌ ' + errorMessage, 'danger');
       } finally {
-        // إعادة تمكين الزر (ما عدا في حالة الحساب قيد المراجعة)
         if (!(data && data.role !== 'user' && !data.approved)) {
           submitting = false;
           submitBtn.disabled = false;
@@ -544,7 +533,6 @@
           input.classList.remove('is-valid');
         }
         
-        // تحقق إضافي للبريد الإلكتروني
         if (input.type === 'email' && input.value) {
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
           if (!emailRegex.test(input.value)) {
@@ -561,33 +549,8 @@
       });
     });
 
-    // ✅ تأثيرات للعناصر
-    document.querySelectorAll('.form-control').forEach(element => {
-      element.addEventListener('focus', function() {
-        this.parentElement.classList.add('focused');
-      });
-      
-      element.addEventListener('blur', function() {
-        if (this.value === '') {
-          this.parentElement.classList.remove('focused');
-        }
-      });
-    });
-
-    // ✅ تحسين تجربة المستخدم على الأجهزة المحمولة
-    if ('ontouchstart' in window) {
-      document.querySelectorAll('.form-control').forEach(input => {
-        input.addEventListener('focus', function() {
-          setTimeout(() => {
-            this.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }, 300);
-        });
-      });
-    }
-
     // ✅ تهيئة الصفحة
     document.addEventListener('DOMContentLoaded', function() {
-      // تحميل CSRF token عند بدء الصفحة
       fetch('/csrf-token', { credentials: 'include' })
         .then(r => r.json())
         .then(d => {
@@ -597,43 +560,27 @@
         })
         .catch(console.error);
       
-      // ✅ تحميل البريد المحفوظ إذا كان موجود
       const savedEmail = localStorage.getItem('rememberedEmail');
       if (savedEmail) {
         document.getElementById('email').value = savedEmail;
         document.getElementById('rememberMe').checked = true;
       }
       
-      // ✅ التركيز التلقائي على حقل البريد
       document.getElementById('email').focus();
       
-      // ✅ إضافة تحسينات إضافية للوصول
       const formTitle = document.getElementById('formTitle');
       if (formTitle) {
         formTitle.setAttribute('role', 'heading');
         formTitle.setAttribute('aria-level', '2');
       }
 
-      // 🆕 عرض رسالة ترحيب إذا كان هناك redirect من signup
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('from') === 'signup') {
         showAlert('🎉 تم إنشاء حسابك بنجاح! يرجى تسجيل الدخول الآن.', 'success');
       }
 
-      // 🆕 إدخال سريع للبيانات للتجربة (للتطوير فقط)
       if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
         console.log('🛠️ Development mode: Quick login available');
-        // يمكن إضافة بيانات تجريبية هنا للتطوير
-      }
-    });
-
-    // ✅ منع إرسال النموذج بالزر Enter في الحقول غير النصية
-    document.getElementById('loginForm').addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') {
-        const target = e.target;
-        if (target.type === 'checkbox') {
-          e.preventDefault();
-        }
       }
     });
   </script>
