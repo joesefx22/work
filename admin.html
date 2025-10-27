@@ -1187,7 +1187,7 @@
                 card.innerHTML = `
                     <div class="manager-pitch-card">
                         <h5>ملعب رقم ${id}</h5>
-                        <div class="manager-stats">
+                        <div class="manager-stats" id="stats-${id}">
                             <div class="manager-stat">
                                 <div class="manager-stat-number">--</div>
                                 <div class="manager-stat-label">عدد الحجوزات</div>
@@ -1262,9 +1262,54 @@
             }
         }
 
-        async function loadPayments(pitchId) {
-            // سيتم تنفيذها لاحقاً
-            console.log('Loading payments for pitch:', pitchId);
+        // 🆕 دوال التحميل المحسنة - تضيف هنا
+        async function loadPayments(pitchId = 'all') {
+            try {
+                unifiedSystem.showLoading('paymentsTable', 'جاري تحميل المدفوعات...');
+                
+                let endpoint = '/api/admin/payments';
+                if (currentUserData.role === 'manager' || currentUserData.role === 'multi_manager') {
+                    if (pitchId && pitchId !== 'all') {
+                        endpoint = `/api/manager/payments?pitchId=${pitchId}`;
+                    } else {
+                        endpoint = '/api/manager/payments';
+                    }
+                }
+                
+                const response = await fetch(endpoint, {
+                    headers: unifiedSystem.getAuthHeaders()
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    unifiedSystem.allPayments = result.payments || result.data || [];
+                    unifiedSystem.updatePaymentsTable(unifiedSystem.allPayments);
+                } else {
+                    throw new Error('Failed to load payments');
+                }
+            } catch (error) {
+                console.error('Error loading payments:', error);
+                unifiedSystem.allPayments = unifiedSystem.getMockPayments();
+                unifiedSystem.updatePaymentsTable(unifiedSystem.allPayments);
+                unifiedSystem.showAlert('تم تحميل بيانات تجريبية', 'info');
+            }
+        }
+
+        // 🆕 تحسين تحميل البيانات الأولية
+        async function loadInitialData() {
+            const userData = loadUserData();
+            
+            if (userData.role === 'admin') {
+                await unifiedSystem.loadPitches();
+                await unifiedSystem.loadAdminData();
+                await unifiedSystem.loadUsers();
+                await loadPayments();
+            } else if (userData.role === 'manager' || userData.role === 'multi_manager') {
+                await unifiedSystem.loadPitches();
+                await unifiedSystem.loadManagerData();
+                await loadBookings(selectedPitchId);
+                await loadPayments(selectedPitchId);
+            }
         }
 
         async function loadPitchStats(pitchId) {
@@ -1306,6 +1351,24 @@
                 '70feddan': 'السبعين فدان'
             };
             return areas[area] || area;
+        }
+
+        // 🆕 تحسين عرض الملاعب للمدير
+        function enhanceManagerPitchesDisplay() {
+            const userData = currentUserData;
+            if (userData && (userData.role === 'manager' || userData.role === 'multi_manager')) {
+                // إخفاء محدد الملعب إذا كان ملعب واحد فقط
+                if (userData.pitchIds.length === 1) {
+                    document.getElementById('pitchSelectorContainer').style.display = 'none';
+                    selectedPitchId = userData.pitchIds[0];
+                    handlePitchChange(selectedPitchId);
+                }
+                // إظهار محدد الملعب إذا كان أكثر من ملعب
+                else if (userData.pitchIds.length > 1) {
+                    document.getElementById('pitchSelectorContainer').style.display = 'block';
+                    populatePitchSelector(userData.pitchIds);
+                }
+            }
         }
 
         function viewPitchAvailability(pitchId) {
@@ -1389,12 +1452,18 @@
 
             // 📊 تحميل البيانات الأولية
             async loadInitialData() {
-                await this.loadPitches();
+                const userData = loadUserData();
                 
-                if (this.userRole === 'admin') {
+                if (userData.role === 'admin') {
+                    await this.loadPitches();
                     await this.loadAdminData();
                     await this.loadUsers();
-                    await this.loadPayments();
+                    await loadPayments();
+                } else if (userData.role === 'manager' || userData.role === 'multi_manager') {
+                    await this.loadPitches();
+                    await this.loadManagerData();
+                    await loadBookings(selectedPitchId);
+                    await loadPayments(selectedPitchId);
                 }
             }
 
@@ -2950,6 +3019,11 @@
 
             // إعداد الواجهة حسب الصلاحيات
             setupUIByRole();
+            
+            // تحميل البيانات بعد تهيئة الواجهة
+            setTimeout(() => {
+                loadInitialData();
+            }, 500);
         });
     </script>
 </body>
