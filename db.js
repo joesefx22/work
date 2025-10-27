@@ -1,32 +1,51 @@
 /**
  * db.js - PostgreSQL Database Connection
- * دعم كامل لـ PostgreSQL مع كل الخاصيات
+ * إصدار محسن وجاهز للإنتاج
  */
 
 const { Pool } = require('pg');
 
+// تكوين متقدم لـ PostgreSQL
 const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASS || '',
   database: process.env.DB_NAME || 'ehgzly_db',
-  port: process.env.DB_PORT || 5432,
-  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
+  port: parseInt(process.env.DB_PORT) || 5432,
+  ssl: process.env.NODE_ENV === 'production' ? { 
+    rejectUnauthorized: false 
+  } : false,
+  
+  // إعدادات الأداء المتقدمة
+  max: parseInt(process.env.DB_MAX_CONNECTIONS) || 20,
+  min: parseInt(process.env.DB_MIN_CONNECTIONS) || 2,
+  idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT) || 30000,
+  connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT) || 5000,
+  maxUses: 7500,
+  
+  // إعدادات الاستعلام
+  statement_timeout: 30000,
+  query_timeout: 30000,
 });
 
-// حدث الأخطاء والاتصال
-pool.on('connect', () => {
+// مراقبة الاتصال المتقدمة
+pool.on('connect', (client) => {
   console.log('✅ PostgreSQL connected successfully');
 });
 
-pool.on('error', (err) => {
+pool.on('error', (err, client) => {
   console.error('❌ PostgreSQL connection error:', err);
+  // إعادة الاتصال تلقائياً في حالات الخطأ
+  setTimeout(() => {
+    pool.connect().catch(e => console.error('Failed to reconnect:', e));
+  }, 5000);
 });
 
-// دالة تنفيذ الاستعلامات
+pool.on('remove', (client) => {
+  console.log('ℹ️ PostgreSQL client removed');
+});
+
+// دالة تنفيذ الاستعلامات المحسنة
 async function execQuery(sql, params = []) {
   const client = await pool.connect();
   try {
@@ -34,45 +53,119 @@ async function execQuery(sql, params = []) {
     const result = await client.query(sql, params);
     const duration = Date.now() - start;
     
-    // تحذير للاستعلامات البطيئة
+    // تسجيل الاستعلامات البطيئة
     if (duration > 2000) {
-      console.warn(`⚠️ Slow Query (${duration}ms):`, sql);
+      console.warn(`⚠️ Slow Query (${duration}ms):`, sql.substring(0, 200));
+    }
+    
+    // تسجيل أداء الاستعلامات في بيئة التطوير
+    if (process.env.NODE_ENV === 'development' && duration > 100) {
+      console.log(`📊 Query executed in ${duration}ms`);
     }
     
     return result.rows;
   } catch (err) {
-    console.error('❌ Database Query Error:', err.message);
-    console.error('Query:', sql);
-    console.error('Params:', params);
+    console.error('❌ Database Query Error:', {
+      message: err.message,
+      code: err.code,
+      detail: err.detail,
+      query: sql.substring(0, 500),
+      params: params.map(p => typeof p === 'string' ? p.substring(0, 100) : p)
+    });
     throw err;
   } finally {
     client.release();
   }
 }
 
-// دالة للمعاملات الآمنة
-async function withTransaction(callback) {
+// دالة تنفيذ استعلام واحد
+async function execQueryOne(sql, params = []) {
+  const rows = await execQuery(sql, params);
+  return rows.length > 0 ? rows[0] : null;
+}
+
+// دالة للحصول على العميل مباشرة
+async function getClient() {
+  return await pool.connect();
+}
+
+// دالة للمعاملات الآمنة مع تحسينات
+async function withTransaction(callback, isolationLevel = 'READ COMMITTED') {
   const client = await pool.connect();
   try {
+    // تعيين مستوى العزل
+    await client.query(`SET TRANSACTION ISOLATION LEVEL ${isolationLevel}`);
     await client.query('BEGIN');
+    
     const result = await callback(client);
     await client.query('COMMIT');
     return result;
   } catch (err) {
     await client.query('ROLLBACK');
+    console.error('❌ Transaction Error:', err.message);
     throw err;
   } finally {
     client.release();
   }
 }
 
-// دالة لإنشاء الجداول
+// دالة لإنشاء الفهرس لتحسين الأداء
+async function createIndexes() {
+  try {
+    // فهارس المستخدمين
+    await execQuery(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
+    await execQuery(`CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone)`);
+    await execQuery(`CREATE INDEX IF NOT EXISTS idx_users_approved ON users(approved) WHERE approved = true`);
+    await execQuery(`CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at)`);
+    
+    // فهارس الملاعب
+    await execQuery(`CREATE INDEX IF NOT EXISTS idx_stadiums_location ON stadiums(location)`);
+    await execQuery(`CREATE INDEX IF NOT EXISTS idx_stadiums_area ON stadiums(area)`);
+    await execQuery(`CREATE INDEX IF NOT EXISTS idx_stadiums_rating ON stadiums(rating)`);
+    await execQuery(`CREATE INDEX IF NOT EXISTS idx_stadiums_price ON stadiums(price)`);
+    
+    // فهارس الحجوزات
+    await execQuery(`CREATE INDEX IF NOT EXISTS idx_bookings_date ON bookings(date)`);
+    await execQuery(`CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status)`);
+    await execQuery(`CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON bookings(user_id)`);
+    await execQuery(`CREATE INDEX IF NOT EXISTS idx_bookings_customer_phone ON bookings(customer_phone)`);
+    
+    // فهارس time_slots
+    await execQuery(`CREATE INDEX IF NOT EXISTS idx_time_slots_date ON time_slots(date)`);
+    await execQuery(`CREATE INDEX IF NOT EXISTS idx_time_slots_status ON time_slots(status)`);
+    await execQuery(`CREATE INDEX IF NOT EXISTS idx_time_slots_stadium_date ON time_slots(stadium_id, date)`);
+    await execQuery(`CREATE INDEX IF NOT EXISTS idx_time_slots_stadium_status ON time_slots(stadium_id, status)`);
+    
+    // فهارس blocked_slots
+    await execQuery(`CREATE INDEX IF NOT EXISTS idx_blocked_slots_dates ON blocked_slots(start_date, end_date)`);
+    await execQuery(`CREATE INDEX IF NOT EXISTS idx_blocked_slots_active ON blocked_slots(is_active) WHERE is_active = true`);
+    await execQuery(`CREATE INDEX IF NOT EXISTS idx_blocked_slots_stadium ON blocked_slots(stadium_id)`);
+    
+    // فهارس المدفوعات
+    await execQuery(`CREATE INDEX IF NOT EXISTS idx_payments_booking_id ON payments(booking_id)`);
+    await execQuery(`CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status)`);
+    await execQuery(`CREATE INDEX IF NOT EXISTS idx_payments_date ON payments(date)`);
+    
+    // فهارس الجداول الجديدة
+    await execQuery(`CREATE INDEX IF NOT EXISTS idx_activity_logs_user_date ON activity_logs(user_id, created_at)`);
+    await execQuery(`CREATE INDEX IF NOT EXISTS idx_notifications_user_status ON notifications(user_id, status)`);
+    await execQuery(`CREATE INDEX IF NOT EXISTS idx_payment_sessions_status ON payment_sessions(status)`);
+    await execQuery(`CREATE INDEX IF NOT EXISTS idx_login_attempts_ip ON login_attempts(ip_address)`);
+    await execQuery(`CREATE INDEX IF NOT EXISTS idx_support_tickets_status ON support_tickets(status)`);
+    
+    console.log('✅ All indexes created successfully');
+  } catch (error) {
+    console.error('❌ Error creating indexes:', error);
+  }
+}
+
+// دالة لإنشاء الجداول المحسنة
 async function createTables() {
   try {
-    // جدول المستخدمين
+    // جدول المستخدمين (محسن)
     await execQuery(`
       CREATE TABLE IF NOT EXISTS users (
-        id VARCHAR(36) PRIMARY KEY,
+        id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid(),
         username VARCHAR(255) UNIQUE NOT NULL,
         email VARCHAR(255) UNIQUE NOT NULL,
         phone VARCHAR(20) UNIQUE NOT NULL,
@@ -84,12 +177,16 @@ async function createTables() {
         verification_token VARCHAR(255),
         google_id VARCHAR(255),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         last_login TIMESTAMP,
-        stats JSONB
+        last_ip VARCHAR(45),
+        login_count INTEGER DEFAULT 0,
+        stats JSONB DEFAULT '{}',
+        is_active BOOLEAN DEFAULT TRUE
       )
     `);
 
-    // جدول الملاعب
+    // جدول الملاعب (محسن)
     await execQuery(`
       CREATE TABLE IF NOT EXISTS stadiums (
         id SERIAL PRIMARY KEY,
@@ -102,7 +199,7 @@ async function createTables() {
         price DECIMAL(10,2),
         deposit DECIMAL(10,2),
         deposit_required BOOLEAN DEFAULT TRUE,
-        features JSONB,
+        features JSONB DEFAULT '[]',
         rating DECIMAL(3,2) DEFAULT 0,
         total_ratings INTEGER DEFAULT 0,
         coordinates JSONB,
@@ -111,11 +208,13 @@ async function createTables() {
         availability INTEGER DEFAULT 0,
         total_slots INTEGER DEFAULT 0,
         availability_percentage INTEGER DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    // جدول سياسات العربون
+    // الجداول الحالية (نفس الهيكل مع تحسينات بسيطة)
     await execQuery(`
       CREATE TABLE IF NOT EXISTS deposit_rules (
         id SERIAL PRIMARY KEY,
@@ -128,21 +227,19 @@ async function createTables() {
       )
     `);
 
-    // جدول المدراء المتعددين
     await execQuery(`
       CREATE TABLE IF NOT EXISTS stadium_managers (
         id SERIAL PRIMARY KEY,
         stadium_id INTEGER REFERENCES stadiums(id) ON DELETE CASCADE,
         user_id VARCHAR(36) REFERENCES users(id) ON DELETE CASCADE,
         role VARCHAR(20) DEFAULT 'manager',
-        permissions JSONB,
+        permissions JSONB DEFAULT '[]',
         is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    // جدول المواعيد المحجوزة ثابتاً
     await execQuery(`
       CREATE TABLE IF NOT EXISTS blocked_slots (
         id SERIAL PRIMARY KEY,
@@ -160,7 +257,6 @@ async function createTables() {
       )
     `);
 
-    // جدول الساعات
     await execQuery(`
       CREATE TABLE IF NOT EXISTS time_slots (
         id SERIAL PRIMARY KEY,
@@ -171,14 +267,14 @@ async function createTables() {
         price DECIMAL(10,2) NOT NULL,
         status VARCHAR(20) DEFAULT 'available',
         is_golden BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    // جدول الحجوزات الجديد
     await execQuery(`
       CREATE TABLE IF NOT EXISTS new_bookings (
-        id VARCHAR(36) PRIMARY KEY,
+        id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid(),
         time_slot_id INTEGER REFERENCES time_slots(id) ON DELETE CASCADE,
         customer_name VARCHAR(255) NOT NULL,
         customer_phone VARCHAR(20) NOT NULL,
@@ -194,10 +290,9 @@ async function createTables() {
       )
     `);
 
-    // جدول الحجوزات القديم
     await execQuery(`
       CREATE TABLE IF NOT EXISTS bookings (
-        id VARCHAR(36) PRIMARY KEY,
+        id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid(),
         pitch_id INTEGER NOT NULL,
         pitch_name VARCHAR(255) NOT NULL,
         pitch_location VARCHAR(255) NOT NULL,
@@ -229,10 +324,9 @@ async function createTables() {
       )
     `);
 
-    // أكواد الخصم
     await execQuery(`
       CREATE TABLE IF NOT EXISTS discount_codes (
-        id VARCHAR(36) PRIMARY KEY,
+        id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid(),
         code VARCHAR(50) UNIQUE NOT NULL,
         value DECIMAL(10,2) NOT NULL,
         type VARCHAR(50) NOT NULL,
@@ -253,10 +347,9 @@ async function createTables() {
       )
     `);
 
-    // أكواد الفوشر
     await execQuery(`
       CREATE TABLE IF NOT EXISTS voucher_codes (
-        id VARCHAR(36) PRIMARY KEY,
+        id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid(),
         code VARCHAR(50) UNIQUE NOT NULL,
         value DECIMAL(10,2) NOT NULL,
         is_used BOOLEAN DEFAULT FALSE,
@@ -268,10 +361,9 @@ async function createTables() {
       )
     `);
 
-    // المدفوعات
     await execQuery(`
       CREATE TABLE IF NOT EXISTS payments (
-        id VARCHAR(36) PRIMARY KEY,
+        id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid(),
         booking_id VARCHAR(36) NOT NULL,
         payer_name VARCHAR(255) NOT NULL,
         email VARCHAR(255) NOT NULL,
@@ -294,10 +386,9 @@ async function createTables() {
       )
     `);
 
-    // التقييمات
     await execQuery(`
       CREATE TABLE IF NOT EXISTS ratings (
-        id VARCHAR(36) PRIMARY KEY,
+        id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid(),
         pitch_id INTEGER NOT NULL,
         user_id VARCHAR(36) REFERENCES users(id),
         username VARCHAR(255) NOT NULL,
@@ -309,10 +400,9 @@ async function createTables() {
       )
     `);
 
-    // طلبات اللاعبين
     await execQuery(`
       CREATE TABLE IF NOT EXISTS player_requests (
-        id VARCHAR(36) PRIMARY KEY,
+        id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid(),
         booking_id VARCHAR(36) NOT NULL,
         time_slot_id INTEGER REFERENCES time_slots(id) ON DELETE CASCADE,
         requester_name VARCHAR(255) NOT NULL,
@@ -320,11 +410,11 @@ async function createTables() {
         comment TEXT,
         players_count INTEGER NOT NULL,
         status VARCHAR(20) DEFAULT 'pending',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    // الملفات الشخصية
     await execQuery(`
       CREATE TABLE IF NOT EXISTS user_profiles (
         id SERIAL PRIMARY KEY,
@@ -338,23 +428,208 @@ async function createTables() {
       )
     `);
 
-    // المديرين
     await execQuery(`
       CREATE TABLE IF NOT EXISTS managers (
-        id VARCHAR(36) PRIMARY KEY,
+        id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id VARCHAR(36) REFERENCES users(id) ON DELETE CASCADE,
-        pitch_ids JSONB NOT NULL,
+        pitch_ids JSONB NOT NULL DEFAULT '[]',
         approved BOOLEAN DEFAULT FALSE,
         approved_at TIMESTAMP,
         approved_by VARCHAR(36),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // 🔥 **الجداول الجديدة المطلوبة للإنتاج**
+
+    // 1. جدول سجل الأنشطة
+    await execQuery(`
+      CREATE TABLE IF NOT EXISTS activity_logs (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR(36) REFERENCES users(id),
+        action VARCHAR(100) NOT NULL,
+        description TEXT,
+        ip_address VARCHAR(45),
+        user_agent TEXT,
+        resource_type VARCHAR(50),
+        resource_id VARCHAR(36),
+        metadata JSONB DEFAULT '{}',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
+    // 2. جدول الإشعارات
+    await execQuery(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id VARCHAR(36) REFERENCES users(id) ON DELETE CASCADE,
+        title VARCHAR(255) NOT NULL,
+        message TEXT NOT NULL,
+        type VARCHAR(50) DEFAULT 'info',
+        status VARCHAR(20) DEFAULT 'unread',
+        related_type VARCHAR(50),
+        related_id VARCHAR(36),
+        action_url VARCHAR(500),
+        sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        read_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // 3. جدول جلسات الدفع
+    await execQuery(`
+      CREATE TABLE IF NOT EXISTS payment_sessions (
+        id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id VARCHAR(36) REFERENCES users(id),
+        booking_id VARCHAR(36),
+        amount DECIMAL(10,2) NOT NULL,
+        currency VARCHAR(3) DEFAULT 'EGP',
+        provider VARCHAR(50) NOT NULL,
+        session_id VARCHAR(500),
+        status VARCHAR(20) DEFAULT 'pending',
+        payment_intent_id VARCHAR(500),
+        client_secret VARCHAR(500),
+        metadata JSONB DEFAULT '{}',
+        expires_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // 4. جدول محاولات الدخول
+    await execQuery(`
+      CREATE TABLE IF NOT EXISTS login_attempts (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255),
+        ip_address VARCHAR(45) NOT NULL,
+        user_agent TEXT,
+        success BOOLEAN DEFAULT FALSE,
+        failure_reason VARCHAR(100),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // 5. جدول تذاكر الدعم
+    await execQuery(`
+      CREATE TABLE IF NOT EXISTS support_tickets (
+        id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id VARCHAR(36) REFERENCES users(id),
+        subject VARCHAR(255) NOT NULL,
+        message TEXT NOT NULL,
+        category VARCHAR(50) DEFAULT 'general',
+        priority VARCHAR(20) DEFAULT 'medium',
+        status VARCHAR(20) DEFAULT 'open',
+        assigned_to VARCHAR(36) REFERENCES users(id),
+        last_reply_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // 6. جدول إعدادات المستخدم
+    await execQuery(`
+      CREATE TABLE IF NOT EXISTS user_settings (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR(36) REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+        email_notifications BOOLEAN DEFAULT TRUE,
+        sms_notifications BOOLEAN DEFAULT TRUE,
+        push_notifications BOOLEAN DEFAULT TRUE,
+        language VARCHAR(10) DEFAULT 'ar',
+        timezone VARCHAR(50) DEFAULT 'Africa/Cairo',
+        currency VARCHAR(3) DEFAULT 'EGP',
+        theme VARCHAR(20) DEFAULT 'light',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // 7. جدول البانرز الرئيسية
+    await execQuery(`
+      CREATE TABLE IF NOT EXISTS homepage_banners (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        description TEXT,
+        image_url VARCHAR(500) NOT NULL,
+        button_text VARCHAR(50),
+        button_url VARCHAR(500),
+        is_active BOOLEAN DEFAULT TRUE,
+        display_order INTEGER DEFAULT 0,
+        start_date TIMESTAMP,
+        end_date TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // 8. جدول التقارير الإدارية
+    await execQuery(`
+      CREATE TABLE IF NOT EXISTS admin_reports (
+        id SERIAL PRIMARY KEY,
+        report_type VARCHAR(100) NOT NULL,
+        report_name VARCHAR(255) NOT NULL,
+        data JSONB NOT NULL,
+        generated_by VARCHAR(36) REFERENCES users(id),
+        period_start DATE,
+        period_end DATE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // 9. جدول إحصائيات النظام
+    await execQuery(`
+      CREATE TABLE IF NOT EXISTS system_metrics (
+        id SERIAL PRIMARY KEY,
+        metric_date DATE NOT NULL,
+        total_users INTEGER DEFAULT 0,
+        total_bookings INTEGER DEFAULT 0,
+        total_revenue DECIMAL(15,2) DEFAULT 0,
+        active_stadiums INTEGER DEFAULT 0,
+        successful_payments INTEGER DEFAULT 0,
+        failed_payments INTEGER DEFAULT 0,
+        user_registrations INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(metric_date)
+      )
+    `);
+
     console.log('✅ All PostgreSQL tables created successfully');
+    
+    // إنشاء الفهرس بعد إنشاء الجداول
+    await createIndexes();
+    
   } catch (error) {
     console.error('❌ Error creating tables:', error);
     throw error;
+  }
+}
+
+// دالة لفحص صحة الاتصال
+async function healthCheck() {
+  try {
+    const result = await execQueryOne('SELECT NOW() as current_time, version() as version');
+    return {
+      status: 'healthy',
+      database: 'connected',
+      timestamp: result.current_time,
+      version: result.version
+    };
+  } catch (error) {
+    return {
+      status: 'unhealthy',
+      database: 'disconnected',
+      error: error.message
+    };
+  }
+}
+
+// دالة لإغلاق الاتصال بشكل آمن
+async function closePool() {
+  try {
+    await pool.end();
+    console.log('✅ Database connection pool closed');
+  } catch (error) {
+    console.error('❌ Error closing connection pool:', error);
   }
 }
 
@@ -362,6 +637,11 @@ async function createTables() {
 module.exports = {
   pool,
   execQuery,
+  execQueryOne,
+  getClient,
   withTransaction,
-  createTables
+  createTables,
+  createIndexes,
+  healthCheck,
+  closePool
 };
