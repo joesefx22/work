@@ -195,6 +195,22 @@
             text-align: center;
         }
 
+        /* 🆕 محدد الملعب */
+        .pitch-selector-container {
+            background: white;
+            border-radius: 15px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            border-right: 4px solid var(--primary-color);
+        }
+
+        .pitch-selector-label {
+            font-weight: 600;
+            color: var(--dark-color);
+            margin-bottom: 0.5rem;
+        }
+
         /* الساعات */
         .time-slot-grid {
             display: grid;
@@ -331,6 +347,10 @@
             .quick-action-btn {
                 min-width: 100%;
             }
+
+            .pitch-selector-container {
+                padding: 1rem;
+            }
         }
     </style>
 </head>
@@ -423,6 +443,25 @@
                             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="refreshAll()">
                                 <i class="bi bi-arrow-clockwise me-1"></i>تحديث
                             </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 🆕 محدد الملعب -->
+                <div id="pitchSelectorContainer" class="pitch-selector-container" style="display: none;">
+                    <div class="row align-items-center">
+                        <div class="col-md-4">
+                            <label class="pitch-selector-label">
+                                <i class="bi bi-building me-2"></i>اختر الملعب:
+                            </label>
+                        </div>
+                        <div class="col-md-6">
+                            <select id="pitchSelector" class="form-select" onchange="unifiedSystem.handlePitchChange(this.value)">
+                                <option value="all">عرض كل الملاعب</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <small class="text-muted" id="selectedPitchInfo"></small>
                         </div>
                     </div>
                 </div>
@@ -1013,11 +1052,96 @@
                 this.currentDeleteAction = null;
                 this.currentManagerToApprove = null;
                 
+                // 🆕 المتغيرات الجديدة للنظام الديناميكي
+                this.currentPitchId = 'all'; // 'all' أو pitchId محدد
+                this.userPitchIds = []; // الملاعب التي يمتلك صلاحية عليها
+                this.availablePitches = []; // الملاعب المتاحة للعرض
+                
+                // 🆕 جلب البيانات من localStorage أولاً
+                this.loadFromLocalStorage();
                 this.init();
             }
 
+            // 🆕 جلب البيانات من localStorage
+            loadFromLocalStorage() {
+                const userId = localStorage.getItem('userId');
+                const role = localStorage.getItem('userRole');
+                const pitchIds = JSON.parse(localStorage.getItem('pitchIds') || '[]');
+                
+                if (userId && role) {
+                    this.currentUser = { id: userId, role: role };
+                    this.userRole = role;
+                    this.userPitchIds = pitchIds;
+                    
+                    // 🆕 التحقق من الصلاحيات في الـ URL
+                    this.checkUrlPermissions();
+                    
+                    // 🆕 إعداد الواجهة حسب الصلاحيات
+                    this.setupUIByRole();
+                }
+            }
+
+            // 🆕 التحقق من الصلاحيات في الـ URL
+            checkUrlPermissions() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const requestedPitchId = urlParams.get('pitchId');
+                
+                if (requestedPitchId && !this.userPitchIds.includes(Number(requestedPitchId))) {
+                    alert("⚠️ ليس لديك صلاحية على هذا الملعب");
+                    window.location.href = '/unauthorized.html';
+                    return;
+                }
+                
+                if (requestedPitchId) {
+                    this.currentPitchId = requestedPitchId;
+                }
+            }
+
+            // 🆕 إعداد الواجهة حسب نوع المستخدم
+            setupUIByRole() {
+                // إظهار تبويبات المسؤول فقط
+                if (this.userRole === 'admin') {
+                    document.getElementById('adminTabs').style.display = 'block';
+                }
+                
+                // إظهار محدد الملاعب للمديرين
+                if (this.userRole === 'manager' || this.userRole === 'multi_manager') {
+                    if (this.userPitchIds.length > 1) {
+                        document.getElementById('pitchSelectorContainer').style.display = 'block';
+                        this.populatePitchSelector(this.userPitchIds);
+                    } else if (this.userPitchIds.length === 1) {
+                        this.handlePitchChange(this.userPitchIds[0]);
+                    }
+                }
+                
+                this.updateUIForUserRole();
+            }
+
+            // 🆕 تعبئة قائمة الملاعب
+            populatePitchSelector(pitchIds) {
+                const selector = document.getElementById('pitchSelector');
+                selector.innerHTML = '<option value="all">عرض كل الملاعب</option>';
+                
+                pitchIds.forEach(id => {
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = `ملعب رقم ${id}`;
+                    selector.appendChild(option);
+                });
+                
+                if (this.currentPitchId) {
+                    selector.value = this.currentPitchId;
+                }
+                
+                this.updateSelectedPitchInfo();
+            }
+
             async init() {
-                await this.checkAuth();
+                // إذا ماكانش في بيانات في localStorage، نستخدم النظام القديم
+                if (!this.currentUser) {
+                    await this.checkAuth();
+                }
+                
                 this.setupEventListeners();
                 await this.loadInitialData();
                 this.initializeCharts();
@@ -1027,7 +1151,6 @@
             // 🔐 نظام المصادقة المحسن
             async checkAuth() {
                 try {
-                    // التحقق من التوكن في localStorage
                     const token = localStorage.getItem('authToken');
                     if (!token) {
                         window.location.href = '/login.html';
@@ -1050,6 +1173,7 @@
                     if (result.success) {
                         this.currentUser = result.user;
                         this.userRole = this.currentUser.role;
+                        await this.loadUserPitches();
                         this.updateUIForUserRole();
                     } else {
                         this.handleAuthError();
@@ -1061,10 +1185,260 @@
                 }
             }
 
-            handleAuthError() {
-                localStorage.removeItem('authToken');
-                localStorage.removeItem('currentUser');
-                window.location.href = '/login.html';
+            // 🆕 جلب الملاعب التي يمتلك المستخدم صلاحية عليها
+            async loadUserPitches() {
+                try {
+                    const response = await fetch('/api/manager-pitches', {
+                        headers: this.getAuthHeaders()
+                    });
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        this.userPitchIds = result.pitchIds || [];
+                        this.availablePitches = result.pitches || [];
+                        this.setupPitchSelector();
+                    } else {
+                        this.userPitchIds = this.managedPitches.map(p => p.id);
+                        this.availablePitches = this.managedPitches;
+                        this.setupPitchSelector();
+                    }
+                } catch (error) {
+                    console.error('Error loading user pitches:', error);
+                    this.userPitchIds = this.managedPitches.map(p => p.id);
+                    this.availablePitches = this.managedPitches;
+                    this.setupPitchSelector();
+                }
+            }
+
+            // 🆕 إعداد محدد الملعب
+            setupPitchSelector() {
+                const selectorContainer = document.getElementById('pitchSelectorContainer');
+                
+                if (this.userRole === 'stadium_owner' && this.userPitchIds.length > 0) {
+                    selectorContainer.style.display = 'block';
+                    this.populatePitchSelector(this.userPitchIds);
+                } else if (this.userRole === 'admin') {
+                    selectorContainer.style.display = 'none';
+                }
+            }
+
+            // 🆕 تحديث معلومات الملعب المحدد
+            updateSelectedPitchInfo() {
+                const infoElement = document.getElementById('selectedPitchInfo');
+                
+                if (this.currentPitchId === 'all') {
+                    infoElement.textContent = `(${this.userPitchIds.length} ملعب)`;
+                } else {
+                    infoElement.textContent = `(ملعب ${this.currentPitchId})`;
+                }
+            }
+
+            // 🆕 معالجة تغيير الملعب
+            handlePitchChange(pitchId) {
+                this.currentPitchId = pitchId;
+                this.updateSelectedPitchInfo();
+                
+                if (pitchId === 'all') {
+                    this.loadCombinedData();
+                } else {
+                    this.loadPitchData(pitchId);
+                }
+                
+                // تحديث البيانات في كل التبويبات
+                this.loadBookings();
+                this.loadTimeSlotsForCurrentPitch();
+                this.updatePitchesFilter();
+            }
+
+            // 🆕 تحميل البيانات المجمعة لكل الملاعب
+            async loadCombinedData() {
+                try {
+                    this.showLoading('managerQuickStats', 'جاري جمع البيانات...');
+                    
+                    const promises = this.userPitchIds.map(pitchId => 
+                        this.fetchPitchData(pitchId)
+                    );
+                    
+                    const results = await Promise.all(promises);
+                    const combinedData = this.combinePitchData(results);
+                    this.renderCombinedView(combinedData);
+                    
+                } catch (error) {
+                    console.error('Error loading combined data:', error);
+                    this.showAlert('حدث خطأ في تحميل البيانات المجمعة', 'danger');
+                }
+            }
+
+            // 🆕 تحميل بيانات ملعب معين
+            async loadPitchData(pitchId) {
+                try {
+                    this.showLoading('managerQuickStats', 'جاري تحميل البيانات...');
+                    const pitchData = await this.fetchPitchData(pitchId);
+                    this.renderPitchView(pitchData);
+                    
+                } catch (error) {
+                    console.error('Error loading pitch data:', error);
+                    this.showAlert('حدث خطأ في تحميل بيانات الملعب', 'danger');
+                }
+            }
+
+            // 🆕 جلب بيانات ملعب معين
+            async fetchPitchData(pitchId) {
+                const response = await fetch(`/api/pitches/${pitchId}/stats`, {
+                    headers: this.getAuthHeaders()
+                });
+                
+                if (response.ok) {
+                    return await response.json();
+                } else {
+                    // بيانات تجريبية للاختبار
+                    return {
+                        revenue: Math.floor(Math.random() * 10000) + 1000,
+                        totalBookings: Math.floor(Math.random() * 50) + 10,
+                        todayBookings: Math.floor(Math.random() * 10) + 1,
+                        pendingBookings: Math.floor(Math.random() * 5) + 1
+                    };
+                }
+            }
+
+            // 🆕 دمج بيانات الملاعب
+            combinePitchData(pitchDataArray) {
+                const combined = {
+                    totalRevenue: 0,
+                    totalBookings: 0,
+                    todayBookings: 0,
+                    pendingBookings: 0,
+                    pitches: pitchDataArray
+                };
+                
+                pitchDataArray.forEach(data => {
+                    combined.totalRevenue += data.revenue || 0;
+                    combined.totalBookings += data.totalBookings || 0;
+                    combined.todayBookings += data.todayBookings || 0;
+                    combined.pendingBookings += data.pendingBookings || 0;
+                });
+                
+                return combined;
+            }
+
+            // 🆕 عرض البيانات المجمعة
+            renderCombinedView(combinedData) {
+                const statsContainer = document.getElementById('managerQuickStats');
+                
+                statsContainer.innerHTML = `
+                    <div class="col-lg-3 col-md-6">
+                        <div class="stat-card">
+                            <div class="d-flex align-items-center">
+                                <div class="icon-circle bg-primary text-white me-3">
+                                    <i class="bi bi-currency-dollar"></i>
+                                </div>
+                                <div>
+                                    <div class="stat-number">${combinedData.totalRevenue}</div>
+                                    <div class="stat-label">إجمالي الإيرادات</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <div class="stat-card">
+                            <div class="d-flex align-items-center">
+                                <div class="icon-circle bg-info text-white me-3">
+                                    <i class="bi bi-calendar-check"></i>
+                                </div>
+                                <div>
+                                    <div class="stat-number">${combinedData.totalBookings}</div>
+                                    <div class="stat-label">إجمالي الحجوزات</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <div class="stat-card">
+                            <div class="d-flex align-items-center">
+                                <div class="icon-circle bg-success text-white me-3">
+                                    <i class="bi bi-clock"></i>
+                                </div>
+                                <div>
+                                    <div class="stat-number">${combinedData.todayBookings}</div>
+                                    <div class="stat-label">حجوزات اليوم</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <div class="stat-card">
+                            <div class="d-flex align-items-center">
+                                <div class="icon-circle bg-warning text-white me-3">
+                                    <i class="bi bi-hourglass-split"></i>
+                                </div>
+                                <div>
+                                    <div class="stat-number">${combinedData.pendingBookings}</div>
+                                    <div class="stat-label">قيد الانتظار</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 🆕 عرض بيانات ملعب معين
+            renderPitchView(pitchData) {
+                const statsContainer = document.getElementById('managerQuickStats');
+                
+                statsContainer.innerHTML = `
+                    <div class="col-lg-3 col-md-6">
+                        <div class="stat-card">
+                            <div class="d-flex align-items-center">
+                                <div class="icon-circle bg-primary text-white me-3">
+                                    <i class="bi bi-currency-dollar"></i>
+                                </div>
+                                <div>
+                                    <div class="stat-number">${pitchData.revenue || 0}</div>
+                                    <div class="stat-label">إيرادات الملعب</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <div class="stat-card">
+                            <div class="d-flex align-items-center">
+                                <div class="icon-circle bg-info text-white me-3">
+                                    <i class="bi bi-calendar-check"></i>
+                                </div>
+                                <div>
+                                    <div class="stat-number">${pitchData.totalBookings || 0}</div>
+                                    <div class="stat-label">إجمالي الحجوزات</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <div class="stat-card">
+                            <div class="d-flex align-items-center">
+                                <div class="icon-circle bg-success text-white me-3">
+                                    <i class="bi bi-clock"></i>
+                                </div>
+                                <div>
+                                    <div class="stat-number">${pitchData.todayBookings || 0}</div>
+                                    <div class="stat-label">حجوزات اليوم</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <div class="stat-card">
+                            <div class="d-flex align-items-center">
+                                <div class="icon-circle bg-warning text-white me-3">
+                                    <i class="bi bi-hourglass-split"></i>
+                                </div>
+                                <div>
+                                    <div class="stat-number">${pitchData.pendingBookings || 0}</div>
+                                    <div class="stat-label">قيد الانتظار</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
             }
 
             // 🎛️ تحديث الواجهة حسب الصلاحيات
@@ -1072,11 +1446,13 @@
                 const roleTexts = {
                     'admin': 'مسؤول النظام',
                     'stadium_owner': 'مدير ملاعب', 
+                    'manager': 'مدير',
+                    'multi_manager': 'مدير متعدد',
                     'player': 'مستخدم'
                 };
 
                 document.getElementById('userRoleDisplay').textContent = roleTexts[this.userRole] || 'مستخدم';
-                document.getElementById('userInfo').textContent = `مرحباً ${this.currentUser.username} - ${roleTexts[this.userRole]}`;
+                document.getElementById('userInfo').textContent = `مرحباً ${this.currentUser?.username || 'مستخدم'} - ${roleTexts[this.userRole]}`;
 
                 if (this.userRole === 'admin') {
                     document.getElementById('adminTabs').style.display = 'block';
@@ -1084,15 +1460,91 @@
                     document.getElementById('managerStats').style.display = 'none';
                     document.getElementById('pitchesTabTitle').textContent = 'إدارة الملاعب';
                     document.getElementById('recentBookingsTitle').textContent = 'أحدث الحجوزات - جميع الملاعب';
-                } else if (this.userRole === 'stadium_owner') {
+                } else if (this.userRole === 'stadium_owner' || this.userRole === 'manager' || this.userRole === 'multi_manager') {
                     document.getElementById('adminTabs').style.display = 'none';
                     document.getElementById('adminStats').style.display = 'none';
                     document.getElementById('managerStats').style.display = 'block';
                     document.getElementById('pitchesTabTitle').textContent = 'الملاعب الخاصة بي';
                     document.getElementById('recentBookingsTitle').textContent = 'أحدث الحجوزات - ملاعبي';
+                    
+                    // 🆕 إخفاء التبويبات غير المصرح بها للمديرين
+                    this.hideUnauthorizedTabs();
+                    // 🆕 عرض الملاعب التي يديرها
+                    this.displayManagerPitches();
                 } else {
                     window.location.href = '/';
                 }
+            }
+
+            // 🆕 إخفاء التبويبات غير المصرح بها للمديرين
+            hideUnauthorizedTabs() {
+                const tabsToHide = ['users', 'reports', 'managers'];
+                
+                tabsToHide.forEach(tabId => {
+                    const tabLink = document.querySelector(`a[href="#${tabId}"]`);
+                    if (tabLink) {
+                        tabLink.parentElement.style.display = 'none';
+                    }
+                });
+            }
+
+            // 🆕 عرض الملاعب التي يديرها المدير
+            displayManagerPitches() {
+                const container = document.getElementById('managerPitchesContainer');
+                const pitchesList = document.getElementById('managedPitchesList');
+                
+                if (this.userPitchIds.length === 0) {
+                    container.innerHTML = '<div class="col-12"><div class="alert alert-warning">لا توجد ملاعب مسندة إليك</div></div>';
+                    pitchesList.textContent = 'لا توجد ملاعب';
+                    return;
+                }
+
+                pitchesList.textContent = this.userPitchIds.map(id => `ملعب ${id}`).join('، ');
+
+                container.innerHTML = this.userPitchIds.map(pitchId => `
+                    <div class="col-lg-4 col-md-6">
+                        <div class="manager-pitch-card">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <h5>ملعب رقم ${pitchId}</h5>
+                                <span class="pitch-badge">${this.getAreaText('mokatam')}</span>
+                            </div>
+                            <p class="text-muted mb-2">
+                                <i class="bi bi-geo-alt me-1"></i>موقع الملعب ${pitchId}
+                            </p>
+                            <p class="mb-2"><strong>السعر:</strong> 250 ج.م/ساعة</p>
+                            <p class="mb-3"><strong>العربون:</strong> 50 ج.م</p>
+                            
+                            <div class="manager-stats" id="stats-${pitchId}">
+                                <div class="manager-stat">
+                                    <div class="manager-stat-number">--</div>
+                                    <div class="manager-stat-label">عدد الحجوزات</div>
+                                </div>
+                                <div class="manager-stat">
+                                    <div class="manager-stat-number">--</div>
+                                    <div class="manager-stat-label">إيرادات</div>
+                                </div>
+                                <div class="manager-stat">
+                                    <div class="manager-stat-number">--</div>
+                                    <div class="manager-stat-label">التقييم</div>
+                                </div>
+                            </div>
+                            
+                            <div class="quick-actions">
+                                <button class="btn btn-outline-primary btn-sm quick-action-btn" onclick="unifiedSystem.handlePitchChange(${pitchId})">
+                                    إدارة هذا الملعب
+                                </button>
+                                <button class="btn btn-outline-info btn-sm quick-action-btn" onclick="unifiedSystem.viewPitchAvailability(${pitchId})">
+                                    <i class="bi bi-calendar me-1"></i>المواعيد
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+                // تحميل إحصائيات كل ملعب
+                this.userPitchIds.forEach(pitchId => {
+                    this.loadPitchStats(pitchId);
+                });
             }
 
             // 📊 تحميل البيانات الأولية
@@ -1104,6 +1556,8 @@
                     await this.loadAdminData();
                     await this.loadUsers();
                     await this.loadPayments();
+                } else if (this.userRole === 'stadium_owner' || this.userRole === 'manager' || this.userRole === 'multi_manager') {
+                    await this.loadManagerData();
                 }
             }
 
@@ -1120,6 +1574,7 @@
                     if (response.ok) {
                         const result = await response.json();
                         this.allPitches = result.stadiums || result.data || [];
+                        this.managedPitches = this.allPitches;
                         this.displayPitches();
                         this.updateStats();
                         this.populateStadiumSelect();
@@ -1129,6 +1584,7 @@
                 } catch (error) {
                     console.error('Error loading pitches:', error);
                     this.allPitches = this.getMockStadiums();
+                    this.managedPitches = this.allPitches;
                     this.displayPitches();
                     this.updateStats();
                     this.populateStadiumSelect();
@@ -1136,76 +1592,20 @@
                 }
             }
 
-            // 🎯 عرض الملاعب
-            displayPitches() {
-                const container = document.getElementById('pitchesContainer');
-                
-                if (this.allPitches.length === 0) {
-                    container.innerHTML = `
-                        <div class="col-12">
-                            <div class="empty-state">
-                                <i class="bi bi-building"></i>
-                                <h5>لا توجد ملاعب مضافة</h5>
-                                <p>يمكنك إضافة ملعب جديد باستخدام الزر أعلاه</p>
-                            </div>
-                        </div>
-                    `;
-                    return;
-                }
-
-                container.innerHTML = this.allPitches.map(pitch => `
-                    <div class="col-lg-6 col-xl-4 mb-4">
-                        <div class="stadium-card">
-                            <div class="stadium-image" style="background-image: url('${pitch.image || '/api/placeholder/400/300'}')">
-                                <span class="stadium-badge">${pitch.type === 'natural' ? 'نجيلة طبيعية' : 'نجيلة صناعية'}</span>
-                                <span class="stadium-price">${pitch.price} ج.م/ساعة</span>
-                            </div>
-                            <div class="p-3">
-                                <h5 class="mb-2">${pitch.name}</h5>
-                                <p class="text-muted mb-2">
-                                    <i class="bi bi-geo-alt me-1"></i>${pitch.location}
-                                </p>
-                                
-                                ${pitch.features && pitch.features.length > 0 ? `
-                                    <div class="mb-2">
-                                        ${pitch.features.map(feature => `
-                                            <span class="feature-badge">${feature}</span>
-                                        `).join('')}
-                                    </div>
-                                ` : ''}
-                                
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <small class="text-muted">
-                                            <i class="bi bi-calendar me-1"></i>${pitch.max_daily_hours || 3} ساعة/يوم
-                                        </small>
-                                    </div>
-                                    <div class="btn-group btn-group-sm">
-                                        <button class="btn btn-outline-primary" onclick="unifiedSystem.editStadium(${pitch.id})">
-                                            <i class="bi bi-pencil"></i>
-                                        </button>
-                                        ${this.userRole === 'admin' ? `
-                                            <button class="btn btn-outline-danger" onclick="unifiedSystem.confirmDelete('stadium', ${pitch.id}, '${pitch.name}')">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        ` : ''}
-                                        <button class="btn btn-outline-success" onclick="unifiedSystem.viewStadiumDetails(${pitch.id})">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `).join('');
-            }
-
             // 📅 تحميل الحجوزات
             async loadBookings() {
                 try {
                     this.showLoading('bookingsTable', 'جاري تحميل الحجوزات...');
                     
-                    const endpoint = this.userRole === 'admin' ? '/api/admin/bookings' : '/api/manager/bookings';
+                    let endpoint = '/api/admin/bookings';
+                    if (this.userRole === 'stadium_owner' || this.userRole === 'manager' || this.userRole === 'multi_manager') {
+                        if (this.currentPitchId && this.currentPitchId !== 'all') {
+                            endpoint = `/api/manager/bookings?pitchId=${this.currentPitchId}`;
+                        } else {
+                            endpoint = '/api/manager/bookings';
+                        }
+                    }
+                    
                     const response = await fetch(endpoint, {
                         headers: this.getAuthHeaders()
                     });
@@ -1296,7 +1696,6 @@
             // 🏟️ تحميل بيانات المدير
             async loadManagerData() {
                 try {
-                    // تحميل الملاعب التي يديرها
                     const pitchesResponse = await fetch('/api/manager/pitches', {
                         headers: this.getAuthHeaders()
                     });
@@ -1308,7 +1707,6 @@
                         this.updatePitchesFilter();
                     }
 
-                    // تحميل إحصائيات المدير
                     await this.loadManagerStats();
 
                 } catch (error) {
@@ -1359,7 +1757,6 @@
                     </div>
                 `).join('');
 
-                // تحميل إحصائيات كل ملعب
                 this.managedPitches.forEach(pitch => {
                     this.loadPitchStats(pitch.id);
                 });
@@ -1378,7 +1775,6 @@
                     const bookings = result.bookings || result.data || [];
                     this.allBookings = bookings;
 
-                    // حساب الإحصائيات
                     const today = new Date().toISOString().split('T')[0];
                     const todayBookings = bookings.filter(b => b.date === today && b.status === 'confirmed');
                     const pendingBookings = bookings.filter(b => b.status === 'pending');
@@ -1492,7 +1888,6 @@
             // 👑 تحميل بيانات المسؤول
             async loadAdminData() {
                 try {
-                    // تحميل طلبات المديرين المعلقة
                     const managersResponse = await fetch('/api/admin/pending-managers', {
                         headers: this.getAuthHeaders()
                     });
@@ -1503,7 +1898,6 @@
                         this.updatePendingManagersTable(this.pendingManagers);
                     }
 
-                    // تحميل الإحصائيات
                     const statsResponse = await fetch('/api/admin/stats', {
                         headers: this.getAuthHeaders()
                     });
@@ -1680,7 +2074,6 @@
 
             // 🎛️ إعداد الرسوم البيانية
             initializeCharts() {
-                // رسم بياني للحجوزات
                 const bookingsCtx = document.getElementById('bookingsChart').getContext('2d');
                 this.charts.bookings = new Chart(bookingsCtx, {
                     type: 'line',
@@ -1713,7 +2106,6 @@
                     }
                 });
 
-                // رسم بياني للملاعب
                 const pitchesCtx = document.getElementById('pitchesChart').getContext('2d');
                 this.charts.pitches = new Chart(pitchesCtx, {
                     type: 'doughnut',
@@ -1738,7 +2130,6 @@
                     }
                 });
 
-                // رسم بياني للأداء
                 const performanceCtx = document.getElementById('performanceChart').getContext('2d');
                 this.charts.performance = new Chart(performanceCtx, {
                     type: 'bar',
@@ -1796,6 +2187,8 @@
                 const classes = {
                     'admin': 'bg-danger',
                     'stadium_owner': 'bg-primary',
+                    'manager': 'bg-primary',
+                    'multi_manager': 'bg-primary',
                     'player': 'bg-secondary'
                 };
                 return classes[role] || 'bg-secondary';
@@ -1805,6 +2198,8 @@
                 const texts = {
                     'admin': 'مسؤول',
                     'stadium_owner': 'مدير',
+                    'manager': 'مدير',
+                    'multi_manager': 'مدير متعدد',
                     'player': 'مستخدم'
                 };
                 return texts[role] || role;
@@ -2001,6 +2396,15 @@
                 const booking = this.allBookings.find(b => b.id === bookingId);
                 if (!booking) return;
 
+                // 🆕 التحقق من الصلاحية على الملعب
+                if (this.userRole === 'stadium_owner' || this.userRole === 'manager' || this.userRole === 'multi_manager') {
+                    const hasPermission = this.checkPitchPermission(booking.pitchId || booking.stadium?.id);
+                    if (!hasPermission) {
+                        this.showAlert('❌ ليس لديك صلاحية على هذا الملعب', 'danger');
+                        return;
+                    }
+                }
+
                 this.currentBookingToCancel = bookingId;
 
                 document.getElementById('cancelBookingDetails').innerHTML = `
@@ -2021,6 +2425,15 @@
                 new bootstrap.Modal(document.getElementById('cancelBookingModal')).show();
             }
 
+            // 🆕 التحقق من صلاحية المدير على الملعب
+            checkPitchPermission(pitchId) {
+                if (this.userRole === 'admin') return true;
+                if (this.userRole === 'stadium_owner' || this.userRole === 'manager' || this.userRole === 'multi_manager') {
+                    return this.userPitchIds.includes(parseInt(pitchId));
+                }
+                return false;
+            }
+
             async executeCancelBooking(reason) {
                 try {
                     const endpoint = this.userRole === 'admin' ? 
@@ -2039,7 +2452,7 @@
                         this.showAlert('✅ تم إلغاء الحجز بنجاح', 'success');
                         bootstrap.Modal.getInstance(document.getElementById('cancelBookingModal')).hide();
                         this.loadBookings();
-                        if (this.userRole === 'stadium_owner') {
+                        if (this.userRole === 'stadium_owner' || this.userRole === 'manager' || this.userRole === 'multi_manager') {
                             this.loadManagerStats();
                         }
                     } else {
@@ -2112,6 +2525,7 @@
                 alert(`تفاصيل الملعب: ${stadium.name}\nالموقع: ${stadium.location}\nالمنطقة: ${this.getAreaText(stadium.area)}\nالسعر: ${stadium.price} ج.م/ساعة\nالنوع: ${stadium.type === 'natural' ? 'نجيلة طبيعية' : 'نجيلة صناعية'}\nالمميزات:\n• ${features}`);
             }
 
+            // 🆕 دوال الساعات الناقصة
             async loadSelectedTimeSlots() {
                 const stadiumId = document.getElementById('stadiumSelect').value;
                 const date = document.getElementById('slotDate').value;
@@ -2143,6 +2557,15 @@
                     this.displayTimeSlots();
                     document.getElementById('addTimeSlotsSection').style.display = 'block';
                     this.showAlert('تم تحميل بيانات تجريبية', 'info');
+                }
+            }
+
+            // 🆕 دالة toggleTimeSlot الناقصة
+            toggleTimeSlot(slotId) {
+                const slot = this.timeSlots.find(s => s.id === slotId);
+                if (slot && slot.status === 'available') {
+                    slot.selected = !slot.selected;
+                    this.displayTimeSlots();
                 }
             }
 
@@ -2180,14 +2603,6 @@
                 `;
             }
 
-            toggleTimeSlot(slotId) {
-                const slot = this.timeSlots.find(s => s.id === slotId);
-                if (slot && slot.status === 'available') {
-                    slot.selected = !slot.selected;
-                    this.displayTimeSlots();
-                }
-            }
-
             async addTimeSlots() {
                 const stadiumId = document.getElementById('stadiumSelect').value;
                 const date = document.getElementById('slotDate').value;
@@ -2217,6 +2632,14 @@
                 } catch (error) {
                     console.error('Error adding time slots:', error);
                     this.showAlert('❌ حدث خطأ أثناء إضافة الساعات', 'danger');
+                }
+            }
+
+            // 🆕 دالة تحميل الساعات للملعب الحالي
+            async loadTimeSlotsForCurrentPitch() {
+                if (this.currentPitchId && this.currentPitchId !== 'all') {
+                    document.getElementById('stadiumSelect').value = this.currentPitchId;
+                    await this.loadSelectedTimeSlots();
                 }
             }
 
@@ -2358,6 +2781,7 @@
                 new bootstrap.Modal(document.getElementById('approveManagerModal')).show();
             }
 
+            // 🆕 دوال المديرين الناقصة
             async approveManager(managerId) {
                 try {
                     const response = await fetch(`/api/admin/managers/${managerId}/approve`, {
@@ -2447,7 +2871,13 @@
             // 🎛️ دوال التحديث والإعداد
             updatePitchesFilter() {
                 const pitchFilter = document.getElementById('pitchFilter');
-                const pitches = this.userRole === 'admin' ? this.allPitches : this.managedPitches;
+                let pitches = [];
+                
+                if (this.userRole === 'admin') {
+                    pitches = this.allPitches;
+                } else if (this.userRole === 'stadium_owner' || this.userRole === 'manager' || this.userRole === 'multi_manager') {
+                    pitches = this.availablePitches.length > 0 ? this.availablePitches : this.managedPitches;
+                }
                 
                 pitchFilter.innerHTML = '<option value="">جميع الملاعب</option>' +
                     pitches.map(pitch => 
@@ -2457,7 +2887,13 @@
 
             populateStadiumSelect() {
                 const select = document.getElementById('stadiumSelect');
-                const pitches = this.userRole === 'admin' ? this.allPitches : this.managedPitches;
+                let pitches = [];
+                
+                if (this.userRole === 'admin') {
+                    pitches = this.allPitches;
+                } else if (this.userRole === 'stadium_owner' || this.userRole === 'manager' || this.userRole === 'multi_manager') {
+                    pitches = this.availablePitches.length > 0 ? this.availablePitches : this.managedPitches;
+                }
                 
                 select.innerHTML = '<option value="">اختر الملعب</option>' +
                     pitches.map(stadium => `
@@ -2471,11 +2907,21 @@
                     .filter(b => b.status === 'confirmed')
                     .reduce((sum, b) => sum + (b.finalAmount || b.amount), 0);
 
-                document.getElementById('totalStadiums').textContent = this.allPitches.length;
-                document.getElementById('activeStadiums').textContent = this.allPitches.length;
-                document.getElementById('totalBookings').textContent = totalBookings;
-                document.getElementById('totalRevenue').textContent = totalRevenue;
-                document.getElementById('availableSlots').textContent = this.allPitches.length * 10;
+                // تحديث الإحصائيات في واجهة المسؤول
+                const statsElements = {
+                    'totalStadiums': this.allPitches.length,
+                    'activeStadiums': this.allPitches.length,
+                    'totalBookings': totalBookings,
+                    'totalRevenue': totalRevenue,
+                    'availableSlots': this.allPitches.length * 10
+                };
+
+                Object.keys(statsElements).forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.textContent = statsElements[id];
+                    }
+                });
 
                 // تحديث التقارير
                 document.getElementById('activeBookingsCount').textContent = totalBookings;
@@ -2572,6 +3018,15 @@
                 setInterval(() => {
                     this.loadInitialData();
                 }, 300000); // 5 دقائق
+            }
+
+            handleAuthError() {
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('currentUser');
+                localStorage.removeItem('userId');
+                localStorage.removeItem('userRole');
+                localStorage.removeItem('pitchIds');
+                window.location.href = '/login.html';
             }
 
             // 📋 بيانات تجريبية
@@ -2732,6 +3187,9 @@
             if (confirm('هل تريد تسجيل الخروج؟')) {
                 localStorage.removeItem('authToken');
                 localStorage.removeItem('currentUser');
+                localStorage.removeItem('userId');
+                localStorage.removeItem('userRole');
+                localStorage.removeItem('pitchIds');
                 window.location.href = '/login.html';
             }
         }
@@ -2742,7 +3200,6 @@
         }
 
         function exportData() {
-            // إنشاء بيانات للتصدير
             const data = {
                 stadiums: unifiedSystem.allPitches,
                 bookings: unifiedSystem.allBookings,
@@ -2751,7 +3208,6 @@
                 exportDate: new Date().toISOString()
             };
             
-            // تحميل الملف
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
