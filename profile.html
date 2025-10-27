@@ -275,6 +275,11 @@
       padding: 1rem;
       margin-bottom: 1rem;
       background: white;
+      transition: all 0.3s ease;
+    }
+
+    .payment-history-item:hover {
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     }
 
     .payment-status-paid {
@@ -290,6 +295,26 @@
     .payment-status-failed {
       color: #e74c3c;
       font-weight: bold;
+    }
+
+    .use-code-btn {
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      transition: all 0.3s ease;
+    }
+
+    .use-code-btn:hover {
+      background: rgba(255,255,255,0.3);
+      transform: translateY(-2px);
+    }
+
+    .booking-filter-btn.active {
+      background-color: var(--primary-color);
+      color: white;
     }
   </style>
 </head>
@@ -445,10 +470,10 @@
             <div class="d-flex justify-content-between align-items-center mb-4">
               <h5><i class="bi bi-calendar-check me-2"></i>جميع حجوزاتي</h5>
               <div class="btn-group">
-                <button class="btn btn-outline-primary btn-sm active" onclick="filterBookings('all', event)">الكل</button>
-                <button class="btn btn-outline-primary btn-sm" onclick="filterBookings('upcoming', event)">القادمة</button>
-                <button class="btn btn-outline-primary btn-sm" onclick="filterBookings('completed', event)">المنتهية</button>
-                <button class="btn btn-outline-primary btn-sm" onclick="filterBookings('cancelled', event)">الملغاة</button>
+                <button class="btn btn-outline-primary btn-sm booking-filter-btn active" onclick="filterBookings('all', event)">الكل</button>
+                <button class="btn btn-outline-primary btn-sm booking-filter-btn" onclick="filterBookings('upcoming', event)">القادمة</button>
+                <button class="btn btn-outline-primary btn-sm booking-filter-btn" onclick="filterBookings('completed', event)">المنتهية</button>
+                <button class="btn btn-outline-primary btn-sm booking-filter-btn" onclick="filterBookings('cancelled', event)">الملغاة</button>
               </div>
             </div>
             <div id="allBookingsContainer">
@@ -938,7 +963,7 @@
         }
 
         container.innerHTML = this.currentBookings.map(booking => `
-          <div class="booking-card ${this.getBookingStatusClass(booking.status)}">
+          <div class="booking-card ${this.getBookingStatusClass(booking.status)}" data-status="${booking.status}">
             <div class="d-flex justify-content-between align-items-center">
               <div>
                 <h6 class="mb-1">${sanitizeHTML(booking.pitchName)}</h6>
@@ -977,23 +1002,29 @@
 
         container.innerHTML = this.paymentHistory.map(payment => `
           <div class="payment-history-item">
-            <div class="d-flex justify-content-between align-items-center">
-              <div>
-                <h6 class="mb-1">${sanitizeHTML(payment.description || 'دفع حجز')}</h6>
-                <p class="mb-1 text-muted">
-                  <i class="bi bi-calendar me-1"></i>${new Date(payment.createdAt).toLocaleDateString('ar-EG')}
-                  <i class="bi bi-clock ms-2 me-1"></i>${new Date(payment.createdAt).toLocaleTimeString('ar-EG')}
-                </p>
-                <p class="mb-0">
-                  <span class="badge ${this.getPaymentMethodBadge(payment.method)}">${this.getPaymentMethodText(payment.method)}</span>
-                  <span class="${this.getPaymentStatusClass(payment.status)} ms-2">
-                    ${this.getPaymentStatusText(payment.status)}
-                  </span>
-                </p>
+            <div class="row">
+              <div class="col-md-8">
+                <div class="mb-2">
+                  <strong>الملعب:</strong> ${sanitizeHTML(payment.pitchName || 'غير محدد')}
+                </div>
+                <div class="mb-2">
+                  <strong>التاريخ:</strong> ${new Date(payment.createdAt).toLocaleDateString('ar-EG')}
+                </div>
+                <div class="mb-2">
+                  <strong>المبلغ:</strong> ${payment.amount} جنيه
+                </div>
+                <div class="mb-2">
+                  <strong>طريقة الدفع:</strong> <span class="badge ${this.getPaymentMethodBadge(payment.method)}">${this.getPaymentMethodText(payment.method)}</span>
+                </div>
+                <div>
+                  <strong>الحالة:</strong> <span class="${this.getPaymentStatusClass(payment.status)}">${this.getPaymentStatusText(payment.status)}</span>
+                </div>
               </div>
-              <div class="text-left">
-                <p class="mb-1"><strong>${payment.amount} ج.م</strong></p>
-                <small class="text-muted">رقم المرجع: ${payment.reference}</small>
+              <div class="col-md-4 text-left">
+                <div class="text-muted small">
+                  <div>رقم المرجع: ${payment.reference || 'غير متوفر'}</div>
+                  <div>وقت الدفع: ${new Date(payment.createdAt).toLocaleTimeString('ar-EG')}</div>
+                </div>
               </div>
             </div>
           </div>
@@ -1097,6 +1128,9 @@
               <div class="text-left">
                 <span class="badge bg-light text-dark">نشط</span>
                 <div class="countdown mt-2" id="code-countdown-${code.id}"></div>
+                <button class="btn use-code-btn mt-2" onclick="profileSystem.useCompensationCode('${code.code}', ${code.value})">
+                  <i class="bi bi-arrow-right me-1"></i>استخدام الكود
+                </button>
               </div>
             </div>
           </div>
@@ -1129,7 +1163,23 @@
         `).join('');
       }
 
-      // باقي الدوال المطلوبة...
+      // 🆕 دالة استخدام كود التعويض
+      useCompensationCode(code, value) {
+        // حفظ الكود في localStorage
+        localStorage.setItem('selectedCompensationCode', JSON.stringify({
+          code: code,
+          value: value,
+          timestamp: new Date().toISOString()
+        }));
+        
+        showAlert(`✅ تم حفظ كود التعويض "${code}" بقيمة ${value} جنيه. سيتم استخدامه في صفحة الدفع.`, 'success');
+        
+        // توجيه المستخدم إلى صفحة الدفع
+        setTimeout(() => {
+          window.location.href = '/payment.html';
+        }, 2000);
+      }
+
       startBookingCountdown(bookingId, date, time) {
         const countdownElement = document.getElementById(`countdown-${bookingId}`);
         
@@ -1224,6 +1274,7 @@
             console.log('CSRF token not supported, using JWT only');
           });
 
+        // 🆕 ربط زر "حفظ التغييرات" مع FormData
         document.getElementById('profileForm').addEventListener('submit', async (e) => {
           e.preventDefault();
           await this.updateProfile(e.target);
@@ -1485,22 +1536,26 @@
       }
     }
 
-    // دالة فلترة الحجوزات
+    // 🆕 دالة فلترة الحجوزات المحسنة
     function filterBookings(filter, event) {
       const bookings = document.querySelectorAll('#allBookingsContainer .booking-card');
+      const now = new Date();
+      
       bookings.forEach(booking => {
-        const status = booking.querySelector('.badge').textContent;
+        const status = booking.getAttribute('data-status');
+        const bookingDate = new Date(booking.querySelector('.text-muted').textContent.split(' ')[1]);
+        
         let show = true;
         
         switch(filter) {
           case 'upcoming':
-            show = status === 'مؤكد';
+            show = status === 'confirmed' && bookingDate > now;
             break;
           case 'completed':
-            show = status === 'منتهي';
+            show = status === 'completed' || (status === 'confirmed' && bookingDate < now);
             break;
           case 'cancelled':
-            show = status === 'ملغي';
+            show = status === 'cancelled';
             break;
           default:
             show = true;
