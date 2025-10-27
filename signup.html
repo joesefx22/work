@@ -359,12 +359,13 @@
         <textarea class="form-control" name="bio" rows="3" placeholder="اكتب نبذة مختصرة عن نفسك..." autocomplete="bio"></textarea>
       </div>
 
-      <!-- ✅ نوع الحساب - تم إزالة admin -->
+      <!-- ✅ نوع الحساب - معدل بإضافة multi_manager -->
       <div class="form-floating">
         <select class="form-select" id="role" name="role" required aria-describedby="roleHelp">
           <option value="">اختر نوع الحساب</option>
           <option value="user">مستخدم عادي</option>
           <option value="manager">مدير ملعب</option>
+          <option value="multi_manager">مدير أكثر من ملعب</option> <!-- 🆕 التعديل المطلوب 1 -->
         </select>
         <label for="role">
           <i class="bi bi-person-badge me-1"></i> نوع الحساب
@@ -628,14 +629,11 @@
         isValid = false;
       }
 
-      // ✅ التحقق من اختيار الملاعب للمديرين
+      // ✅ التحقق من اختيار الملاعب للمديرين - معدل حسب التعديل 2
       const role = document.getElementById('role').value;
-      if (role === 'manager') {
-        const pitchCheckboxes = document.querySelectorAll('input[name="pitchIds"]:checked');
-        if (pitchCheckboxes.length === 0) {
-          showAlert('⚠️ يجب اختيار ملاعب للإدارة', 'warning');
-          isValid = false;
-        }
+      if ((role === 'manager' || role === 'multi_manager') && pitchIds.length === 0) {
+        showAlert('⚠️ يجب اختيار ملاعب للإدارة', 'warning');
+        isValid = false;
       }
       
       return isValid;
@@ -668,9 +666,9 @@
       const bio = document.querySelector('[name="bio"]').value;
       const _csrf = document.getElementById('csrfToken').value;
 
-      // ✅ جمع الملاعب المختارة للمديرين
+      // ✅ جمع الملاعب المختارة للمديرين - معدل حسب التعديل 3
       let pitchIds = [];
-      if (role === 'manager') {
+      if (role === 'manager' || role === 'multi_manager') {
         const pitchCheckboxes = document.querySelectorAll('input[name="pitchIds"]:checked');
         pitchIds = Array.from(pitchCheckboxes).map(cb => cb.value);
       }
@@ -690,7 +688,7 @@
           },
           body: JSON.stringify({ 
             username, email, phone, password, role, 
-            nickname, age, bio, pitchIds
+            nickname, age, bio, pitchIds // ✅ التعديل 3 - إرسال pitchIds كمصفوفة
           })
         });
 
@@ -717,9 +715,17 @@
           // إخفاء حقول المدير
           document.getElementById('managerFields').style.display = 'none';
           
-          // إعادة توجيه بعد 3 ثواني
+          // ✅ التعديل 5 - التوجيه حسب نوع الحساب
           setTimeout(() => {
-            window.location.href = '/login';
+            if (role === 'user') {
+              window.location.href = '/index.html';
+            } else if (role === 'manager' && pitchIds.length === 1) {
+              window.location.href = `/admin.html?pitchId=${pitchIds[0]}`;
+            } else if (role === 'multi_manager' || pitchIds.length > 1) {
+              window.location.href = '/admin-overview.html';
+            } else {
+              window.location.href = '/login';
+            }
           }, 3000);
         } else {
           // ✅ عرض رسالة الخطأ من السيرفر بشكل واضح
@@ -754,10 +760,10 @@
     const submitBtn = document.getElementById('submitBtn');
     const originalBtnText = submitBtn.innerHTML;
 
-    // ✅ إظهار/إخفاء حقول المدير
+    // ✅ إظهار/إخفاء حقول المدير - معدل حسب التعديل 1
     document.getElementById('role').addEventListener('change', function() {
       const managerFields = document.getElementById('managerFields');
-      if (this.value === 'manager') {
+      if (this.value === 'manager' || this.value === 'multi_manager') {
         managerFields.style.display = 'block';
         loadPitches(); // ✅ تحميل الملاعب عند الحاجة
       } else {
@@ -827,7 +833,7 @@
       });
     }
 
-    // ✅ تهيئة الصفحة
+    // ✅ تهيئة الصفحة مع التحسينات الإضافية - التعديل 6
     document.addEventListener('DOMContentLoaded', function() {
       // تحميل CSRF token عند بدء الصفحة
       fetch('/csrf-token', { credentials: 'include' })
@@ -844,6 +850,22 @@
       if (formTitle) {
         formTitle.setAttribute('role', 'heading');
         formTitle.setAttribute('aria-level', '2');
+      }
+
+      // ✅ حفظ نوع الحساب في localStorage للاستخدام لاحقًا
+      const roleSelect = document.getElementById('role');
+      roleSelect.addEventListener('change', function() {
+        localStorage.setItem('userRole', this.value);
+      });
+
+      // ✅ استعادة نوع الحساب من localStorage إذا كان موجودًا
+      const savedRole = localStorage.getItem('userRole');
+      if (savedRole) {
+        roleSelect.value = savedRole;
+        if (savedRole === 'manager' || savedRole === 'multi_manager') {
+          document.getElementById('managerFields').style.display = 'block';
+          loadPitches();
+        }
       }
     });
   </script>
