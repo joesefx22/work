@@ -160,7 +160,6 @@
       opacity: 0.9;
     }
     
-    /* 🆕 أنماط جديدة */
     .booking-card {
       border: 2px solid #e9ecef;
       border-radius: 12px;
@@ -256,7 +255,6 @@
       color: #000;
     }
 
-    /* 🆕 أنماط التنبيهات */
     .alert {
       border: none;
       border-radius: 8px;
@@ -264,12 +262,34 @@
       margin-bottom: 1rem;
     }
 
-    /* 🆕 أنماط الـ Loading */
     .loading-spinner {
       display: flex;
       justify-content: center;
       align-items: center;
       padding: 3rem;
+    }
+
+    .payment-history-item {
+      border: 1px solid #e9ecef;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      background: white;
+    }
+
+    .payment-status-paid {
+      color: var(--primary-color);
+      font-weight: bold;
+    }
+
+    .payment-status-pending {
+      color: var(--accent-color);
+      font-weight: bold;
+    }
+
+    .payment-status-failed {
+      color: #e74c3c;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -318,7 +338,7 @@
         </div>
       </div>
 
-      <!-- 🆕 نظام التنبيهات -->
+      <!-- نظام التنبيهات -->
       <div id="alertsContainer" aria-live="polite" aria-atomic="true"></div>
 
       <!-- تبويبات الصفحة -->
@@ -332,6 +352,11 @@
           <li class="nav-item" role="presentation">
             <button class="nav-link" id="bookings-tab" data-bs-toggle="tab" data-bs-target="#bookings" type="button" role="tab" aria-controls="bookings" aria-selected="false">
               <i class="bi bi-calendar-check me-2"></i>حجوزاتي
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="payments-tab" data-bs-toggle="tab" data-bs-target="#payments" type="button" role="tab" aria-controls="payments" aria-selected="false">
+              <i class="bi bi-credit-card me-2"></i>المدفوعات
             </button>
           </li>
           <li class="nav-item" role="presentation">
@@ -430,6 +455,20 @@
               <div class="loading-spinner">
                 <div class="spinner-border text-primary" role="status">
                   <span class="visually-hidden">جاري التحميل...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- تبويب المدفوعات -->
+          <div class="tab-pane fade" id="payments" role="tabpanel" aria-labelledby="payments-tab">
+            <div class="form-section">
+              <h5 class="mb-3"><i class="bi bi-credit-card me-2"></i>سجل المدفوعات</h5>
+              <div id="paymentsHistory">
+                <div class="loading-spinner">
+                  <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">جاري التحميل...</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -541,19 +580,23 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    // 🆕 نظام التوثيق المرن (JWT + Cookies)
+    // بيانات المستخدم من localStorage
+    const userId = localStorage.getItem('userId');
+    const userRole = localStorage.getItem('userRole');
+    const username = localStorage.getItem('username');
+    const userEmail = localStorage.getItem('userEmail');
+
+    // دالة للحصول على رؤوس المصادقة
     function getAuthHeaders(contentType = 'application/json') {
       const headers = {
         'Content-Type': contentType
       };
       
-      // 🆕 دعم JWT من localStorage
       const token = localStorage.getItem('token');
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
       
-      // 🆕 دعم CSRF Token إذا كان موجوداً
       const csrfToken = document.getElementById('csrfToken')?.value;
       if (csrfToken) {
         headers['X-CSRF-Token'] = csrfToken;
@@ -562,7 +605,7 @@
       return headers;
     }
 
-    // 🆕 دالة لعرض التنبيهات - آمنة ضد XSS
+    // دالة لعرض التنبيهات
     function showAlert(message, type = 'info') {
       const alertsContainer = document.getElementById('alertsContainer');
       const alertId = 'alert-' + Date.now();
@@ -591,19 +634,20 @@
       }, 5000);
     }
 
-    // 🆕 دالة Sanitize للوقاية من XSS
+    // دالة Sanitize للوقاية من XSS
     function sanitizeHTML(str) {
       const temp = document.createElement('div');
       temp.textContent = str;
       return temp.innerHTML;
     }
 
-    // 🆕 نظام الملف الشخصي المتطور
+    // نظام الملف الشخصي المتطور
     class AdvancedProfileSystem {
       constructor() {
         this.currentBookings = [];
         this.playerRequests = [];
         this.compensationCodes = [];
+        this.paymentHistory = [];
         this.userStats = {};
         this.lastProfileData = null;
         this.isPageVisible = true;
@@ -618,7 +662,6 @@
 
       async loadUserProfile() {
         try {
-          // 🆕 عرض مؤقتات التحميل
           this.showLoadingStates();
           
           await Promise.all([
@@ -626,6 +669,7 @@
             this.loadCurrentBookings(),
             this.loadPlayerRequests(),
             this.loadCompensationCodes(),
+            this.loadPaymentHistory(),
             this.loadActivityTimeline()
           ]);
         } catch (error) {
@@ -634,7 +678,6 @@
         }
       }
 
-      // 🆕 دالة لعرض حالات التحميل
       showLoadingStates() {
         const loadingHTML = `
           <div class="loading-spinner">
@@ -650,6 +693,7 @@
         document.getElementById('activityTimeline').innerHTML = loadingHTML;
         document.getElementById('sentRequestsContainer').innerHTML = loadingHTML;
         document.getElementById('receivedRequestsContainer').innerHTML = loadingHTML;
+        document.getElementById('paymentsHistory').innerHTML = loadingHTML;
       }
 
       async loadBasicProfile() {
@@ -662,14 +706,11 @@
           if (!response.ok) throw new Error(`Server error: ${response.status}`);
           
           const data = await response.json();
-          
-          // 🆕 إصلاح مشكلة هيكل البيانات
           const profile = data.profile || data;
           const stats = data.stats || {};
           
-          // 🆕 التحقق من وجود تغييرات قبل التحديث
           if (!this.hasProfileChanged(profile, stats)) {
-            return; // لا حاجة للتحديث
+            return;
           }
           
           this.displayProfile(profile, stats);
@@ -682,7 +723,6 @@
         }
       }
 
-      // 🆕 دالة للتحقق من تغيير البيانات
       hasProfileChanged(newProfile, newStats) {
         if (!this.lastProfileData) return true;
         
@@ -747,6 +787,23 @@
         }
       }
 
+      async loadPaymentHistory() {
+        try {
+          const response = await fetch('/api/user/payment-history', { 
+            credentials: 'include',
+            headers: getAuthHeaders()
+          });
+          
+          if (!response.ok) throw new Error(`Server error: ${response.status}`);
+          
+          this.paymentHistory = await response.json();
+          this.displayPaymentHistory();
+        } catch (error) {
+          console.error('Error loading payment history:', error);
+          throw error;
+        }
+      }
+
       async loadActivityTimeline() {
         try {
           const response = await fetch('/api/user/activity', { 
@@ -765,7 +822,6 @@
       }
 
       displayProfile(profile, stats) {
-        // 🆕 استخدام Sanitize لجميع البيانات
         document.getElementById('profileName').textContent = sanitizeHTML(profile.nickname || 'الاسم المستعار');
         document.getElementById('profileAge').textContent = profile.age ? `العمر: ${profile.age}` : 'العمر: غير محدد';
         
@@ -780,7 +836,7 @@
         if (profile.age) document.getElementById('age').value = profile.age;
         document.getElementById('bio').value = profile.bio || '';
         
-        // 🆕 دعم نظام المديرين
+        // توجيه ديناميكي حسب نوع الحساب
         if (profile.role === 'admin') {
           document.getElementById('profileLink').innerHTML = '<i class="bi bi-speedometer2 me-1"></i>لوحة التحكم';
           document.getElementById('profileLink').href = '/admin.html';
@@ -794,7 +850,6 @@
 
       updateStatsGrid() {
         const stats = this.userStats;
-        // 🆕 دعم snake_case و camelCase
         document.getElementById('totalBookings').textContent = 
           stats.totalBookings || stats.total_bookings || 0;
         document.getElementById('successfulBookings').textContent = 
@@ -901,6 +956,44 @@
                 <button class="btn btn-outline-primary btn-sm" onclick="profileSystem.showBookingDetails('${booking.id}')">
                   التفاصيل
                 </button>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      displayPaymentHistory() {
+        const container = document.getElementById('paymentsHistory');
+        
+        if (this.paymentHistory.length === 0) {
+          container.innerHTML = `
+            <div class="text-center py-4">
+              <i class="bi bi-credit-card display-4 text-muted"></i>
+              <p class="text-muted mt-2">لا توجد مدفوعات سابقة</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = this.paymentHistory.map(payment => `
+          <div class="payment-history-item">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="mb-1">${sanitizeHTML(payment.description || 'دفع حجز')}</h6>
+                <p class="mb-1 text-muted">
+                  <i class="bi bi-calendar me-1"></i>${new Date(payment.createdAt).toLocaleDateString('ar-EG')}
+                  <i class="bi bi-clock ms-2 me-1"></i>${new Date(payment.createdAt).toLocaleTimeString('ar-EG')}
+                </p>
+                <p class="mb-0">
+                  <span class="badge ${this.getPaymentMethodBadge(payment.method)}">${this.getPaymentMethodText(payment.method)}</span>
+                  <span class="${this.getPaymentStatusClass(payment.status)} ms-2">
+                    ${this.getPaymentStatusText(payment.status)}
+                  </span>
+                </p>
+              </div>
+              <div class="text-left">
+                <p class="mb-1"><strong>${payment.amount} ج.م</strong></p>
+                <small class="text-muted">رقم المرجع: ${payment.reference}</small>
               </div>
             </div>
           </div>
@@ -1036,21 +1129,18 @@
         `).join('');
       }
 
+      // باقي الدوال المطلوبة...
       startBookingCountdown(bookingId, date, time) {
         const countdownElement = document.getElementById(`countdown-${bookingId}`);
         
-        // 🆕 إصلاح مشكلة تنسيق الوقت
         let bookingDateTime;
         try {
-          // محاولة ISO format أولاً
           if (time.includes('T')) {
             bookingDateTime = new Date(time);
           } else {
-            // محاولة تنسيق مخصص
             bookingDateTime = new Date(`${date} ${time}`);
           }
           
-          // إذا فشل كل شيء، استخدم التاريخ الحالي + الوقت
           if (isNaN(bookingDateTime.getTime())) {
             const [hours, minutes] = time.split(':');
             bookingDateTime = new Date(date);
@@ -1119,13 +1209,158 @@
         setInterval(updateCountdown, 60000);
       }
 
+      setupEventListeners() {
+        fetch('/csrf-token', { credentials: 'include' })
+          .then(r => {
+            if (r.ok) return r.json();
+            return null;
+          })
+          .then(d => {
+            if (d?.csrfToken) {
+              document.getElementById('csrfToken').value = d.csrfToken;
+            }
+          })
+          .catch(() => {
+            console.log('CSRF token not supported, using JWT only');
+          });
+
+        document.getElementById('profileForm').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          await this.updateProfile(e.target);
+        });
+      }
+
+      async updateProfile(form) {
+        const formData = new FormData(form);
+        
+        try {
+          const response = await fetch('/api/user/update-profile', {
+            method: 'PUT',
+            credentials: 'include',
+            headers: getAuthHeaders('multipart/form-data'),
+            body: formData
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`خطأ في السيرفر: ${response.status} - ${errorText}`);
+          }
+
+          const data = await response.json();
+
+          if (data.success || response.ok) {
+            showAlert('✅ ' + (data.message || 'تم تحديث الملف الشخصي بنجاح'), 'success');
+            this.loadUserProfile();
+          } else {
+            showAlert('❌ ' + (data.message || 'لم يتم التأكيد من السيرفر، تأكد من حفظ البيانات'), 'warning');
+          }
+        } catch (error) {
+          console.error('Error updating profile:', error);
+          showAlert('❌ حدث خطأ أثناء تحديث الملف الشخصي', 'danger');
+        }
+      }
+
+      startSmartAutoRefresh() {
+        document.addEventListener('visibilitychange', () => {
+          this.isPageVisible = !document.hidden;
+        });
+
+        setInterval(() => {
+          if (this.isPageVisible) {
+            this.loadUserProfile();
+          }
+        }, 180000);
+      }
+
+      getBookingStatusClass(status) {
+        const classes = {
+          'confirmed': 'border-success',
+          'pending': 'border-warning',
+          'cancelled': 'border-danger',
+          'completed': 'border-secondary'
+        };
+        return classes[status] || '';
+      }
+
+      getStatusBadgeClass(status) {
+        const classes = {
+          'confirmed': 'bg-success',
+          'pending': 'bg-warning',
+          'cancelled': 'bg-danger',
+          'completed': 'bg-secondary'
+        };
+        return classes[status] || 'bg-secondary';
+      }
+
+      getStatusText(status) {
+        const texts = {
+          'confirmed': 'مؤكد',
+          'pending': 'قيد الانتظار',
+          'cancelled': 'ملغي',
+          'completed': 'منتهي'
+        };
+        return texts[status] || status;
+      }
+
+      getRequestStatusClass(status) {
+        const classes = {
+          'pending': 'bg-warning',
+          'accepted': 'bg-success',
+          'rejected': 'bg-danger'
+        };
+        return classes[status] || 'bg-secondary';
+      }
+
+      getRequestStatusText(status) {
+        const texts = {
+          'pending': 'قيد الانتظار',
+          'accepted': 'مقبول',
+          'rejected': 'مرفوض'
+        };
+        return texts[status] || status;
+      }
+
+      getPaymentMethodBadge(method) {
+        const classes = {
+          'paymob': 'bg-primary',
+          'voucher': 'bg-success',
+          'free': 'bg-secondary'
+        };
+        return classes[method] || 'bg-info';
+      }
+
+      getPaymentMethodText(method) {
+        const texts = {
+          'paymob': 'Paymob',
+          'voucher': 'كود دفع',
+          'free': 'مجاني'
+        };
+        return texts[method] || method;
+      }
+
+      getPaymentStatusClass(status) {
+        const classes = {
+          'paid': 'payment-status-paid',
+          'pending': 'payment-status-pending',
+          'failed': 'payment-status-failed'
+        };
+        return classes[status] || 'text-muted';
+      }
+
+      getPaymentStatusText(status) {
+        const texts = {
+          'paid': 'مدفوع',
+          'pending': 'قيد الانتظار',
+          'failed': 'فشل'
+        };
+        return texts[status] || status;
+      }
+
       async showBookingDetails(bookingId) {
         const booking = this.currentBookings.find(b => b.id === bookingId);
         if (!booking) return;
 
         const modalContent = document.getElementById('bookingDetailsContent');
-        
-        // 🆕 استخدام createElement بدلاً من innerHTML للوقاية من XSS
         modalContent.innerHTML = '';
         
         const row = document.createElement('div');
@@ -1248,125 +1483,9 @@
           showAlert('❌ حدث خطأ أثناء معالجة الطلب', 'danger');
         }
       }
-
-      // 🆕 تحديث ذكي للتحديث التلقائي
-      startSmartAutoRefresh() {
-        // تحديث فقط عندما تكون الصفحة مرئية
-        document.addEventListener('visibilitychange', () => {
-          this.isPageVisible = !document.hidden;
-        });
-
-        setInterval(() => {
-          if (this.isPageVisible) {
-            this.loadUserProfile();
-          }
-        }, 180000); // 3 دقائق
-      }
-
-      setupEventListeners() {
-        // 🆕 محاولة جلب CSRF Token إذا كان مدعوماً
-        fetch('/csrf-token', { credentials: 'include' })
-          .then(r => {
-            if (r.ok) return r.json();
-            // إذا لم يكن مدعوماً، تجاهل الخطأ
-            return null;
-          })
-          .then(d => {
-            if (d?.csrfToken) {
-              document.getElementById('csrfToken').value = d.csrfToken;
-            }
-          })
-          .catch(() => {
-            // تجاهل الخطأ - قد لا يكون CSRF مدعوماً
-            console.log('CSRF token not supported, using JWT only');
-          });
-
-        document.getElementById('profileForm').addEventListener('submit', async (e) => {
-          e.preventDefault();
-          await this.updateProfile(e.target);
-        });
-      }
-
-      async updateProfile(form) {
-        const formData = new FormData(form);
-        
-        try {
-          const response = await fetch('/api/user/profile', {
-            method: 'PUT',
-            credentials: 'include',
-            headers: getAuthHeaders('multipart/form-data'),
-            body: formData
-          });
-
-          if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`خطأ في السيرفر: ${response.status} - ${errorText}`);
-          }
-
-          const data = await response.json();
-
-          if (data.success || response.ok) {
-            showAlert('✅ ' + (data.message || 'تم تحديث الملف الشخصي بنجاح'), 'success');
-            this.loadUserProfile();
-          } else {
-            showAlert('❌ ' + (data.message || 'لم يتم التأكيد من السيرفر، تأكد من حفظ البيانات'), 'warning');
-          }
-        } catch (error) {
-          console.error('Error updating profile:', error);
-          showAlert('❌ حدث خطأ أثناء تحديث الملف الشخصي', 'danger');
-        }
-      }
-
-      getBookingStatusClass(status) {
-        const classes = {
-          'confirmed': 'border-success',
-          'pending': 'border-warning',
-          'cancelled': 'border-danger',
-          'completed': 'border-secondary'
-        };
-        return classes[status] || '';
-      }
-
-      getStatusBadgeClass(status) {
-        const classes = {
-          'confirmed': 'bg-success',
-          'pending': 'bg-warning',
-          'cancelled': 'bg-danger',
-          'completed': 'bg-secondary'
-        };
-        return classes[status] || 'bg-secondary';
-      }
-
-      getStatusText(status) {
-        const texts = {
-          'confirmed': 'مؤكد',
-          'pending': 'قيد الانتظار',
-          'cancelled': 'ملغي',
-          'completed': 'منتهي'
-        };
-        return texts[status] || status;
-      }
-
-      getRequestStatusClass(status) {
-        const classes = {
-          'pending': 'bg-warning',
-          'accepted': 'bg-success',
-          'rejected': 'bg-danger'
-        };
-        return classes[status] || 'bg-secondary';
-      }
-
-      getRequestStatusText(status) {
-        const texts = {
-          'pending': 'قيد الانتظار',
-          'accepted': 'مقبول',
-          'rejected': 'مرفوض'
-        };
-        return texts[status] || status;
-      }
     }
 
-    // 🆕 دالة فلترة الحجوزات
+    // دالة فلترة الحجوزات
     function filterBookings(filter, event) {
       const bookings = document.querySelectorAll('#allBookingsContainer .booking-card');
       bookings.forEach(booking => {
@@ -1411,7 +1530,6 @@
 
     // تسجيل الخروج
     function logout() {
-      // 🆕 تنظيف كامل للبيانات المحلية
       localStorage.removeItem('token');
       sessionStorage.clear();
       
