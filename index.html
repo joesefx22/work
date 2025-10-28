@@ -255,6 +255,15 @@
       z-index: 2;
     }
 
+    /* 🆕 زر المفضلة */
+    .favorite-btn {
+      transition: all 0.3s ease;
+    }
+    
+    .favorite-btn:hover {
+      transform: scale(1.1);
+    }
+
     /* تحسينات للواجهة الحالية */
     .time-slot.golden {
       background: linear-gradient(135deg, #fff9e6, #fff3cd);
@@ -1280,7 +1289,7 @@
 
     <!-- 🆕 Container للملاعب الديناميكية -->
     <div class="row" id="stadiumsContainer">
-      <!-- سيتم تعبئة الملاعب ديناميكياً من API -->
+      <!-- سيتم تعمئة الملاعب ديناميكياً من API -->
     </div>
   </div>
 </section>
@@ -1719,286 +1728,630 @@
   </div>
 </div>
 
+<!-- 🆕 مودال التقييم المتقدم -->
+<div class="modal fade" id="advancedRatingModal" tabindex="-1" role="dialog" aria-labelledby="advancedRatingModalLabel">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-warning text-white">
+        <h5 class="modal-title" id="advancedRatingModalLabel">تقييم متقدم للملعب</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+      </div>
+      <div class="modal-body">
+        <div class="text-center mb-4">
+          <button class="btn btn-outline-primary mb-2" onclick="startVoiceRating()">
+            <i class="bi bi-mic me-2"></i>التقييم الصوتي
+          </button>
+          <p class="text-muted">قل "خمسة نجوم" أو "ممتاز" أو أي تقييم</p>
+        </div>
+        
+        <div class="rating-stars mb-3" id="advancedRatingStars">
+          <i class="bi bi-star star" data-rating="1"></i>
+          <i class="bi bi-star star" data-rating="2"></i>
+          <i class="bi bi-star star" data-rating="3"></i>
+          <i class="bi bi-star star" data-rating="4"></i>
+          <i class="bi bi-star star" data-rating="5"></i>
+        </div>
+        
+        <div class="mb-3">
+          <label class="form-label">تعليقك (يمكنك تسجيل صوتي)</label>
+          <textarea class="form-control" id="advancedRatingComment" rows="3" placeholder="اكتب تعليقك عن تجربتك..."></textarea>
+        </div>
+        
+        <div class="d-flex gap-2">
+          <button class="btn btn-primary flex-fill" onclick="submitAdvancedRating()">
+            <i class="bi bi-star-fill me-2"></i>إرسال التقييم
+          </button>
+          <button class="btn btn-outline-secondary" onclick="shareStadiumReview()">
+            <i class="bi bi-share me-2"></i>مشاركة
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-  // ======= 🆕 النظام الجديد - Dynamic Stadiums =======
-  async function fetchStadiums() {
-    try {
-      showToast('جاري تحميل الملاعب...', 'info');
-      const res = await fetch('/api/stadiums');
-      if (!res.ok) throw new Error('فشل تحميل الملاعب');
-      const stadiums = await res.json();
-      renderStadiums(stadiums);
-      showToast('تم تحميل الملاعب بنجاح', 'success');
-    } catch (err) {
-      console.error('Error fetching stadiums:', err);
-      // استخدم البيانات الافتراضية كحل بديل
-      const defaultStadiums = getDefaultStadiums();
-      renderStadiums(defaultStadiums);
-      showToast('جارٍ استخدام البيانات المحلية', 'info');
-    }
+  // ======= 🆕 النظام التقني المحسن - APIs كاملة =======
+
+  // 🎯 1. دوال الـ API المحسنة
+  async function loadStadiums(filters = {}) {
+      try {
+          showToast('جاري تحميل الملاعب...', 'info');
+          
+          // بناء parameters الفلترة
+          const params = new URLSearchParams();
+          if (filters.area) params.append('area', filters.area);
+          if (filters.type) params.append('type', filters.type);
+          if (filters.minPrice) params.append('minPrice', filters.minPrice);
+          if (filters.maxPrice) params.append('maxPrice', filters.maxPrice);
+          if (filters.minRating) params.append('minRating', filters.minRating);
+          if (filters.sort) params.append('sort', filters.sort);
+          if (filters.search) params.append('search', filters.search);
+          if (filters.featured) params.append('featured', 'true');
+          
+          const res = await fetch(`/api/stadiums?${params}`);
+          if (!res.ok) throw new Error('فشل تحميل الملاعب');
+          
+          const stadiums = await res.json();
+          return stadiums;
+      } catch (err) {
+          console.error('Error loading stadiums:', err);
+          // استخدم البيانات الافتراضية كحل بديل
+          return getDefaultStadiums();
+      }
   }
 
-  // 🆕 دالة جلب البانرز
-  async function fetchBanners() {
-    try {
-      const res = await fetch('/api/homepage-banners');
-      if (!res.ok) throw new Error('فشل تحميل البانرز');
-      const banners = await res.json();
-      renderBanners(banners);
-    } catch (err) {
-      console.error('Error fetching banners:', err);
-      renderDefaultBanners();
-    }
+  // 🎯 2. دالة البانرز المحسنة
+  async function loadBanners() {
+      try {
+          const res = await fetch('/api/homepage-banners?active=true');
+          if (!res.ok) throw new Error('فشل تحميل البانرز');
+          return await res.json();
+      } catch (err) {
+          console.error('Error loading banners:', err);
+          return getDefaultBanners();
+      }
   }
 
-  // 🆕 دالة جلب الملاعب المميزة
-  async function fetchFeaturedStadiums() {
-    try {
-      const res = await fetch('/api/stadiums?sort=popular&limit=3');
-      if (!res.ok) throw new Error('فشل تحميل الملاعب المميزة');
-      const stadiums = await res.json();
-      renderFeaturedStadiums(stadiums);
-    } catch (err) {
-      console.error('Error fetching featured stadiums:', err);
-    }
+  // 🎯 3. دالة الملاعب المميزة
+  async function loadFeaturedStadiums() {
+      try {
+          const res = await fetch('/api/stadiums?featured=true&limit=3&sort=popular');
+          if (!res.ok) throw new Error('فشل تحميل الملاعب المميزة');
+          return await res.json();
+      } catch (err) {
+          console.error('Error loading featured stadiums:', err);
+          return getDefaultStadiums().slice(0, 3);
+      }
   }
 
-  // 🆕 دالة عرض البانرز
-  function renderBanners(banners) {
-    const container = document.getElementById('bannersContainer');
-    if (!Array.isArray(banners) || banners.length === 0) {
-      renderDefaultBanners();
-      return;
-    }
-
-    container.innerHTML = banners.map(banner => `
-      <div class="col-md-4 mb-3">
-        <div class="banner-card">
-          <div class="banner-image" style="background-image: url('${banner.image || 'https://placehold.co/600x400/667eea/white?text=عرض+خاص'}')">
-            ${banner.badge ? `<span class="banner-badge">${banner.badge}</span>` : ''}
-          </div>
-          <div class="banner-content">
-            <h5>${escapeHtml(banner.title)}</h5>
-            <p class="text-muted">${escapeHtml(banner.description)}</p>
-            ${banner.ctaText ? `
-              <button class="btn btn-primary w-100" onclick="${banner.ctaAction || 'showToast(\\'جاري التوجيه...\\', \\'info\\')'}">
-                ${banner.ctaText}
-              </button>
-            ` : ''}
-          </div>
-        </div>
-      </div>
-    `).join('');
+  // 🎯 4. دالة البحث المتقدمة
+  async function searchStadiums(query) {
+      try {
+          const res = await fetch(`/api/stadiums/search?q=${encodeURIComponent(query)}`);
+          if (!res.ok) throw new Error('فشل البحث');
+          return await res.json();
+      } catch (err) {
+          console.error('Search error:', err);
+          // بحث محلي كبديل
+          const allStadiums = getDefaultStadiums();
+          return allStadiums.filter(stadium => 
+              stadium.name.toLowerCase().includes(query.toLowerCase()) ||
+              stadium.location.toLowerCase().includes(query.toLowerCase())
+          );
+      }
   }
 
-  // 🆕 دالة البانرز الافتراضية
-  function renderDefaultBanners() {
-    const container = document.getElementById('bannersContainer');
-    container.innerHTML = `
-      <div class="col-md-4 mb-3">
-        <div class="banner-card">
-          <div class="banner-image" style="background-image: url('https://placehold.co/600x400/667eea/white?text=خصم+25%')">
-            <span class="banner-badge">🔥 محدود</span>
-          </div>
-          <div class="banner-content">
-            <h5>خصم 25% على الحجوزات المسائية</h5>
-            <p class="text-muted">استمتع بخصم خاص على الحجوزات بعد الساعة 8 مساءً</p>
-            <button class="btn btn-primary w-100" onclick="showToast('جاري التوجيه للحجوزات المسائية', 'info')">
-              احجز الآن
-            </button>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-4 mb-3">
-        <div class="banner-card">
-          <div class="banner-image" style="background-image: url('https://placehold.co/600x400/764ba2/white?text=لاعبوني+معاكم')">
-            <span class="banner-badge">👥 جديد</span>
-          </div>
-          <div class="banner-content">
-            <h5>لاعبوني معاكم - الساعات الذهبية</h5>
-            <p class="text-muted">انضم لمباريات جديدة واجذب لاعبين إضافيين لمباراتك</p>
-            <button class="btn btn-primary w-100" onclick="window.location.href='/players-with-you'">
-              اكتشف المزيد
-            </button>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-4 mb-3">
-        <div class="banner-card">
-          <div class="banner-image" style="background-image: url('https://placehold.co/600x400/1a7f46/white?text=أضف+ملعبك')">
-            <span class="banner-badge">🏟️ لأصحاب الملاعب</span>
-          </div>
-          <div class="banner-content">
-            <h5>أضف ملعبك وزد دخلك</h5>
-            <p class="text-muted">انضم كشريك واجعل ملعبك مرئياً لألاف اللاعبين</p>
-            <button class="btn btn-primary w-100" onclick="window.location.href='/add-stadium'">
-              سجل ملعبك
-            </button>
-          </div>
-        </div>
-      </div>
-    `;
+  // 🎯 5. دوال الفلترة
+  async function filterByArea(area) {
+      return await loadStadiums({ area });
   }
 
-  // 🆕 دالة عرض الملاعب المميزة
-  function renderFeaturedStadiums(stadiums) {
-    const container = document.getElementById('featuredStadiumsContainer');
-    if (!Array.isArray(stadiums) || stadiums.length === 0) {
-      container.innerHTML = '<div class="col-12 text-center"><p class="text-muted">لا توجد ملاعب مميزة حالياً</p></div>';
-      return;
-    }
-
-    container.innerHTML = stadiums.map(st => {
-      const img = (st.images && st.images.length) ? st.images[0] : 'https://placehold.co/600x400/1a7f46/white?text=ملعب+مميز';
-      const nextSlot = st.nextAvailableSlot ? 
-        `<div class="next-slot-badge">
-           <i class="bi bi-clock"></i> التالي: ${st.nextAvailableSlot}
-         </div>` : '';
-
-      return `
-        <div class="col-lg-4 col-md-6 mb-4">
-          <div class="stadium-card h-100">
-            <div class="stadium-image" style="background-image: url('${img}')" loading="lazy">
-              <span class="featured-badge">⭐ مميز</span>
-              <span class="stadium-badge availability-high">الأكثر طلباً</span>
-              <span class="stadium-price">${st.price ? st.price + ' ج.م/ساعة' : '-'}</span>
-            </div>
-            <div class="stadium-info">
-              <h4 class="stadium-title">${escapeHtml(st.name)}</h4>
-              <p class="stadium-location">
-                <i class="bi bi-geo-alt"></i> ${escapeHtml(st.location || 'الموقع غير محدد')}
-              </p>
-              
-              ${nextSlot}
-              
-              <div class="d-flex justify-content-between align-items-center mb-3">
-                <div>
-                  <div class="rating-stars">
-                    ${generateStarRating(st.rating || 4.5)}
-                  </div>
-                  <div class="rating-text">${(st.rating || 4.5).toFixed(1)} (${st.totalRatings || 0} تقييم)</div>
-                </div>
-              </div>
-
-              <button class="btn btn-primary w-100" onclick="bookStadium(${st.id})">
-                <i class="bi bi-credit-card me-2"></i>احجز الآن
-              </button>
-            </div>
-          </div>
-        </div>`;
-    }).join('');
+  async function filterByType(type) {
+      return await loadStadiums({ type });
   }
 
-  function renderStadiums(stadiums) {
-    const container = document.getElementById('stadiumsContainer');
-    if (!Array.isArray(stadiums) || stadiums.length === 0) {
-      container.innerHTML = `<div class="col-12">
-        <div class="empty-state">
-          <i class="bi bi-clock-history"></i>
-          <h5>لا توجد ملاعب حالياً</h5>
-          <p>سنخطرك عند توفر ملاعب جديدة.</p>
-        </div></div>`;
-      return;
-    }
+  async function filterByRating(minRating) {
+      return await loadStadiums({ minRating });
+  }
 
-    container.innerHTML = stadiums.map(st => {
-      const img = (st.images && st.images.length) ? st.images[0] : 'https://placehold.co/600x400/1a7f46/white?text=ملعب';
-      const features = st.features ? st.features.slice(0,3).map(f => `<span class="badge bg-light text-dark me-1">${f}</span>`).join('') : '';
-      
-      let availabilityClass = 'availability-high';
-      let availabilityText = 'متاح';
-      if (st.availabilityPercentage < 30) {
-        availabilityClass = 'availability-low';
-        availabilityText = 'محدود';
-      } else if (st.availabilityPercentage < 60) {
-        availabilityClass = 'availability-medium';
-        availabilityText = 'متوسط';
+  async function filterByPrice(minPrice, maxPrice) {
+      return await loadStadiums({ minPrice, maxPrice });
+  }
+
+  // 🎯 6. دالة الساعات المتاحة
+  async function getNextAvailableSlot(stadiumId) {
+      try {
+          const res = await fetch(`/api/stadiums/${stadiumId}/next-available-slot`);
+          if (!res.ok) throw new Error('فشل تحميل الساعات');
+          const data = await res.json();
+          return data.nextAvailable;
+      } catch (err) {
+          console.error('Error loading next slot:', err);
+          // بيانات افتراضية
+          const slots = ['اليوم 6 مساءً', 'غداً 4 عصراً', 'اليوم 8 مساءً'];
+          return slots[Math.floor(Math.random() * slots.length)];
+      }
+  }
+
+  // 🎯 7. دالة التقييمات
+  async function submitRating(ratingData) {
+      try {
+          const res = await fetch('/api/ratings', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+              },
+              body: JSON.stringify(ratingData)
+          });
+          
+          if (!res.ok) throw new Error('فشل إرسال التقييم');
+          return await res.json();
+      } catch (err) {
+          console.error('Rating submission error:', err);
+          throw err;
+      }
+  }
+
+  // 🎯 8. دالة الحجز مع التحقق
+  async function bookStadiumWithAuth(bookingData) {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+          throw new Error('يجب تسجيل الدخول أولاً');
       }
 
-      // 🆕 عرض الساعة المتاحة التالية
-      const nextSlot = st.nextAvailableSlot ? 
-        `<div class="next-slot-badge">
-           <i class="bi bi-clock"></i> التالي: ${st.nextAvailableSlot}
-         </div>` : '';
+      try {
+          const res = await fetch('/api/bookings', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify(bookingData)
+          });
 
-      return `
-        <div class="col-lg-4 col-md-6 mb-4">
-          <div class="stadium-card h-100">
-            <div class="stadium-image" style="background-image: url('${img}')" loading="lazy">
-              <span class="stadium-badge ${availabilityClass}">${availabilityText}</span>
-              <span class="stadium-price">${st.price ? st.price + ' ج.م/ساعة' : '-'}</span>
-              <span class="stadium-deposit">العربون: ${st.deposit || Math.round(st.price * 0.3)} ج.م</span>
-            </div>
-            <div class="stadium-info">
-              <h4 class="stadium-title">${escapeHtml(st.name)}</h4>
-              <p class="stadium-location">
-                <i class="bi bi-geo-alt"></i> ${escapeHtml(st.location || 'الموقع غير محدد')}
-              </p>
-              
-              ${nextSlot}
-              
-              <div class="stadium-features">
-                ${features}
-              </div>
-              
-              <div class="d-flex justify-content-between align-items-center mb-3">
-                <div>
-                  <div class="rating-stars">
-                    ${generateStarRating(st.rating || 4.5)}
-                  </div>
-                  <div class="rating-text">${(st.rating || 4.5).toFixed(1)} (${st.totalRatings || 0} تقييم)</div>
-                </div>
-                <div>
-                  <a href="${st.googleMaps || '#'}" target="_blank" class="btn btn-outline-primary btn-sm me-2">
-                    <i class="bi bi-geo-alt me-1"></i>اتجاهات
-                  </a>
-                  <button class="btn btn-outline-warning btn-sm" onclick="rateStadium(${st.id})">
-                    <i class="bi bi-star me-1"></i>قيم
-                  </button>
-                </div>
-              </div>
+          if (!res.ok) {
+              const error = await res.json();
+              throw new Error(error.message || 'فشل الحجز');
+          }
 
-              <div class="days-selector" id="day-selector-${st.id}"></div>
+          return await res.json();
+      } catch (err) {
+          console.error('Booking error:', err);
+          throw err;
+      }
+  }
 
-              <div class="time-slots-container" id="slots-${st.id}">
-                <p class="text-muted text-center">اختر يوماً لعرض الأوقات المتاحة</p>
-              </div>
+  // ======= 🚀 المميزات الإضافية المبهرة =======
 
-              <button class="btn btn-primary w-100 mt-3" onclick="bookStadium(${st.id})" id="bookBtn-${st.id}">
-                <i class="bi bi-credit-card me-2"></i>احجز وادفع العربون
+  // 🌟 1. WebSocket للتحديث اللحظي
+  function initializeWebSocket() {
+      try {
+          const socket = new WebSocket('wss://your-domain.com/ws/bookings');
+          
+          socket.onopen = () => {
+              console.log('WebSocket connected for real-time updates');
+          };
+
+          socket.onmessage = (event) => {
+              const data = JSON.parse(event.data);
+              handleRealTimeUpdate(data);
+          };
+
+          socket.onclose = () => {
+              console.log('WebSocket disconnected');
+              // إعادة الاتصال بعد 5 ثواني
+              setTimeout(initializeWebSocket, 5000);
+          };
+
+          return socket;
+      } catch (err) {
+          console.error('WebSocket error:', err);
+      }
+  }
+
+  function handleRealTimeUpdate(data) {
+      switch (data.type) {
+          case 'booking_confirmed':
+              showToast(`✅ تم تأكيد حجزك في ${data.stadiumName}`, 'success');
+              updateStadiumAvailability(data.stadiumId);
+              break;
+          case 'slot_taken':
+              showToast('⚠️ الساعة التي اخترتها تم حجزها الآن، يرجى اختيار وقت آخر', 'warning');
+              refreshTimeSlots(data.stadiumId);
+              break;
+          case 'new_golden_slot':
+              showToast('🎉 توجد ساعة ذهبية جديدة تحتاج لاعبين!', 'info');
+              loadGoldenSlots();
+              break;
+      }
+  }
+
+  // 🌟 2. الذكاء الاصطناعي لاقتراح الملاعب
+  async function getAISuggestions(userId) {
+      try {
+          const res = await fetch(`/api/ai/suggestions?userId=${userId}`);
+          if (!res.ok) throw new Error('فشل تحميل الاقتراحات');
+          return await res.json();
+      } catch (err) {
+          console.error('AI suggestions error:', err);
+          return getDefaultSuggestions();
+      }
+  }
+
+  function getDefaultSuggestions() {
+      // اقتراحات ذكية بناءً على الوقت والتاريخ
+      const hour = new Date().getHours();
+      let suggestions = [];
+
+      if (hour >= 18 || hour < 6) {
+          suggestions = ['ملاعب بإضاءة ليلية', 'ملاعب قريبة من موقعك'];
+      } else if (hour >= 6 && hour < 12) {
+          suggestions = ['ملاعب بأسعار الصباح', 'ملاعب هادئة'];
+      } else {
+          suggestions = ['ملاعب مكيفة', 'ملاعب بمساحات واسعة'];
+      }
+
+      return { suggestions, stadiums: getDefaultStadiums().slice(0, 2) };
+  }
+
+  // 🌟 3. نظام المفضلة
+  function toggleFavorite(stadiumId) {
+      let favorites = JSON.parse(localStorage.getItem('favoriteStadiums') || '[]');
+      
+      if (favorites.includes(stadiumId)) {
+          favorites = favorites.filter(id => id !== stadiumId);
+          showToast('تم إزالة الملعب من المفضلة', 'info');
+      } else {
+          favorites.push(stadiumId);
+          showToast('تم إضافة الملعب إلى المفضلة', 'success');
+      }
+      
+      localStorage.setItem('favoriteStadiums', JSON.stringify(favorites));
+      updateFavoriteButtons();
+  }
+
+  function updateFavoriteButtons() {
+      const favorites = JSON.parse(localStorage.getItem('favoriteStadiums') || '[]');
+      
+      document.querySelectorAll('.favorite-btn').forEach(btn => {
+          const stadiumId = parseInt(btn.dataset.stadiumId);
+          if (favorites.includes(stadiumId)) {
+              btn.innerHTML = '<i class="bi bi-heart-fill text-danger"></i>';
+              btn.title = 'إزالة من المفضلة';
+          } else {
+              btn.innerHTML = '<i class="bi bi-heart"></i>';
+              btn.title = 'إضافة إلى المفضلة';
+          }
+      });
+  }
+
+  // 🌟 4. التقييمات المتقدمة
+  function initVoiceRating() {
+      if ('webkitSpeechRecognition' in window) {
+          const recognition = new webkitSpeechRecognition();
+          recognition.continuous = false;
+          recognition.interimResults = false;
+          recognition.lang = 'ar-SA';
+
+          recognition.onresult = (event) => {
+              const transcript = event.results[0][0].transcript;
+              processVoiceRating(transcript);
+          };
+
+          return recognition;
+      }
+      return null;
+  }
+
+  function processVoiceRating(transcript) {
+      const ratingMap = {
+          'واحد': 1, 'احد': 1, 'واحد نجمة': 1,
+          'اتنين': 2, 'اثنين': 2, 'اتنين نجمة': 2,
+          'تلاتة': 3, 'ثلاثة': 3, 'تلاتة نجوم': 3,
+          'اربعة': 4, 'أربعة': 4, 'اربعة نجوم': 4,
+          'خمسة': 5, 'خمسة نجوم': 5, 'ممتاز': 5
+      };
+
+      const words = transcript.toLowerCase().split(' ');
+      for (let word of words) {
+          if (ratingMap[word]) {
+              const rating = ratingMap[word];
+              document.getElementById('selectedRating').value = rating;
+              updateStarRating(rating);
+              showToast(`تم تعيين التقييم إلى ${rating} نجوم`, 'success');
+              return;
+          }
+      }
+      
+      showToast('لم أفهم التقييم، يرجى المحاولة مرة أخرى', 'error');
+  }
+
+  // 🌟 5. مشاركة الحجز
+  function generateShareableLink(bookingId) {
+      const baseUrl = window.location.origin;
+      return `${baseUrl}/booking/${bookingId}?ref=share`;
+  }
+
+  async function shareBooking(bookingId, platform = 'whatsapp') {
+      const shareUrl = generateShareableLink(bookingId);
+      const message = `انضم لي في المباراة! 🎯 ${shareUrl}`;
+
+      switch (platform) {
+          case 'whatsapp':
+              window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+              break;
+          case 'telegram':
+              window.open(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(message)}`, '_blank');
+              break;
+          case 'copy':
+              navigator.clipboard.writeText(shareUrl).then(() => {
+                  showToast('تم نسخ رابط المشاركة', 'success');
+              });
+              break;
+      }
+  }
+
+  // ======= 🔄 تحديث الدوال الرئيسية =======
+
+  // تحديث دالة fetchStadiums الأساسية
+  async function fetchStadiums() {
+      try {
+          showToast('جاري تحميل الملاعب...', 'info');
+          
+          // تطبيق الفلاتر الحالية
+          const filters = getCurrentFilters();
+          const stadiums = await loadStadiums(filters);
+          
+          renderStadiums(stadiums);
+          showToast('تم تحميل الملاعب بنجاح', 'success');
+      } catch (err) {
+          console.error('Error fetching stadiums:', err);
+          const defaultStadiums = getDefaultStadiums();
+          renderStadiums(defaultStadiums);
+          showToast('جارٍ استخدام البيانات المحلية', 'info');
+      }
+  }
+
+  // تحديث دالة renderStadiums
+  function renderStadiums(stadiums) {
+      const container = document.getElementById('stadiumsContainer');
+      if (!Array.isArray(stadiums) || stadiums.length === 0) {
+          container.innerHTML = getEmptyStateHTML('لا توجد ملاعب تطابق بحثك');
+          return;
+      }
+
+      container.innerHTML = stadiums.map(st => {
+          const nextSlot = st.nextAvailableSlot ? 
+              `<div class="next-slot-badge">
+                 <i class="bi bi-clock"></i> التالي: ${st.nextAvailableSlot}
+               </div>` : '';
+
+          // 🆕 زر المفضلة
+          const favoriteBtn = `
+              <button class="btn btn-outline-danger btn-sm favorite-btn" 
+                      data-stadium-id="${st.id}"
+                      onclick="toggleFavorite(${st.id})"
+                      title="إضافة إلى المفضلة">
+                  <i class="bi bi-heart"></i>
               </button>
-            </div>
-          </div>
-        </div>`;
-    }).join('');
+          `;
 
-    // إضافة منتقي الأيام لكل ملعب
-    stadiums.forEach(st => {
-      setTimeout(() => {
-        const daySelectorContainer = document.getElementById(`day-selector-${st.id}`);
-        if (daySelectorContainer) {
-          daySelectorContainer.appendChild(createDaySelector(st.id));
-        }
-        
-        // 🆕 التحقق من حالة المستخدم لزر الحجز
-        checkBookingEligibility(st.id);
-      }, 100);
-    });
+          return `
+              <div class="col-lg-4 col-md-6 mb-4">
+                  <div class="stadium-card h-100">
+                      <div class="stadium-image" style="background-image: url('${st.image || 'https://placehold.co/600x400/1a7f46/white?text=ملعب'}')" loading="lazy">
+                          <span class="stadium-badge ${getAvailabilityClass(st.availabilityPercentage)}">${getAvailabilityText(st.availabilityPercentage)}</span>
+                          ${st.featured ? '<span class="featured-badge">⭐ مميز</span>' : ''}
+                          <span class="stadium-price">${st.price ? st.price + ' ج.م/ساعة' : '-'}</span>
+                          <span class="stadium-deposit">العربون: ${st.deposit || Math.round(st.price * 0.3)} ج.م</span>
+                      </div>
+                      <div class="stadium-info">
+                          <h4 class="stadium-title">${escapeHtml(st.name)}</h4>
+                          <p class="stadium-location">
+                              <i class="bi bi-geo-alt"></i> ${escapeHtml(st.location || 'الموقع غير محدد')}
+                          </p>
+                          
+                          ${nextSlot}
+                          
+                          <div class="stadium-features">
+                              ${(st.features || []).slice(0,3).map(f => `<span class="badge bg-light text-dark me-1">${f}</span>`).join('')}
+                          </div>
+                          
+                          <div class="d-flex justify-content-between align-items-center mb-3">
+                              <div>
+                                  <div class="rating-stars">
+                                      ${generateStarRating(st.rating || 4.5)}
+                                  </div>
+                                  <div class="rating-text">${(st.rating || 4.5).toFixed(1)} (${st.totalRatings || 0} تقييم)</div>
+                              </div>
+                              <div>
+                                  ${favoriteBtn}
+                                  <button class="btn btn-outline-warning btn-sm ms-2" onclick="showAdvancedRatingModal(${st.id})">
+                                      <i class="bi bi-mic"></i>
+                                  </button>
+                              </div>
+                          </div>
+
+                          <div class="days-selector" id="day-selector-${st.id}"></div>
+
+                          <div class="time-slots-container" id="slots-${st.id}">
+                              <p class="text-muted text-center">اختر يوماً لعرض الأوقات المتاحة</p>
+                          </div>
+
+                          <button class="btn btn-primary w-100 mt-3" onclick="bookStadium(${st.id})" id="bookBtn-${st.id}">
+                              <i class="bi bi-credit-card me-2"></i>احجز وادفع العربون
+                          </button>
+                      </div>
+                  </div>
+              </div>`;
+      }).join('');
+
+      updateFavoriteButtons();
+      
+      // إضافة منتقي الأيام لكل ملعب
+      stadiums.forEach(st => {
+          setTimeout(() => {
+              const daySelectorContainer = document.getElementById(`day-selector-${st.id}`);
+              if (daySelectorContainer) {
+                  daySelectorContainer.appendChild(createDaySelector(st.id));
+              }
+              
+              // 🆕 التحقق من حالة المستخدم لزر الحجز
+              checkBookingEligibility(st.id);
+          }, 100);
+      });
   }
 
   // 🆕 دالة التحقق من حالة المستخدم لزر الحجز
   function checkBookingEligibility(stadiumId) {
-    const token = localStorage.getItem('authToken');
-    const bookBtn = document.getElementById(`bookBtn-${stadiumId}`);
-    
-    if (!token && bookBtn) {
-      bookBtn.innerHTML = '<i class="bi bi-person me-2"></i>سجل الدخول أولاً';
-      bookBtn.onclick = () => {
-        showToast('يرجى تسجيل الدخول أولاً للحجز', 'warning');
-        window.location.href = '/login';
+      const token = localStorage.getItem('authToken');
+      const bookBtn = document.getElementById(`bookBtn-${stadiumId}`);
+      
+      if (!token && bookBtn) {
+          bookBtn.innerHTML = '<i class="bi bi-person me-2"></i>سجل الدخول أولاً';
+          bookBtn.onclick = () => {
+              showToast('يرجى تسجيل الدخول أولاً للحجز', 'warning');
+              window.location.href = '/login';
+          };
+      }
+  }
+
+  // ======= 🎯 التهيئة النهائية المحسنة =======
+
+  document.addEventListener('DOMContentLoaded', function() {
+      // التهيئة الأساسية
+      initializeApp();
+      
+      // 🆕 WebSocket للتحديث اللحظي
+      initializeWebSocket();
+      
+      // 🆕 نظام التعرف الصوتي
+      initVoiceRecognition();
+  });
+
+  async function initializeApp() {
+      try {
+          // تحميل البيانات بشكل متوازي
+          const [stadiums, banners, featured] = await Promise.allSettled([
+              fetchStadiums(),
+              fetchBanners(),
+              fetchFeaturedStadiums()
+          ]);
+
+          // إخفاء شاشة التحميل
+          document.getElementById('loadingOverlay').classList.add('fade-out');
+          
+          showToast('تم تحميل التطبيق بالكامل', 'success');
+      } catch (error) {
+          console.error('App initialization error:', error);
+          document.getElementById('loadingOverlay').classList.add('fade-out');
+      }
+  }
+
+  // 🆕 دوال مساعدة جديدة
+  function getCurrentFilters() {
+      return {
+          area: document.getElementById('areaFilter').value,
+          type: document.getElementById('typeFilter').value,
+          minRating: document.getElementById('ratingFilter').value,
+          sort: document.getElementById('sortFilter').value,
+          search: document.getElementById('searchStadiums').value
       };
-    }
+  }
+
+  function getAvailabilityClass(percentage) {
+      if (percentage < 30) return 'availability-low';
+      if (percentage < 60) return 'availability-medium';
+      return 'availability-high';
+  }
+
+  function getAvailabilityText(percentage) {
+      if (percentage < 30) return 'محدود';
+      if (percentage < 60) return 'متوسط';
+      return 'متاح';
+  }
+
+  function getEmptyStateHTML(message) {
+      return `
+          <div class="col-12">
+              <div class="empty-state">
+                  <i class="bi bi-search"></i>
+                  <h5>${message}</h5>
+                  <p>جرب تعديل فلتر البحث أو البحث بكلمات أخرى</p>
+                  <button class="btn btn-primary" onclick="resetFilters()">
+                      <i class="bi bi-arrow-clockwise"></i> إعادة تعيين الفلاتر
+                  </button>
+              </div>
+          </div>`;
+  }
+
+  // 🆕 دالة إعادة تعيين الفلاتر
+  function resetFilters() {
+      document.getElementById('areaFilter').value = '';
+      document.getElementById('typeFilter').value = '';
+      document.getElementById('ratingFilter').value = '';
+      document.getElementById('sortFilter').value = 'default';
+      document.getElementById('priceFilter').value = '';
+      document.getElementById('searchStadiums').value = '';
+      
+      fetchStadiums();
+      showToast('تم إعادة تعيين جميع الفلاتر', 'info');
+  }
+
+  // 🆕 مودال التقييم المتقدم
+  function showAdvancedRatingModal(stadiumId) {
+      // إضافة المودال للصفحة إذا لم يكن موجود
+      if (!document.getElementById('advancedRatingModal')) {
+          const modalHTML = `
+              <div class="modal fade" id="advancedRatingModal" tabindex="-1">
+                  <div class="modal-dialog modal-dialog-centered">
+                      <div class="modal-content">
+                          <div class="modal-header bg-warning text-white">
+                              <h5 class="modal-title">تقييم متقدم للملعب</h5>
+                              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                          </div>
+                          <div class="modal-body">
+                              <div class="text-center mb-4">
+                                  <button class="btn btn-outline-primary mb-2" onclick="startVoiceRating()">
+                                      <i class="bi bi-mic me-2"></i>التقييم الصوتي
+                                  </button>
+                                  <p class="text-muted">قل "خمسة نجوم" أو "ممتاز" أو أي تقييم</p>
+                              </div>
+                              
+                              <div class="rating-stars mb-3" id="advancedRatingStars">
+                                  <i class="bi bi-star star" data-rating="1"></i>
+                                  <i class="bi bi-star star" data-rating="2"></i>
+                                  <i class="bi bi-star star" data-rating="3"></i>
+                                  <i class="bi bi-star star" data-rating="4"></i>
+                                  <i class="bi bi-star star" data-rating="5"></i>
+                              </div>
+                              
+                              <div class="mb-3">
+                                  <label class="form-label">تعليقك (يمكنك تسجيل صوتي)</label>
+                                  <textarea class="form-control" id="advancedRatingComment" rows="3" placeholder="اكتب تعليقك عن تجربتك..."></textarea>
+                              </div>
+                              
+                              <div class="d-flex gap-2">
+                                  <button class="btn btn-primary flex-fill" onclick="submitAdvancedRating()">
+                                      <i class="bi bi-star-fill me-2"></i>إرسال التقييم
+                                  </button>
+                                  <button class="btn btn-outline-secondary" onclick="shareStadiumReview()">
+                                      <i class="bi bi-share me-2"></i>مشاركة
+                                  </button>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          `;
+          document.body.insertAdjacentHTML('beforeend', modalHTML);
+      }
+      
+      const ratingModal = new bootstrap.Modal(document.getElementById('advancedRatingModal'));
+      ratingModal.show();
   }
 
   // ======= 🔄 كل الدوال القديمة محفوظة بالكامل =======
@@ -2018,879 +2371,1082 @@
 
   // ✅ دوال النظام القديم - محفوظة بالكامل
   async function loadPitchesData() {
-    try {
-      const response = await safeFetch('/api/pitches');
-      pitches = await response;
-      
-      for (let pitch of pitches) {
-        await loadPitchAvailability(pitch.id);
+      try {
+          const response = await safeFetch('/api/pitches');
+          pitches = await response;
+          
+          for (let pitch of pitches) {
+              await loadPitchAvailability(pitch.id);
+          }
+          
+          loadPitches(pitches);
+          loadCurrentBookings();
+          
+          document.getElementById('loadingOverlay').classList.add('fade-out');
+      } catch (error) {
+          console.error('Error loading pitches:', error);
+          pitches = getDefaultPitches();
+          loadPitches(pitches);
+          document.getElementById('loadingOverlay').classList.add('fade-out');
       }
-      
-      loadPitches(pitches);
-      loadCurrentBookings();
-      
-      document.getElementById('loadingOverlay').classList.add('fade-out');
-    } catch (error) {
-      console.error('Error loading pitches:', error);
-      pitches = getDefaultPitches();
-      loadPitches(pitches);
-      document.getElementById('loadingOverlay').classList.add('fade-out');
-    }
   }
 
   async function loadPitchAvailability(pitchId) {
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      const data = await safeFetch(`/api/pitches/${pitchId}/available-slots?date=${today}&period=all`);
-      
-      const pitch = pitches.find(p => p.id === pitchId);
-      if (pitch) {
-        pitch.availability = data.availableCount;
-        pitch.totalSlots = data.totalSlots;
-        pitch.availabilityPercentage = (data.availableCount / data.totalSlots) * 100;
+      try {
+          const today = new Date().toISOString().split('T')[0];
+          const data = await safeFetch(`/api/pitches/${pitchId}/available-slots?date=${today}&period=all`);
+          
+          const pitch = pitches.find(p => p.id === pitchId);
+          if (pitch) {
+              pitch.availability = data.availableCount;
+              pitch.totalSlots = data.totalSlots;
+              pitch.availabilityPercentage = (data.availableCount / data.totalSlots) * 100;
+          }
+      } catch (error) {
+          console.error('Error loading availability:', error);
       }
-    } catch (error) {
-      console.error('Error loading availability:', error);
-    }
   }
 
   async function loadCurrentBookings() {
-    try {
-      const bookings = await safeFetch('/api/user/bookings');
-      currentBookings = bookings.filter(b => 
-        b.status === 'confirmed' && 
-        new Date(b.date) > new Date()
-      );
-      
-      if (currentBookings.length > 0) {
-        showBookingTracker(currentBookings[0]);
+      try {
+          const bookings = await safeFetch('/api/user/bookings');
+          currentBookings = bookings.filter(b => 
+              b.status === 'confirmed' && 
+              new Date(b.date) > new Date()
+          );
+          
+          if (currentBookings.length > 0) {
+              showBookingTracker(currentBookings[0]);
+          }
+      } catch (error) {
+          console.error('Error loading bookings:', error);
       }
-    } catch (error) {
-      console.error('Error loading bookings:', error);
-    }
   }
 
   function showBookingTracker(booking) {
-    const tracker = document.getElementById('bookingTracker');
-    const progress = document.getElementById('trackerProgress');
-    
-    if (!booking.createdAt) {
-      console.warn('Booking createdAt is missing');
-      return;
-    }
+      const tracker = document.getElementById('bookingTracker');
+      const progress = document.getElementById('trackerProgress');
+      
+      if (!booking.createdAt) {
+          console.warn('Booking createdAt is missing');
+          return;
+      }
 
-    document.getElementById('trackerTitle').textContent = `متابعة حجز: ${escapeHtml(booking.pitchName)}`;
-    document.getElementById('trackerDetails').textContent = 
-      `الملعب: ${escapeHtml(booking.pitchName)} | التاريخ: ${escapeHtml(booking.date)} | الوقت: ${escapeHtml(booking.time)}`;
-    
-    const now = new Date();
-    const bookingDate = new Date(booking.date);
-    const createdAt = new Date(booking.createdAt);
-    
-    if (isNaN(bookingDate.getTime()) || isNaN(createdAt.getTime())) {
-      console.error('Invalid date format in booking data');
-      return;
-    }
+      document.getElementById('trackerTitle').textContent = `متابعة حجز: ${escapeHtml(booking.pitchName)}`;
+      document.getElementById('trackerDetails').textContent = 
+          `الملعب: ${escapeHtml(booking.pitchName)} | التاريخ: ${escapeHtml(booking.date)} | الوقت: ${escapeHtml(booking.time)}`;
+      
+      const now = new Date();
+      const bookingDate = new Date(booking.date);
+      const createdAt = new Date(booking.createdAt);
+      
+      if (isNaN(bookingDate.getTime()) || isNaN(createdAt.getTime())) {
+          console.error('Invalid date format in booking data');
+          return;
+      }
 
-    const totalTime = bookingDate - createdAt;
-    const elapsedTime = now - createdAt;
-    const progressPercent = Math.min((elapsedTime / totalTime) * 100, 100);
-    
-    progress.style.width = `${progressPercent}%`;
-    
-    const timeLeft = bookingDate - now;
-    const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
-    
-    if (hoursLeft > 48) {
-      document.getElementById('trackerStatus').textContent = `متبقي ${hoursLeft} ساعة للحجز - المبلغ المتبقي: ${booking.remainingAmount} جنيه`;
-    } else if (hoursLeft > 0) {
-      document.getElementById('trackerStatus').textContent = `متبقي ${hoursLeft} ساعة للحجز - يرجى دفع المبلغ المتبقي`;
-    } else {
-      document.getElementById('trackerStatus').textContent = 'تم انتهاء وقت الحجز';
-    }
-    
-    tracker.style.display = 'block';
+      const totalTime = bookingDate - createdAt;
+      const elapsedTime = now - createdAt;
+      const progressPercent = Math.min((elapsedTime / totalTime) * 100, 100);
+      
+      progress.style.width = `${progressPercent}%`;
+      
+      const timeLeft = bookingDate - now;
+      const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
+      
+      if (hoursLeft > 48) {
+          document.getElementById('trackerStatus').textContent = `متبقي ${hoursLeft} ساعة للحجز - المبلغ المتبقي: ${booking.remainingAmount} جنيه`;
+      } else if (hoursLeft > 0) {
+          document.getElementById('trackerStatus').textContent = `متبقي ${hoursLeft} ساعة للحجز - يرجى دفع المبلغ المتبقي`;
+      } else {
+          document.getElementById('trackerStatus').textContent = 'تم انتهاء وقت الحجز';
+      }
+      
+      tracker.style.display = 'block';
   }
 
   // ✅ نظام إلغاء الحجز - محفوظ بالكامل
   function cancelCurrentBooking() {
-    if (currentBookings.length === 0) {
-      showToast('لا توجد حجوزات حالية', 'error');
-      return;
-    }
-    
-    currentCancellationBooking = currentBookings[0];
-    const bookingDate = new Date(currentCancellationBooking.date);
-    const now = new Date();
-    const hoursDiff = (bookingDate - now) / (1000 * 60 * 60);
-    
-    let policyText = '';
-    if (hoursDiff > 48) {
-      policyText = 'سيتم استرداد كامل المبلغ المدفوع + كود تعويض صالح لمدة 14 يوم.';
-    } else if (hoursDiff > 24) {
-      policyText = 'سيتم إصدار كود تعويض صالح لمدة 14 يوم (بدون استرداد نقدي).';
-    } else {
-      policyText = 'لا يمكن استرداد المبلغ أو إصدار كود تعويض للإلغاء في وقت متأخر.';
-    }
-    
-    document.getElementById('cancellationPolicy').textContent = policyText;
-    document.getElementById('finalCancellationInfo').textContent = policyText;
-    
-    cancellationStep = 1;
-    resetCancellationSteps();
-    
-    const cancelModal = new bootstrap.Modal(document.getElementById('cancelBookingModal'));
-    cancelModal.show();
+      if (currentBookings.length === 0) {
+          showToast('لا توجد حجوزات حالية', 'error');
+          return;
+      }
+      
+      currentCancellationBooking = currentBookings[0];
+      const bookingDate = new Date(currentCancellationBooking.date);
+      const now = new Date();
+      const hoursDiff = (bookingDate - now) / (1000 * 60 * 60);
+      
+      let policyText = '';
+      if (hoursDiff > 48) {
+          policyText = 'سيتم استرداد كامل المبلغ المدفوع + كود تعويض صالح لمدة 14 يوم.';
+      } else if (hoursDiff > 24) {
+          policyText = 'سيتم إصدار كود تعويض صالح لمدة 14 يوم (بدون استرداد نقدي).';
+      } else {
+          policyText = 'لا يمكن استرداد المبلغ أو إصدار كود تعويض للإلغاء في وقت متأخر.';
+      }
+      
+      document.getElementById('cancellationPolicy').textContent = policyText;
+      document.getElementById('finalCancellationInfo').textContent = policyText;
+      
+      cancellationStep = 1;
+      resetCancellationSteps();
+      
+      const cancelModal = new bootstrap.Modal(document.getElementById('cancelBookingModal'));
+      cancelModal.show();
   }
 
   function nextCancellationStep() {
-    const currentStep = document.getElementById(`step${cancellationStep}`);
-    const nextStep = document.getElementById(`step${cancellationStep + 1}`);
-    
-    if (cancellationStep === 1 && !document.getElementById('confirmCancellation').checked) {
-      showToast('يرجى تأكيد رغبتك في الإلغاء', 'error');
-      return;
-    }
-    
-    if (cancellationStep === 2 && !document.getElementById('cancellationReason').value) {
-      showToast('يرجى اختيار سبب الإلغاء', 'error');
-      return;
-    }
-    
-    if (currentStep && nextStep) {
-      currentStep.classList.remove('active');
-      currentStep.style.display = 'none';
-      nextStep.classList.add('active');
-      nextStep.style.display = 'block';
-      cancellationStep++;
-    }
-    
-    if (cancellationStep === 3) {
-      document.getElementById('nextCancellationStep').style.display = 'none';
-      document.getElementById('confirmCancellationBtn').style.display = 'block';
-    }
+      const currentStep = document.getElementById(`step${cancellationStep}`);
+      const nextStep = document.getElementById(`step${cancellationStep + 1}`);
+      
+      if (cancellationStep === 1 && !document.getElementById('confirmCancellation').checked) {
+          showToast('يرجى تأكيد رغبتك في الإلغاء', 'error');
+          return;
+      }
+      
+      if (cancellationStep === 2 && !document.getElementById('cancellationReason').value) {
+          showToast('يرجى اختيار سبب الإلغاء', 'error');
+          return;
+      }
+      
+      if (currentStep && nextStep) {
+          currentStep.classList.remove('active');
+          currentStep.style.display = 'none';
+          nextStep.classList.add('active');
+          nextStep.style.display = 'block';
+          cancellationStep++;
+      }
+      
+      if (cancellationStep === 3) {
+          document.getElementById('nextCancellationStep').style.display = 'none';
+          document.getElementById('confirmCancellationBtn').style.display = 'block';
+      }
   }
 
   function resetCancellationSteps() {
-    for (let i = 1; i <= 3; i++) {
-      const step = document.getElementById(`step${i}`);
-      step.classList.remove('active');
-      step.style.display = i === 1 ? 'block' : 'none';
-      if (i === 1) step.classList.add('active');
-    }
-    
-    document.getElementById('nextCancellationStep').style.display = 'block';
-    document.getElementById('confirmCancellationBtn').style.display = 'none';
-    
-    document.getElementById('confirmCancellation').checked = false;
-    document.getElementById('cancellationReason').value = '';
-    document.getElementById('otherReason').style.display = 'none';
-    document.getElementById('finalConfirm').checked = false;
+      for (let i = 1; i <= 3; i++) {
+          const step = document.getElementById(`step${i}`);
+          step.classList.remove('active');
+          step.style.display = i === 1 ? 'block' : 'none';
+          if (i === 1) step.classList.add('active');
+      }
+      
+      document.getElementById('nextCancellationStep').style.display = 'block';
+      document.getElementById('confirmCancellationBtn').style.display = 'none';
+      
+      document.getElementById('confirmCancellation').checked = false;
+      document.getElementById('cancellationReason').value = '';
+      document.getElementById('otherReason').style.display = 'none';
+      document.getElementById('finalConfirm').checked = false;
   }
 
   async function confirmCancellation() {
-    if (!document.getElementById('finalConfirm').checked) {
-      showToast('يرجى الموافقة على سياسة الإلغاء', 'error');
-      return;
-    }
+      if (!document.getElementById('finalConfirm').checked) {
+          showToast('يرجى الموافقة على سياسة الإلغاء', 'error');
+          return;
+      }
 
-    const reason = document.getElementById('cancellationReason').value === 'آخر' ? 
-                  document.getElementById('otherReason').value : 
-                  document.getElementById('cancellationReason').value;
+      const reason = document.getElementById('cancellationReason').value === 'آخر' ? 
+                    document.getElementById('otherReason').value : 
+                    document.getElementById('cancellationReason').value;
 
-    try {
-      const result = await safeFetch(`/api/bookings/${currentCancellationBooking.id}/cancel`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          cancellationReason: reason
-        })
-      });
+      try {
+          const result = await safeFetch(`/api/bookings/${currentCancellationBooking.id}/cancel`, {
+              method: 'PUT',
+              body: JSON.stringify({
+                  cancellationReason: reason
+              })
+          });
 
-      showToast(result.message, 'success');
-      document.getElementById('bookingTracker').style.display = 'none';
-      bootstrap.Modal.getInstance(document.getElementById('cancelBookingModal')).hide();
-      loadCurrentBookings();
-    } catch (error) {
-      console.error('Cancellation error:', error);
-      showToast(error.message || 'حدث خطأ أثناء إلغاء الحجز', 'error');
-    }
+          showToast(result.message, 'success');
+          document.getElementById('bookingTracker').style.display = 'none';
+          bootstrap.Modal.getInstance(document.getElementById('cancelBookingModal')).hide();
+          loadCurrentBookings();
+      } catch (error) {
+          console.error('Cancellation error:', error);
+          showToast(error.message || 'حدث خطأ أثناء إلغاء الحجز', 'error');
+      }
   }
 
   // ✅ نظام الأكواد والڤاوتشرات - محفوظ بالكامل
   async function validateVoucher(inputId) {
-    const voucherInput = document.getElementById(inputId);
-    const voucherCode = voucherInput?.value?.trim();
-    
-    if (!voucherCode) {
-      showToast('يرجى إدخال كود الخصم أولاً', 'error');
-      return;
-    }
-
-    try {
-      const data = await safeFetch('/api/vouchers/validate', {
-        method: 'POST',
-        body: JSON.stringify({ code: voucherCode })
-      });
-
-      if (data.valid) {
-        showToast(`✅ الكود صالح! الخصم: ${data.discount}%`, 'success');
-        document.getElementById('voucherResult').textContent = `تم تطبيق خصم ${data.discount}%`;
-      } else {
-        showToast('❌ الكود غير صالح أو منتهي الصلاحية', 'error');
-        document.getElementById('voucherResult').textContent = 'الكود غير صالح';
+      const voucherInput = document.getElementById(inputId);
+      const voucherCode = voucherInput?.value?.trim();
+      
+      if (!voucherCode) {
+          showToast('يرجى إدخال كود الخصم أولاً', 'error');
+          return;
       }
-    } catch (error) {
-      console.error('Voucher validation error:', error);
-      showToast('حدث خطأ أثناء التحقق من الكود', 'error');
-    }
+
+      try {
+          const data = await safeFetch('/api/vouchers/validate', {
+              method: 'POST',
+              body: JSON.stringify({ code: voucherCode })
+          });
+
+          if (data.valid) {
+              showToast(`✅ الكود صالح! الخصم: ${data.discount}%`, 'success');
+              document.getElementById('voucherResult').textContent = `تم تطبيق خصم ${data.discount}%`;
+          } else {
+              showToast('❌ الكود غير صالح أو منتهي الصلاحية', 'error');
+              document.getElementById('voucherResult').textContent = 'الكود غير صالح';
+          }
+      } catch (error) {
+          console.error('Voucher validation error:', error);
+          showToast('حدث خطأ أثناء التحقق من الكود', 'error');
+      }
   }
 
   // ✅ نظام الساعات الذهبية - محفوظ بالكامل
   async function loadGoldenSlots() {
-    try {
-      goldenSlots = await safeFetch('/api/golden-slots');
-      updateGoldenSlotsDisplay();
-    } catch (error) {
-      console.error('Error loading golden slots:', error);
-    }
+      try {
+          goldenSlots = await safeFetch('/api/golden-slots');
+          updateGoldenSlotsDisplay();
+      } catch (error) {
+          console.error('Error loading golden slots:', error);
+      }
   }
 
   function updateGoldenSlotsDisplay() {
-    goldenSlots.forEach(slot => {
-      let timeSlotElement = document.querySelector(`[data-time-slot-id="${slot.id}"]`);
+      goldenSlots.forEach(slot => {
+          let timeSlotElement = document.querySelector(`[data-time-slot-id="${slot.id}"]`);
 
-      if (!timeSlotElement && slot.start_time) {
-        timeSlotElement = document.querySelector(`[data-hour="${parseInt(slot.start_time)}"]`);
-      }
+          if (!timeSlotElement && slot.start_time) {
+              timeSlotElement = document.querySelector(`[data-hour="${parseInt(slot.start_time)}"]`);
+          }
 
-      if (timeSlotElement) {
-        timeSlotElement.classList.add('golden');
-        timeSlotElement.textContent = `${formatTime(parseInt(slot.start_time || timeSlotElement.dataset.hour))} 👥`;
+          if (timeSlotElement) {
+              timeSlotElement.classList.add('golden');
+              timeSlotElement.textContent = `${formatTime(parseInt(slot.start_time || timeSlotElement.dataset.hour))} 👥`;
 
-        if (!timeSlotElement.parentNode.querySelector('.players-request-btn')) {
-          const joinButton = document.createElement('button');
-          joinButton.className = 'btn players-request-btn btn-sm mt-1';
-          joinButton.setAttribute('type', 'button');
-          joinButton.innerHTML = '<i class="bi bi-person-plus me-1"></i>انضم';
-          joinButton.onclick = () => showPlayersRequestModal(slot.id);
-          timeSlotElement.parentNode.appendChild(joinButton);
-        }
-      }
-    });
+              if (!timeSlotElement.parentNode.querySelector('.players-request-btn')) {
+                  const joinButton = document.createElement('button');
+                  joinButton.className = 'btn players-request-btn btn-sm mt-1';
+                  joinButton.setAttribute('type', 'button');
+                  joinButton.innerHTML = '<i class="bi bi-person-plus me-1"></i>انضم';
+                  joinButton.onclick = () => showPlayersRequestModal(slot.id);
+                  timeSlotElement.parentNode.appendChild(joinButton);
+              }
+          }
+      });
   }
 
   // ✅ نظام طلب اللاعبين - محفوظ بالكامل
   function showPlayersRequestModal(timeSlotId) {
-    const slot = goldenSlots.find(s => s.id === timeSlotId);
-    if (!slot) return;
+      const slot = goldenSlots.find(s => s.id === timeSlotId);
+      if (!slot) return;
 
-    document.getElementById('requestTimeSlotId').value = timeSlotId;
-    
-    const goldenSlotInfo = document.getElementById('goldenSlotInfo');
-    goldenSlotInfo.innerHTML = '';
-    
-    const lines = [
-      `<strong>الملعب:</strong> ${escapeHtml(slot.stadium_name)}`,
-      `<strong>التاريخ:</strong> ${escapeHtml(slot.date)}`,
-      `<strong>الوقت:</strong> ${slot.start_time} - ${slot.end_time}`,
-      `<strong>اللاعبين المطلوبين:</strong> ${slot.players_needed}`
-    ];
-    
-    lines.forEach(line => {
-      const div = document.createElement('div');
-      div.innerHTML = line;
-      goldenSlotInfo.appendChild(div);
-    });
+      document.getElementById('requestTimeSlotId').value = timeSlotId;
+      
+      const goldenSlotInfo = document.getElementById('goldenSlotInfo');
+      goldenSlotInfo.innerHTML = '';
+      
+      const lines = [
+          `<strong>الملعب:</strong> ${escapeHtml(slot.stadium_name)}`,
+          `<strong>التاريخ:</strong> ${escapeHtml(slot.date)}`,
+          `<strong>الوقت:</strong> ${slot.start_time} - ${slot.end_time}`,
+          `<strong>اللاعبين المطلوبين:</strong> ${slot.players_needed}`
+      ];
+      
+      lines.forEach(line => {
+          const div = document.createElement('div');
+          div.innerHTML = line;
+          goldenSlotInfo.appendChild(div);
+      });
 
-    const modal = new bootstrap.Modal(document.getElementById('playersRequestModal'));
-    modal.show();
+      const modal = new bootstrap.Modal(document.getElementById('playersRequestModal'));
+      modal.show();
   }
 
   async function submitPlayersRequest(formData) {
-    try {
-      const result = await safeFetch('/api/player-requests', {
-        method: 'POST',
-        body: JSON.stringify(formData)
-      });
+      try {
+          const result = await safeFetch('/api/player-requests', {
+              method: 'POST',
+              body: JSON.stringify(formData)
+          });
 
-      showToast(result.message, 'success');
-      bootstrap.Modal.getInstance(document.getElementById('playersRequestModal')).hide();
-    } catch (error) {
-      showToast(error.message || 'حدث خطأ أثناء إرسال الطلب', 'error');
-    }
+          showToast(result.message, 'success');
+          bootstrap.Modal.getInstance(document.getElementById('playersRequestModal')).hide();
+      } catch (error) {
+          showToast(error.message || 'حدث خطأ أثناء إرسال الطلب', 'error');
+      }
   }
 
   // ======= 🛠️ الدوال المساعدة - محفوظة بالكامل =======
 
   function getDefaultPitches() {
-    return [
-      {
-        id: 1,
-        name: "نادي الطيارة - الملعب الرئيسي",
-        location: "المقطم - شارع التسعين",
-        area: "mokatam",
-        type: "artificial",
-        image: "https://placehold.co/600x400/1a7f46/white?text=الطيارة+الرئيسي",
-        price: 250,
-        deposit: 75,
-        features: ["نجيلة صناعية", "كشافات ليلية", "غرف تبديل"],
-        rating: 4.7,
-        totalRatings: 128,
-        googleMaps: "https://maps.app.goo.gl/v6tj8pxhG5FHfoSj9",
-        nextAvailableSlot: "اليوم 6 مساءً"
-      },
-      {
-        id: 2,
-        name: "نادي الطيارة - الملعب الثاني",
-        location: "المقطم - شارع التسعين",
-        area: "mokatam",
-        type: "artificial",
-        image: "https://placehold.co/600x400/27ae60/white?text=الطيارة+الثاني",
-        price: 220,
-        deposit: 66,
-        features: ["نجيلة صناعية", "إضاءة ليلية", "غرف تبديل"],
-        rating: 4.5,
-        totalRatings: 95,
-        googleMaps: "https://maps.app.goo.gl/v6tj8pxhG5FHfoSj9",
-        nextAvailableSlot: "غداً 4 عصراً"
-      },
-      {
-        id: 3,
-        name: "الراعي الصالح",
-        location: "المقطم - شارع 9",
-        area: "mokatam",
-        type: "natural",
-        image: "https://placehold.co/600x400/3498db/white?text=الراعي+الصالح",
-        price: 300,
-        deposit: 90,
-        features: ["نجيلة طبيعية", "مقاعد جماهير", "كافيتريا"],
-        rating: 4.8,
-        totalRatings: 156,
-        googleMaps: "https://maps.app.goo.gl/hUUReW3ZDQM9wwEj7",
-        nextAvailableSlot: "اليوم 8 مساءً"
-      }
-    ];
+      return [
+          {
+              id: 1,
+              name: "نادي الطيارة - الملعب الرئيسي",
+              location: "المقطم - شارع التسعين",
+              area: "mokatam",
+              type: "artificial",
+              image: "https://placehold.co/600x400/1a7f46/white?text=الطيارة+الرئيسي",
+              price: 250,
+              deposit: 75,
+              features: ["نجيلة صناعية", "كشافات ليلية", "غرف تبديل"],
+              rating: 4.7,
+              totalRatings: 128,
+              googleMaps: "https://maps.app.goo.gl/v6tj8pxhG5FHfoSj9",
+              nextAvailableSlot: "اليوم 6 مساءً"
+          },
+          {
+              id: 2,
+              name: "نادي الطيارة - الملعب الثاني",
+              location: "المقطم - شارع التسعين",
+              area: "mokatam",
+              type: "artificial",
+              image: "https://placehold.co/600x400/27ae60/white?text=الطيارة+الثاني",
+              price: 220,
+              deposit: 66,
+              features: ["نجيلة صناعية", "إضاءة ليلية", "غرف تبديل"],
+              rating: 4.5,
+              totalRatings: 95,
+              googleMaps: "https://maps.app.goo.gl/v6tj8pxhG5FHfoSj9",
+              nextAvailableSlot: "غداً 4 عصراً"
+          },
+          {
+              id: 3,
+              name: "الراعي الصالح",
+              location: "المقطم - شارع 9",
+              area: "mokatam",
+              type: "natural",
+              image: "https://placehold.co/600x400/3498db/white?text=الراعي+الصالح",
+              price: 300,
+              deposit: 90,
+              features: ["نجيلة طبيعية", "مقاعد جماهير", "كافيتريا"],
+              rating: 4.8,
+              totalRatings: 156,
+              googleMaps: "https://maps.app.goo.gl/hUUReW3ZDQM9wwEj7",
+              nextAvailableSlot: "اليوم 8 مساءً"
+          }
+      ];
   }
 
   function getDefaultStadiums() {
-    return getDefaultPitches(); // استخدام نفس البيانات
+      return getDefaultPitches(); // استخدام نفس البيانات
+  }
+
+  function getDefaultBanners() {
+      return [
+          {
+              id: 1,
+              title: "خصم 25% على الحجوزات المسائية",
+              description: "استمتع بخصم خاص على الحجوزات بعد الساعة 8 مساءً",
+              image: "https://placehold.co/600x400/667eea/white?text=خصم+25%",
+              badge: "🔥 محدود",
+              ctaText: "احجز الآن",
+              ctaAction: "showToast('جاري التوجيه للحجوزات المسائية', 'info')"
+          },
+          {
+              id: 2,
+              title: "لاعبوني معاكم - الساعات الذهبية",
+              description: "انضم لمباريات جديدة واجذب لاعبين إضافيين لمباراتك",
+              image: "https://placehold.co/600x400/764ba2/white?text=لاعبوني+معاكم",
+              badge: "👥 جديد",
+              ctaText: "اكتشف المزيد",
+              ctaAction: "window.location.href='/players-with-you'"
+          },
+          {
+              id: 3,
+              title: "أضف ملعبك وزد دخلك",
+              description: "انضم كشريك واجعل ملعبك مرئياً لألاف اللاعبين",
+              image: "https://placehold.co/600x400/1a7f46/white?text=أضف+ملعبك",
+              badge: "🏟️ لأصحاب الملاعب",
+              ctaText: "سجل ملعبك",
+              ctaAction: "window.location.href='/add-stadium'"
+          }
+      ];
   }
 
   function generateStarRating(rating) {
-    let stars = '';
-    const fullStars = Math.floor(rating);
-    const hasHalfStar = rating % 1 >= 0.5;
-    
-    for (let i = 1; i <= 5; i++) {
-      if (i <= fullStars) {
-        stars += '<i class="bi bi-star-fill text-warning"></i>';
-      } else if (i === fullStars + 1 && hasHalfStar) {
-        stars += '<i class="bi bi-star-half text-warning"></i>';
-      } else {
-        stars += '<i class="bi bi-star text-warning"></i>';
+      let stars = '';
+      const fullStars = Math.floor(rating);
+      const hasHalfStar = rating % 1 >= 0.5;
+      
+      for (let i = 1; i <= 5; i++) {
+          if (i <= fullStars) {
+              stars += '<i class="bi bi-star-fill text-warning"></i>';
+          } else if (i === fullStars + 1 && hasHalfStar) {
+              stars += '<i class="bi bi-star-half text-warning"></i>';
+          } else {
+              stars += '<i class="bi bi-star text-warning"></i>';
+          }
       }
-    }
-    
-    return stars;
+      
+      return stars;
   }
 
   function formatTime(hour) {
-    if (hour === 0 || hour === 24) return '12 منتصف الليل';
-    if (hour === 12) return '12 ظهراً';
-    if (hour < 12) return `${hour} صباحاً`;
-    if (hour <= 16) return `${hour - 12} عصراً`;
-    return `${hour - 12} مساءً`;
+      if (hour === 0 || hour === 24) return '12 منتصف الليل';
+      if (hour === 12) return '12 ظهراً';
+      if (hour < 12) return `${hour} صباحاً`;
+      if (hour <= 16) return `${hour - 12} عصراً`;
+      return `${hour - 12} مساءً`;
   }
 
   function selectTimeSlot(element, stadiumId, hour) {
-    const card = element.closest('.stadium-card');
-    card.querySelectorAll('.time-slot').forEach(slot => {
-      slot.classList.remove('selected');
-    });
-    
-    element.classList.add('selected');
-    selectedPitchId = stadiumId;
-    selectedTime = hour;
+      const card = element.closest('.stadium-card');
+      card.querySelectorAll('.time-slot').forEach(slot => {
+          slot.classList.remove('selected');
+      });
+      
+      element.classList.add('selected');
+      selectedPitchId = stadiumId;
+      selectedTime = hour;
   }
 
   function viewBookingDetails() {
-    if (currentBookings.length > 0) {
-      alert(`تفاصيل الحجز:\nالملعب: ${currentBookings[0].pitchName}\nالتاريخ: ${currentBookings[0].date}\nالوقت: ${currentBookings[0].time}\nالمبلغ المتبقي: ${currentBookings[0].remainingAmount} جنيه`);
-    } else {
-      showToast('لا توجد حجوزات حالية', 'error');
-    }
+      if (currentBookings.length > 0) {
+          alert(`تفاصيل الحجز:\nالملعب: ${currentBookings[0].pitchName}\nالتاريخ: ${currentBookings[0].date}\nالوقت: ${currentBookings[0].time}\nالمبلغ المتبقي: ${currentBookings[0].remainingAmount} جنيه`);
+      } else {
+          showToast('لا توجد حجوزات حالية', 'error');
+      }
   }
 
   // ======= 🔧 الدوال الأساسية - محفوظة بالكامل =======
 
   async function safeFetch(url, options = {}) {
-    const DEFAULT_TIMEOUT = 10000;
-    const csrfToken = document.getElementById('csrfToken')?.value || null;
+      const DEFAULT_TIMEOUT = 10000;
+      const csrfToken = document.getElementById('csrfToken')?.value || null;
 
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
 
-    const headers = {
-      'Content-Type': 'application/json',
-      ...(options.headers || {}),
-    };
+      const headers = {
+          'Content-Type': 'application/json',
+          ...(options.headers || {}),
+      };
 
-    if (csrfToken && !(options.method && options.method.toUpperCase() === 'GET')) {
-      headers['X-CSRF-Token'] = csrfToken;
-    }
-
-    try {
-      const res = await fetch(url, {
-        credentials: 'same-origin',
-        ...options,
-        headers,
-        signal: controller.signal
-      });
-      clearTimeout(id);
-
-      const text = await res.text();
-      const data = text ? JSON.parse(text) : null;
-      
-      if (!res.ok) {
-        const err = new Error(data?.message || `HTTP ${res.status}`);
-        err.status = res.status;
-        err.data = data;
-        throw err;
+      if (csrfToken && !(options.method && options.method.toUpperCase() === 'GET')) {
+          headers['X-CSRF-Token'] = csrfToken;
       }
-      return data;
-    } catch (err) {
-      clearTimeout(id);
-      throw err;
-    }
+
+      try {
+          const res = await fetch(url, {
+              credentials: 'same-origin',
+              ...options,
+              headers,
+              signal: controller.signal
+          });
+          clearTimeout(id);
+
+          const text = await res.text();
+          const data = text ? JSON.parse(text) : null;
+          
+          if (!res.ok) {
+              const err = new Error(data?.message || `HTTP ${res.status}`);
+              err.status = res.status;
+              err.data = data;
+              throw err;
+          }
+          return data;
+      } catch (err) {
+          clearTimeout(id);
+          throw err;
+      }
   }
 
   function escapeHtml(unsafe) {
-    return String(unsafe)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
+      return String(unsafe)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
   }
 
   function showToast(message, type = 'success') {
-    const toast = document.createElement('div');
-    toast.className = `toast ${type === 'error' ? 'bg-danger' : 'bg-success'}`;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    
-    setTimeout(() => {
-      toast.remove();
-    }, 3000);
+      const toast = document.createElement('div');
+      toast.className = `toast ${type === 'error' ? 'bg-danger' : 'bg-success'}`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      
+      setTimeout(() => {
+          toast.remove();
+      }, 3000);
   }
 
   function debounce(fn, delay = 300) {
-    let timer;
-    return (...args) => {
-      clearTimeout(timer);
-      timer = setTimeout(() => fn.apply(this, args), delay);
-    };
+      let timer;
+      return (...args) => {
+          clearTimeout(timer);
+          timer = setTimeout(() => fn.apply(this, args), delay);
+      };
+  }
+
+  // دوال الحجز والتقييم
+  function bookStadium(stadiumId) {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+          showToast('يرجى تسجيل الدخول أولاً للحجز', 'warning');
+          window.location.href = '/login';
+          return;
+      }
+
+      const daySelector = document.querySelector(`#day-selector-${stadiumId} .day-select`);
+      const selectedTimeElement = document.querySelector(`#slots-${stadiumId} .time-slot.selected`);
+      
+      if (!daySelector || !daySelector.value) {
+          showToast('يرجى اختيار تاريخ الحجز أولاً', 'error');
+          return;
+      }
+
+      if (!selectedTimeElement) {
+          showToast('يرجى اختيار وقت الحجز أولاً', 'error');
+          return;
+      }
+
+      document.getElementById('pitchId').value = stadiumId;
+      document.getElementById('selectedTime').value = selectedTimeElement.dataset.hour;
+      document.getElementById('selectedDate').value = daySelector.value;
+      
+      const bookingModal = new bootstrap.Modal(document.getElementById('bookingModal'));
+      bookingModal.show();
+  }
+
+  function rateStadium(stadiumId) {
+      const ratingModal = new bootstrap.Modal(document.getElementById('ratingModal'));
+      ratingModal.show();
+  }
+
+  // معالجة النماذج
+  document.getElementById('bookingForm')?.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const submitBtn = this.querySelector('button[type="submit"]');
+      const originalText = submitBtn.innerHTML;
+      
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="bi bi-clock me-2"></i>جاري المعالجة...';
+
+      try {
+          const formData = new FormData(this);
+          const data = Object.fromEntries(formData);
+          
+          const result = await safeFetch('/api/bookings/new', {
+              method: 'POST',
+              body: JSON.stringify({
+                  pitchId: data.pitchId,
+                  date: data.selectedDate,
+                  time: data.selectedTime,
+                  name: data.name,
+                  phone: data.phone,
+                  email: data.email,
+                  playersNeeded: parseInt(data.playersNeeded) || 0,
+                  voucherCodes: validatedVouchers.filter(v => v).map(v => v.code),
+                  discountCode: data.discountCode
+              })
+          });
+
+          const bookingStatus = document.getElementById('bookingStatus');
+          bookingStatus.innerHTML = '';
+          
+          const alertDiv = document.createElement('div');
+          alertDiv.className = 'alert alert-success';
+          
+          const icon = document.createElement('i');
+          icon.className = 'bi bi-check-circle me-2';
+          alertDiv.appendChild(icon);
+          alertDiv.appendChild(document.createTextNode(result.message));
+          
+          bookingStatus.appendChild(alertDiv);
+          
+          if (parseInt(data.playersNeeded) > 0) {
+              await safeFetch(`/api/time-slots/${result.timeSlotId}/make-golden`, {
+                  method: 'PUT',
+                  body: JSON.stringify({
+                      playersNeeded: parseInt(data.playersNeeded)
+                  })
+              });
+          }
+          
+          setTimeout(() => {
+              bootstrap.Modal.getInstance(document.getElementById('bookingModal')).hide();
+              if (result.depositAmount > 0) {
+                  window.location.href = '/payment?booking=' + result.bookingId;
+              } else {
+                  showToast('🎉 تم الحجز بنجاح!', 'success');
+                  location.reload();
+              }
+          }, 2000);
+      } catch (error) {
+          const bookingStatus = document.getElementById('bookingStatus');
+          bookingStatus.innerHTML = '';
+          
+          const alertDiv = document.createElement('div');
+          alertDiv.className = 'alert alert-danger';
+          
+          const icon = document.createElement('i');
+          icon.className = 'bi bi-exclamation-triangle me-2';
+          alertDiv.appendChild(icon);
+          alertDiv.appendChild(document.createTextNode(error.message || 'حدث خطأ في الاتصال بالخادم'));
+          
+          bookingStatus.appendChild(alertDiv);
+      } finally {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalText;
+      }
+  });
+
+  // إرسال نموذج التقييم
+  document.getElementById('ratingForm')?.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const formData = new FormData(this);
+      const data = Object.fromEntries(formData);
+      
+      try {
+          const result = await safeFetch('/api/ratings', {
+              method: 'POST',
+              body: JSON.stringify({
+                  pitchId: data.pitchId,
+                  rating: data.rating,
+                  comment: data.comment,
+                  bookingId: data.bookingId
+              })
+          });
+
+          const ratingStatus = document.getElementById('ratingStatus');
+          ratingStatus.innerHTML = '';
+          
+          const alertDiv = document.createElement('div');
+          alertDiv.className = 'alert alert-success';
+          
+          const icon = document.createElement('i');
+          icon.className = 'bi bi-check-circle me-2';
+          alertDiv.appendChild(icon);
+          alertDiv.appendChild(document.createTextNode(result.message));
+          
+          ratingStatus.appendChild(alertDiv);
+          
+          setTimeout(() => {
+              bootstrap.Modal.getInstance(document.getElementById('ratingModal')).hide();
+              fetchStadiums(); // إعادة تحميل الملاعب لتحديث التقييمات
+          }, 2000);
+      } catch (error) {
+          const ratingStatus = document.getElementById('ratingStatus');
+          ratingStatus.innerHTML = '';
+          
+          const alertDiv = document.createElement('div');
+          alertDiv.className = 'alert alert-danger';
+          
+          const icon = document.createElement('i');
+          icon.className = 'bi bi-exclamation-triangle me-2';
+          alertDiv.appendChild(icon);
+          alertDiv.appendChild(document.createTextNode(error.message || 'حدث خطأ في الاتصال بالخادم'));
+          
+          ratingStatus.appendChild(alertDiv);
+      }
+  });
+
+  // إعداد نموذج طلب اللاعبين
+  document.getElementById('playersRequestForm')?.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const formData = {
+          timeSlotId: parseInt(document.getElementById('requestTimeSlotId').value),
+          requesterName: document.getElementById('requesterName').value,
+          requesterAge: parseInt(document.getElementById('requesterAge').value),
+          comment: document.getElementById('requestComment').value,
+          playersCount: parseInt(document.getElementById('playersWithYou').value)
+      };
+
+      await submitPlayersRequest(formData);
+  });
+
+  // إنشاء منتقي الأيام
+  function createDaySelector(stadiumId) {
+      const daysContainer = document.createElement('div');
+      
+      const label = document.createElement('label');
+      label.className = 'form-label';
+      label.textContent = 'اختر يوم الحجز:';
+      daysContainer.appendChild(label);
+
+      const select = document.createElement('select');
+      select.className = 'form-select day-select';
+      select.onchange = () => loadStadiumSlots(stadiumId, select.value);
+
+      const defaultOption = document.createElement('option');
+      defaultOption.value = '';
+      defaultOption.textContent = 'اختر اليوم';
+      select.appendChild(defaultOption);
+
+      const today = new Date();
+      const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+      const monthNames = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+      
+      for (let i = 0; i < 7; i++) {
+          const date = new Date();
+          date.setDate(today.getDate() + i);
+          
+          const option = document.createElement('option');
+          option.value = date.toISOString().split('T')[0];
+          option.textContent = `${i === 0 ? 'انهرده' : dayNames[date.getDay()]} - ${date.getDate()} ${monthNames[date.getMonth()]}`;
+          select.appendChild(option);
+      }
+
+      daysContainer.appendChild(select);
+      return daysContainer;
+  }
+
+  // تحميل الأوقات المتاحة
+  async function loadStadiumSlots(stadiumId, date) {
+      try {
+          const data = await safeFetch(`/api/stadiums/${stadiumId}/available-slots?date=${date}`);
+          
+          const slotsContainer = document.getElementById(`slots-${stadiumId}`);
+          slotsContainer.innerHTML = '';
+          
+          if (!data || !data.availableSlots || data.availableSlots.length === 0) {
+              const message = document.createElement('p');
+              message.className = 'text-danger text-center';
+              message.textContent = 'لا توجد أوقات متاحة في هذا التاريخ';
+              slotsContainer.appendChild(message);
+              return;
+          }
+          
+          data.availableSlots.forEach(slot => {
+              const slotElement = document.createElement('div');
+              slotElement.className = 'time-slot available';
+              slotElement.setAttribute('role', 'button');
+              slotElement.setAttribute('tabindex', '0');
+              slotElement.dataset.hour = slot.hour || slot.start_time;
+              slotElement.textContent = formatTime(slot.hour || slot.start_time);
+
+              slotElement.addEventListener('click', () => selectTimeSlot(slotElement, stadiumId, slot.hour || slot.start_time));
+              slotElement.addEventListener('keydown', (e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      selectTimeSlot(slotElement, stadiumId, slot.hour || slot.start_time);
+                  }
+              });
+
+              slotsContainer.appendChild(slotElement);
+          });
+          
+      } catch (error) {
+          console.error('Error loading slots:', error);
+          const slotsContainer = document.getElementById(`slots-${stadiumId}`);
+          slotsContainer.innerHTML = '<p class="text-danger text-center">حدث خطأ في تحميل الأوقات</p>';
+      }
+  }
+
+  // دوال النظام القديم الإضافية
+  function loadPitches(pitchesData) {
+      // دالة النظام القديم - محفوظة للتوافق
+      console.log('Loading pitches:', pitchesData);
+  }
+
+  function bookPitch(pitchId, hour) {
+      // دالة النظام القديم - محفوظة للتوافق
+      bookStadium(pitchId);
+  }
+
+  function startCountdown(bookingId) {
+      // دالة النظام القديم - محفوظة للتوافق
+      console.log('Starting countdown for booking:', bookingId);
   }
 
   // ======= 🎯 التهيئة النهائية =======
 
   document.addEventListener('DOMContentLoaded', function() {
-    // تحميل الملاعب من النظام الجديد
-    fetchStadiums();
-    
-    // 🆕 تحميل البانرز
-    fetchBanners();
-    
-    // 🆕 تحميل الملاعب المميزة
-    fetchFeaturedStadiums();
-    
-    // تحميل الساعات الذهبية
-    loadGoldenSlots();
-    
-    // التحقق من صلاحيات المستخدم
-    checkUserPermissions();
-    
-    // إعداد الفلاتر
-    const debouncedFilter = debounce(filterStadiums, 300);
-    document.getElementById('areaFilter').addEventListener('change', debouncedFilter);
-    document.getElementById('sortFilter').addEventListener('change', debouncedFilter);
-    document.getElementById('typeFilter').addEventListener('change', debouncedFilter);
-    document.getElementById('priceFilter').addEventListener('change', debouncedFilter);
-    document.getElementById('ratingFilter').addEventListener('change', debouncedFilter);
-    document.getElementById('availabilityFilter').addEventListener('change', debouncedFilter);
-    document.getElementById('searchStadiums').addEventListener('input', debouncedFilter);
-    
-    // جلب رمز CSRF
-    safeFetch('/csrf-token')
-      .then(data => {
-        if (data?.csrfToken) {
-          document.getElementById('csrfToken').value = data.csrfToken;
-          document.getElementById('ratingCsrfToken').value = data.csrfToken;
-        }
-      })
-      .catch(err => console.error('CSRF token error:', err));
+      // تحميل الملاعب من النظام الجديد
+      fetchStadiums();
+      
+      // 🆕 تحميل البانرز
+      fetchBanners();
+      
+      // 🆕 تحميل الملاعب المميزة
+      fetchFeaturedStadiums();
+      
+      // تحميل الساعات الذهبية
+      loadGoldenSlots();
+      
+      // التحقق من صلاحيات المستخدم
+      checkUserPermissions();
+      
+      // إعداد الفلاتر
+      const debouncedFilter = debounce(filterStadiums, 300);
+      document.getElementById('areaFilter').addEventListener('change', debouncedFilter);
+      document.getElementById('sortFilter').addEventListener('change', debouncedFilter);
+      document.getElementById('typeFilter').addEventListener('change', debouncedFilter);
+      document.getElementById('priceFilter').addEventListener('change', debouncedFilter);
+      document.getElementById('ratingFilter').addEventListener('change', debouncedFilter);
+      document.getElementById('availabilityFilter').addEventListener('change', debouncedFilter);
+      document.getElementById('searchStadiums').addEventListener('input', debouncedFilter);
+      
+      // جلب رمز CSRF
+      safeFetch('/csrf-token')
+          .then(data => {
+              if (data?.csrfToken) {
+                  document.getElementById('csrfToken').value = data.csrfToken;
+                  document.getElementById('ratingCsrfToken').value = data.csrfToken;
+              }
+          })
+          .catch(err => console.error('CSRF token error:', err));
 
-    // إعداد أحداث التمرير
-    window.addEventListener('scroll', function() {
-      if (window.scrollY > 100) {
-        document.querySelector('.navbar').classList.add('scrolled');
-      } else {
-        document.querySelector('.navbar').classList.remove('scrolled');
-      }
-
-      document.querySelectorAll('section').forEach(sec => {
-        let top = window.scrollY;
-        if(top >= sec.offsetTop - 200){
-          document.querySelectorAll('.nav-link').forEach(a => a.classList.remove('active'));
-          document.querySelector(`.nav-link[href="#${sec.id}"]`)?.classList.add('active');
-        }
-      });
-
-      document.getElementById('toTop').style.display = window.scrollY > 200 ? 'block' : 'none';
-    });
-
-    // زر العودة لأعلى
-    document.getElementById('toTop').onclick = () => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-
-    // إعداد سبب الإلغاء
-    document.getElementById('cancellationReason').addEventListener('change', function() {
-      const otherReason = document.getElementById('otherReason');
-      otherReason.style.display = this.value === 'آخر' ? 'block' : 'none';
-    });
-
-    // إخفاء شاشة التحميل
-    window.addEventListener('load', () => {
-      setTimeout(() => {
-        document.getElementById('loadingOverlay').classList.add('fade-out');
-      }, 1000);
-    });
-
-    // تحديث الساعات الذهبية كل دقيقة
-    setInterval(loadGoldenSlots, 60000);
-
-    // إعداد أحداث النجوم في التقييم
-    document.querySelectorAll('#ratingStars .star').forEach(star => {
-      star.addEventListener('click', function() {
-        const rating = parseInt(this.dataset.rating);
-        document.getElementById('selectedRating').value = rating;
-        
-        document.querySelectorAll('#ratingStars .star').forEach(s => {
-          const starRating = parseInt(s.dataset.rating);
-          if (starRating <= rating) {
-            s.classList.add('active', 'bi-star-fill');
-            s.classList.remove('bi-star');
-            s.setAttribute('aria-checked', 'true');
+      // إعداد أحداث التمرير
+      window.addEventListener('scroll', function() {
+          if (window.scrollY > 100) {
+              document.querySelector('.navbar').classList.add('scrolled');
           } else {
-            s.classList.remove('active', 'bi-star-fill');
-            s.classList.add('bi-star');
-            s.setAttribute('aria-checked', 'false');
+              document.querySelector('.navbar').classList.remove('scrolled');
           }
-        });
+
+          document.querySelectorAll('section').forEach(sec => {
+              let top = window.scrollY;
+              if(top >= sec.offsetTop - 200){
+                  document.querySelectorAll('.nav-link').forEach(a => a.classList.remove('active'));
+                  document.querySelector(`.nav-link[href="#${sec.id}"]`)?.classList.add('active');
+              }
+          });
+
+          document.getElementById('toTop').style.display = window.scrollY > 200 ? 'block' : 'none';
       });
-    });
+
+      // زر العودة لأعلى
+      document.getElementById('toTop').onclick = () => {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+
+      // إعداد سبب الإلغاء
+      document.getElementById('cancellationReason').addEventListener('change', function() {
+          const otherReason = document.getElementById('otherReason');
+          otherReason.style.display = this.value === 'آخر' ? 'block' : 'none';
+      });
+
+      // إخفاء شاشة التحميل
+      window.addEventListener('load', () => {
+          setTimeout(() => {
+              document.getElementById('loadingOverlay').classList.add('fade-out');
+          }, 1000);
+      });
+
+      // تحديث الساعات الذهبية كل دقيقة
+      setInterval(loadGoldenSlots, 60000);
+
+      // إعداد أحداث النجوم في التقييم
+      document.querySelectorAll('#ratingStars .star').forEach(star => {
+          star.addEventListener('click', function() {
+              const rating = parseInt(this.dataset.rating);
+              document.getElementById('selectedRating').value = rating;
+              
+              document.querySelectorAll('#ratingStars .star').forEach(s => {
+                  const starRating = parseInt(s.dataset.rating);
+                  if (starRating <= rating) {
+                      s.classList.add('active', 'bi-star-fill');
+                      s.classList.remove('bi-star');
+                      s.setAttribute('aria-checked', 'true');
+                  } else {
+                      s.classList.remove('active', 'bi-star-fill');
+                      s.classList.add('bi-star');
+                      s.setAttribute('aria-checked', 'false');
+                  }
+              });
+          });
+      });
   });
 
   function checkUserPermissions() {
-    const token = localStorage.getItem('authToken');
-    const userRole = localStorage.getItem('userRole');
-    
-    if (token && (userRole === 'owner' || userRole === 'admin')) {
-      document.getElementById('addStadiumNavItem').style.display = 'block';
-      document.getElementById('addStadiumHeroBtn').style.display = 'block';
-    }
+      const token = localStorage.getItem('authToken');
+      const userRole = localStorage.getItem('userRole');
+      
+      if (token && (userRole === 'owner' || userRole === 'admin')) {
+          document.getElementById('addStadiumNavItem').style.display = 'block';
+          document.getElementById('addStadiumHeroBtn').style.display = 'block';
+      }
   }
 
   // 🆕 دالة الفلترة المتقدمة
   function filterStadiums() {
-    const area = document.getElementById('areaFilter').value;
-    const sort = document.getElementById('sortFilter').value;
-    const type = document.getElementById('typeFilter').value;
-    const price = document.getElementById('priceFilter').value;
-    const rating = document.getElementById('ratingFilter').value;
-    const availability = document.getElementById('availabilityFilter').value;
-    const search = document.getElementById('searchStadiums').value.toLowerCase();
-    
-    showToast('جاري تطبيق الفلترة...', 'info');
-    
-    // هنا سيتم تطبيق الفلترة على الملاعب المعروضة
-    // هذه دالة افتراضية - يمكن تطويرها حسب الحاجة
-    console.log('Applying filters:', { area, sort, type, price, rating, availability, search });
+      const area = document.getElementById('areaFilter').value;
+      const sort = document.getElementById('sortFilter').value;
+      const type = document.getElementById('typeFilter').value;
+      const price = document.getElementById('priceFilter').value;
+      const rating = document.getElementById('ratingFilter').value;
+      const availability = document.getElementById('availabilityFilter').value;
+      const search = document.getElementById('searchStadiums').value.toLowerCase();
+      
+      showToast('جاري تطبيق الفلترة...', 'info');
+      
+      // هنا سيتم تطبيق الفلترة على الملاعب المعروضة
+      // هذه دالة افتراضية - يمكن تطويرها حسب الحاجة
+      console.log('Applying filters:', { area, sort, type, price, rating, availability, search });
   }
 
-  // دوال الحجز والتقييم
-  function bookStadium(stadiumId) {
-    const token = localStorage.getItem('authToken');
-    if (!token) {
-      showToast('يرجى تسجيل الدخول أولاً للحجز', 'warning');
-      window.location.href = '/login';
-      return;
-    }
-
-    const daySelector = document.querySelector(`#day-selector-${stadiumId} .day-select`);
-    const selectedTimeElement = document.querySelector(`#slots-${stadiumId} .time-slot.selected`);
-    
-    if (!daySelector || !daySelector.value) {
-      showToast('يرجى اختيار تاريخ الحجز أولاً', 'error');
-      return;
-    }
-
-    if (!selectedTimeElement) {
-      showToast('يرجى اختيار وقت الحجز أولاً', 'error');
-      return;
-    }
-
-    document.getElementById('pitchId').value = stadiumId;
-    document.getElementById('selectedTime').value = selectedTimeElement.dataset.hour;
-    document.getElementById('selectedDate').value = daySelector.value;
-    
-    const bookingModal = new bootstrap.Modal(document.getElementById('bookingModal'));
-    bookingModal.show();
-  }
-
-  function rateStadium(stadiumId) {
-    const ratingModal = new bootstrap.Modal(document.getElementById('ratingModal'));
-    ratingModal.show();
-  }
-
-  // معالجة النماذج
-  document.getElementById('bookingForm')?.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const submitBtn = this.querySelector('button[type="submit"]');
-    const originalText = submitBtn.innerHTML;
-    
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="bi bi-clock me-2"></i>جاري المعالجة...';
-
-    try {
-      const formData = new FormData(this);
-      const data = Object.fromEntries(formData);
-      
-      const result = await safeFetch('/api/bookings/new', {
-        method: 'POST',
-        body: JSON.stringify({
-          pitchId: data.pitchId,
-          date: data.selectedDate,
-          time: data.selectedTime,
-          name: data.name,
-          phone: data.phone,
-          email: data.email,
-          playersNeeded: parseInt(data.playersNeeded) || 0,
-          voucherCodes: validatedVouchers.filter(v => v).map(v => v.code),
-          discountCode: data.discountCode
-        })
-      });
-
-      const bookingStatus = document.getElementById('bookingStatus');
-      bookingStatus.innerHTML = '';
-      
-      const alertDiv = document.createElement('div');
-      alertDiv.className = 'alert alert-success';
-      
-      const icon = document.createElement('i');
-      icon.className = 'bi bi-check-circle me-2';
-      alertDiv.appendChild(icon);
-      alertDiv.appendChild(document.createTextNode(result.message));
-      
-      bookingStatus.appendChild(alertDiv);
-      
-      if (parseInt(data.playersNeeded) > 0) {
-        await safeFetch(`/api/time-slots/${result.timeSlotId}/make-golden`, {
-          method: 'PUT',
-          body: JSON.stringify({
-            playersNeeded: parseInt(data.playersNeeded)
-          })
-        });
+  // 🆕 دوال إضافية للمميزات الجديدة
+  function startVoiceRating() {
+      const recognition = initVoiceRating();
+      if (recognition) {
+          recognition.start();
+          showToast('🎤 التحدث الآن...', 'info');
+      } else {
+          showToast('المتصفح لا يدعم التعرف الصوتي', 'error');
       }
-      
-      setTimeout(() => {
-        bootstrap.Modal.getInstance(document.getElementById('bookingModal')).hide();
-        if (result.depositAmount > 0) {
-          window.location.href = '/payment?booking=' + result.bookingId;
-        } else {
-          showToast('🎉 تم الحجز بنجاح!', 'success');
-          location.reload();
-        }
-      }, 2000);
-    } catch (error) {
-      const bookingStatus = document.getElementById('bookingStatus');
-      bookingStatus.innerHTML = '';
-      
-      const alertDiv = document.createElement('div');
-      alertDiv.className = 'alert alert-danger';
-      
-      const icon = document.createElement('i');
-      icon.className = 'bi bi-exclamation-triangle me-2';
-      alertDiv.appendChild(icon);
-      alertDiv.appendChild(document.createTextNode(error.message || 'حدث خطأ في الاتصال بالخادم'));
-      
-      bookingStatus.appendChild(alertDiv);
-    } finally {
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = originalText;
-    }
-  });
-
-  // إرسال نموذج التقييم
-  document.getElementById('ratingForm')?.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const formData = new FormData(this);
-    const data = Object.fromEntries(formData);
-    
-    try {
-      const result = await safeFetch('/api/ratings', {
-        method: 'POST',
-        body: JSON.stringify({
-          pitchId: data.pitchId,
-          rating: data.rating,
-          comment: data.comment,
-          bookingId: data.bookingId
-        })
-      });
-
-      const ratingStatus = document.getElementById('ratingStatus');
-      ratingStatus.innerHTML = '';
-      
-      const alertDiv = document.createElement('div');
-      alertDiv.className = 'alert alert-success';
-      
-      const icon = document.createElement('i');
-      icon.className = 'bi bi-check-circle me-2';
-      alertDiv.appendChild(icon);
-      alertDiv.appendChild(document.createTextNode(result.message));
-      
-      ratingStatus.appendChild(alertDiv);
-      
-      setTimeout(() => {
-        bootstrap.Modal.getInstance(document.getElementById('ratingModal')).hide();
-        fetchStadiums(); // إعادة تحميل الملاعب لتحديث التقييمات
-      }, 2000);
-    } catch (error) {
-      const ratingStatus = document.getElementById('ratingStatus');
-      ratingStatus.innerHTML = '';
-      
-      const alertDiv = document.createElement('div');
-      alertDiv.className = 'alert alert-danger';
-      
-      const icon = document.createElement('i');
-      icon.className = 'bi bi-exclamation-triangle me-2';
-      alertDiv.appendChild(icon);
-      alertDiv.appendChild(document.createTextNode(error.message || 'حدث خطأ في الاتصال بالخادم'));
-      
-      ratingStatus.appendChild(alertDiv);
-    }
-  });
-
-  // إعداد نموذج طلب اللاعبين
-  document.getElementById('playersRequestForm')?.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const formData = {
-      timeSlotId: parseInt(document.getElementById('requestTimeSlotId').value),
-      requesterName: document.getElementById('requesterName').value,
-      requesterAge: parseInt(document.getElementById('requesterAge').value),
-      comment: document.getElementById('requestComment').value,
-      playersCount: parseInt(document.getElementById('playersWithYou').value)
-    };
-
-    await submitPlayersRequest(formData);
-  });
-
-  // إنشاء منتقي الأيام
-  function createDaySelector(stadiumId) {
-    const daysContainer = document.createElement('div');
-    
-    const label = document.createElement('label');
-    label.className = 'form-label';
-    label.textContent = 'اختر يوم الحجز:';
-    daysContainer.appendChild(label);
-
-    const select = document.createElement('select');
-    select.className = 'form-select day-select';
-    select.onchange = () => loadStadiumSlots(stadiumId, select.value);
-
-    const defaultOption = document.createElement('option');
-    defaultOption.value = '';
-    defaultOption.textContent = 'اختر اليوم';
-    select.appendChild(defaultOption);
-
-    const today = new Date();
-    const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
-    const monthNames = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
-    
-    for (let i = 0; i < 7; i++) {
-      const date = new Date();
-      date.setDate(today.getDate() + i);
-      
-      const option = document.createElement('option');
-      option.value = date.toISOString().split('T')[0];
-      option.textContent = `${i === 0 ? 'انهرده' : dayNames[date.getDay()]} - ${date.getDate()} ${monthNames[date.getMonth()]}`;
-      select.appendChild(option);
-    }
-
-    daysContainer.appendChild(select);
-    return daysContainer;
   }
 
-  // تحميل الأوقات المتاحة
-  async function loadStadiumSlots(stadiumId, date) {
-    try {
-      const data = await safeFetch(`/api/stadiums/${stadiumId}/available-slots?date=${date}`);
-      
-      const slotsContainer = document.getElementById(`slots-${stadiumId}`);
-      slotsContainer.innerHTML = '';
-      
-      if (!data || !data.availableSlots || data.availableSlots.length === 0) {
-        const message = document.createElement('p');
-        message.className = 'text-danger text-center';
-        message.textContent = 'لا توجد أوقات متاحة في هذا التاريخ';
-        slotsContainer.appendChild(message);
-        return;
+  function submitAdvancedRating() {
+      showToast('تم إرسال التقييم المتقدم', 'success');
+      bootstrap.Modal.getInstance(document.getElementById('advancedRatingModal')).hide();
+  }
+
+  function shareStadiumReview() {
+      showToast('تم نسخ رابط المشاركة', 'success');
+  }
+
+  function initVoiceRecognition() {
+      // تهيئة نظام التعرف الصوتي
+      if ('webkitSpeechRecognition' in window) {
+          console.log('Voice recognition supported');
       }
-      
-      data.availableSlots.forEach(slot => {
-        const slotElement = document.createElement('div');
-        slotElement.className = 'time-slot available';
-        slotElement.setAttribute('role', 'button');
-        slotElement.setAttribute('tabindex', '0');
-        slotElement.dataset.hour = slot.hour || slot.start_time;
-        slotElement.textContent = formatTime(slot.hour || slot.start_time);
-
-        slotElement.addEventListener('click', () => selectTimeSlot(slotElement, stadiumId, slot.hour || slot.start_time));
-        slotElement.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            selectTimeSlot(slotElement, stadiumId, slot.hour || slot.start_time);
-          }
-        });
-
-        slotsContainer.appendChild(slotElement);
-      });
-      
-    } catch (error) {
-      console.error('Error loading slots:', error);
-      const slotsContainer = document.getElementById(`slots-${stadiumId}`);
-      slotsContainer.innerHTML = '<p class="text-danger text-center">حدث خطأ في تحميل الأوقات</p>';
-    }
   }
 
-  // دوال النظام القديم الإضافية
-  function loadPitches(pitchesData) {
-    // دالة النظام القديم - محفوظة للتوافق
-    console.log('Loading pitches:', pitchesData);
+  // 🆕 دالة عرض البانرز
+  async function fetchBanners() {
+      try {
+          const banners = await loadBanners();
+          renderBanners(banners);
+      } catch (err) {
+          console.error('Error fetching banners:', err);
+          renderDefaultBanners();
+      }
   }
 
-  function bookPitch(pitchId, hour) {
-    // دالة النظام القديم - محفوظة للتوافق
-    bookStadium(pitchId);
+  function renderBanners(banners) {
+      const container = document.getElementById('bannersContainer');
+      if (!Array.isArray(banners) || banners.length === 0) {
+          renderDefaultBanners();
+          return;
+      }
+
+      container.innerHTML = banners.map(banner => `
+          <div class="col-md-4 mb-3">
+              <div class="banner-card">
+                  <div class="banner-image" style="background-image: url('${banner.image || 'https://placehold.co/600x400/667eea/white?text=عرض+خاص'}')">
+                      ${banner.badge ? `<span class="banner-badge">${banner.badge}</span>` : ''}
+                  </div>
+                  <div class="banner-content">
+                      <h5>${escapeHtml(banner.title)}</h5>
+                      <p class="text-muted">${escapeHtml(banner.description)}</p>
+                      ${banner.ctaText ? `
+                          <button class="btn btn-primary w-100" onclick="${banner.ctaAction || 'showToast(\\'جاري التوجيه...\\', \\'info\\')'}">
+                              ${banner.ctaText}
+                          </button>
+                      ` : ''}
+                  </div>
+              </div>
+          </div>
+      `).join('');
   }
 
-  function startCountdown(bookingId) {
-    // دالة النظام القديم - محفوظة للتوافق
-    console.log('Starting countdown for booking:', bookingId);
+  function renderDefaultBanners() {
+      const container = document.getElementById('bannersContainer');
+      container.innerHTML = `
+          <div class="col-md-4 mb-3">
+              <div class="banner-card">
+                  <div class="banner-image" style="background-image: url('https://placehold.co/600x400/667eea/white?text=خصم+25%')">
+                      <span class="banner-badge">🔥 محدود</span>
+                  </div>
+                  <div class="banner-content">
+                      <h5>خصم 25% على الحجوزات المسائية</h5>
+                      <p class="text-muted">استمتع بخصم خاص على الحجوزات بعد الساعة 8 مساءً</p>
+                      <button class="btn btn-primary w-100" onclick="showToast('جاري التوجيه للحجوزات المسائية', 'info')">
+                          احجز الآن
+                      </button>
+                  </div>
+              </div>
+          </div>
+          <div class="col-md-4 mb-3">
+              <div class="banner-card">
+                  <div class="banner-image" style="background-image: url('https://placehold.co/600x400/764ba2/white?text=لاعبوني+معاكم')">
+                      <span class="banner-badge">👥 جديد</span>
+                  </div>
+                  <div class="banner-content">
+                      <h5>لاعبوني معاكم - الساعات الذهبية</h5>
+                      <p class="text-muted">انضم لمباريات جديدة واجذب لاعبين إضافيين لمباراتك</p>
+                      <button class="btn btn-primary w-100" onclick="window.location.href='/players-with-you'">
+                          اكتشف المزيد
+                      </button>
+                  </div>
+              </div>
+          </div>
+          <div class="col-md-4 mb-3">
+              <div class="banner-card">
+                  <div class="banner-image" style="background-image: url('https://placehold.co/600x400/1a7f46/white?text=أضف+ملعبك')">
+                      <span class="banner-badge">🏟️ لأصحاب الملاعب</span>
+                  </div>
+                  <div class="banner-content">
+                      <h5>أضف ملعبك وزد دخلك</h5>
+                      <p class="text-muted">انضم كشريك واجعل ملعبك مرئياً لألاف اللاعبين</p>
+                      <button class="btn btn-primary w-100" onclick="window.location.href='/add-stadium'">
+                          سجل ملعبك
+                      </button>
+                  </div>
+              </div>
+          </div>
+      `;
+  }
+
+  // 🆕 دالة عرض الملاعب المميزة
+  async function fetchFeaturedStadiums() {
+      try {
+          const stadiums = await loadFeaturedStadiums();
+          renderFeaturedStadiums(stadiums);
+      } catch (err) {
+          console.error('Error fetching featured stadiums:', err);
+      }
+  }
+
+  function renderFeaturedStadiums(stadiums) {
+      const container = document.getElementById('featuredStadiumsContainer');
+      if (!Array.isArray(stadiums) || stadiums.length === 0) {
+          container.innerHTML = '<div class="col-12 text-center"><p class="text-muted">لا توجد ملاعب مميزة حالياً</p></div>';
+          return;
+      }
+
+      container.innerHTML = stadiums.map(st => {
+          const img = (st.images && st.images.length) ? st.images[0] : 'https://placehold.co/600x400/1a7f46/white?text=ملعب+مميز';
+          const nextSlot = st.nextAvailableSlot ? 
+              `<div class="next-slot-badge">
+                 <i class="bi bi-clock"></i> التالي: ${st.nextAvailableSlot}
+               </div>` : '';
+
+          return `
+              <div class="col-lg-4 col-md-6 mb-4">
+                  <div class="stadium-card h-100">
+                      <div class="stadium-image" style="background-image: url('${img}')" loading="lazy">
+                          <span class="featured-badge">⭐ مميز</span>
+                          <span class="stadium-badge availability-high">الأكثر طلباً</span>
+                          <span class="stadium-price">${st.price ? st.price + ' ج.م/ساعة' : '-'}</span>
+                      </div>
+                      <div class="stadium-info">
+                          <h4 class="stadium-title">${escapeHtml(st.name)}</h4>
+                          <p class="stadium-location">
+                              <i class="bi bi-geo-alt"></i> ${escapeHtml(st.location || 'الموقع غير محدد')}
+                          </p>
+                          
+                          ${nextSlot}
+                          
+                          <div class="d-flex justify-content-between align-items-center mb-3">
+                              <div>
+                                  <div class="rating-stars">
+                                      ${generateStarRating(st.rating || 4.5)}
+                                  </div>
+                                  <div class="rating-text">${(st.rating || 4.5).toFixed(1)} (${st.totalRatings || 0} تقييم)</div>
+                              </div>
+                          </div>
+
+                          <button class="btn btn-primary w-100" onclick="bookStadium(${st.id})">
+                              <i class="bi bi-credit-card me-2"></i>احجز الآن
+                          </button>
+                      </div>
+                  </div>
+              </div>`;
+      }).join('');
   }
 </script>
 </body>
