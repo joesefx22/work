@@ -778,11 +778,10 @@
                                 <thead class="table-dark">
                                     <tr>
                                         <th>#</th>
-                                        <th>المستخدم</th>
+                                        <th>اسم الدافع</th>
                                         <th>المبلغ</th>
-                                        <th>طريقة الدفع</th>
-                                        <th>رقم العملية</th>
                                         <th>الحالة</th>
+                                        <th>مزود الدفع</th>
                                         <th>التاريخ</th>
                                         <th>الإجراءات</th>
                                     </tr>
@@ -829,11 +828,9 @@
                                         <th>#</th>
                                         <th>اسم المستخدم</th>
                                         <th>البريد الإلكتروني</th>
-                                        <th>رقم الهاتف</th>
                                         <th>نوع الحساب</th>
-                                        <th>الحالة</th>
+                                        <th>حالة الموافقة</th>
                                         <th>النشاط</th>
-                                        <th>تاريخ التسجيل</th>
                                         <th>الإجراءات</th>
                                     </tr>
                                 </thead>
@@ -932,6 +929,24 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- إحصائيات المدفوعات الناجحة -->
+                        <div class="row mt-4">
+                            <div class="col-md-6">
+                                <div class="card h-100">
+                                    <div class="card-body text-center">
+                                        <h3 class="text-success" id="successfulPaymentsCount">0</h3>
+                                        <p class="text-muted">المدفوعات الناجحة</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="chart-container">
+                                    <h5 class="mb-3">توزيع المدفوعات</h5>
+                                    <canvas id="paymentsChart" height="150"></canvas>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- 🆕 تبويب الإشعارات -->
@@ -998,16 +1013,43 @@
                     <div class="tab-pane fade" id="activity-logs">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h4>سجل الأنشطة</h4>
-                            <div class="search-box">
-                                <input type="text" class="form-control" id="activitySearch" placeholder="ابحث في سجل الأنشطة...">
-                                <i class="bi bi-search"></i>
+                            <div class="filter-section d-flex gap-2">
+                                <select class="form-select" id="activityUserFilter" style="width: auto;">
+                                    <option value="">جميع المستخدمين</option>
+                                </select>
+                                <select class="form-select" id="activityActionFilter" style="width: auto;">
+                                    <option value="">جميع الإجراءات</option>
+                                    <option value="login">تسجيل دخول</option>
+                                    <option value="create">إنشاء</option>
+                                    <option value="update">تحديث</option>
+                                    <option value="delete">حذف</option>
+                                </select>
+                                <input type="date" class="form-control" id="activityDateFrom" style="width: auto;" placeholder="من تاريخ">
+                                <input type="date" class="form-control" id="activityDateTo" style="width: auto;" placeholder="إلى تاريخ">
+                                <button class="btn btn-primary" onclick="filterActivityLogs()">
+                                    <i class="bi bi-funnel me-1"></i>تصفية
+                                </button>
                             </div>
                         </div>
 
                         <div class="card">
                             <div class="card-body">
-                                <div id="activityLogsContainer">
-                                    <!-- سيتم تعبئة سجل الأنشطة هنا -->
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>#</th>
+                                                <th>المستخدم</th>
+                                                <th>الإجراء</th>
+                                                <th>الوصف</th>
+                                                <th>عنوان IP</th>
+                                                <th>التاريخ</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="activityLogsTable">
+                                            <!-- سيتم تعبئة سجل الأنشطة هنا -->
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
@@ -1432,18 +1474,246 @@
             });
         }
 
-        // 🆕 دوال التحميل حسب الملعب
+        // ==============================================
+        // 🆕 دوال API الجديدة المطلوبة
+        // ==============================================
+
+        // 1. loadPayments() - ربط التبويب بـ /api/payments
+        async function loadPayments(pitchId = 'all') {
+            try {
+                unifiedSystem.showLoading('paymentsTable', 'جاري تحميل المدفوعات...');
+                
+                let endpoint = '/api/payments';
+                const params = new URLSearchParams();
+                
+                if (pitchId && pitchId !== 'all') {
+                    params.append('pitch_id', pitchId);
+                }
+                
+                if (currentUserData.role === 'manager' || currentUserData.role === 'multi_manager') {
+                    params.append('manager_id', currentUserData.userId);
+                }
+                
+                if (params.toString()) {
+                    endpoint += '?' + params.toString();
+                }
+                
+                const response = await fetch(endpoint, {
+                    headers: unifiedSystem.getAuthHeaders()
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    unifiedSystem.allPayments = result.payments || result.data || [];
+                    unifiedSystem.updatePaymentsTable(unifiedSystem.allPayments);
+                } else {
+                    throw new Error('Failed to load payments');
+                }
+            } catch (error) {
+                console.error('Error loading payments:', error);
+                unifiedSystem.allPayments = unifiedSystem.getMockPayments();
+                unifiedSystem.updatePaymentsTable(unifiedSystem.allPayments);
+                unifiedSystem.showAlert('تم تحميل بيانات تجريبية', 'info');
+            }
+        }
+
+        // 2. loadManagers() - ربط التبويب بـ /api/managers/pending
+        async function loadManagers() {
+            try {
+                unifiedSystem.showLoading('pendingManagersTable', 'جاري تحميل طلبات المديرين...');
+                
+                const response = await fetch('/api/managers/pending', {
+                    headers: unifiedSystem.getAuthHeaders()
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    unifiedSystem.pendingManagers = result.managers || result.data || [];
+                    unifiedSystem.updatePendingManagersTable(unifiedSystem.pendingManagers);
+                } else {
+                    throw new Error('Failed to load pending managers');
+                }
+            } catch (error) {
+                console.error('Error loading managers:', error);
+                unifiedSystem.pendingManagers = unifiedSystem.getMockPendingManagers();
+                unifiedSystem.updatePendingManagersTable(unifiedSystem.pendingManagers);
+                unifiedSystem.showAlert('تم تحميل بيانات تجريبية', 'info');
+            }
+        }
+
+        // 3. loadUsers() - ربط التبويب بـ /api/users
+        async function loadUsers() {
+            try {
+                unifiedSystem.showLoading('usersTable', 'جاري تحميل المستخدمين...');
+                
+                const response = await fetch('/api/users', {
+                    headers: unifiedSystem.getAuthHeaders()
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    unifiedSystem.allUsers = result.users || result.data || [];
+                    unifiedSystem.updateUsersTable(unifiedSystem.allUsers);
+                    unifiedSystem.populateNotificationUsers();
+                    unifiedSystem.populateActivityUserFilter();
+                } else {
+                    throw new Error('Failed to load users');
+                }
+            } catch (error) {
+                console.error('Error loading users:', error);
+                unifiedSystem.allUsers = unifiedSystem.getMockUsers();
+                unifiedSystem.updateUsersTable(unifiedSystem.allUsers);
+                unifiedSystem.populateNotificationUsers();
+                unifiedSystem.populateActivityUserFilter();
+                unifiedSystem.showAlert('تم تحميل بيانات تجريبية', 'info');
+            }
+        }
+
+        // 4. loadSystemMetrics() - ربط تبويب "التقارير المتقدمة" بـ /api/system-metrics
+        async function loadSystemMetrics() {
+            try {
+                const response = await fetch('/api/system-metrics', {
+                    headers: unifiedSystem.getAuthHeaders()
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    unifiedSystem.systemMetrics = result.metrics || result.data || {};
+                    unifiedSystem.updateSystemMetrics(unifiedSystem.systemMetrics);
+                } else {
+                    throw new Error('Failed to load system metrics');
+                }
+            } catch (error) {
+                console.error('Error loading system metrics:', error);
+                unifiedSystem.systemMetrics = unifiedSystem.getMockSystemMetrics();
+                unifiedSystem.updateSystemMetrics(unifiedSystem.systemMetrics);
+            }
+        }
+
+        // 5. sendNotification() - إرسال إشعار
+        async function sendNotification(notificationData) {
+            try {
+                const response = await fetch('/api/notifications/send', {
+                    method: 'POST',
+                    headers: unifiedSystem.getAuthHeaders(),
+                    body: JSON.stringify(notificationData)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    unifiedSystem.showAlert('✅ تم إرسال الإشعار بنجاح', 'success');
+                    return result;
+                } else {
+                    throw new Error('Failed to send notification');
+                }
+            } catch (error) {
+                console.error('Error sending notification:', error);
+                unifiedSystem.showAlert('❌ حدث خطأ أثناء إرسال الإشعار', 'danger');
+                throw error;
+            }
+        }
+
+        // 6. loadActivityLogs() - ربط تبويب "سجل الأنشطة" بـ /api/activity-logs
+        async function loadActivityLogs() {
+            try {
+                unifiedSystem.showLoading('activityLogsTable', 'جاري تحميل سجل الأنشطة...');
+                
+                const response = await fetch('/api/activity-logs', {
+                    headers: unifiedSystem.getAuthHeaders()
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    unifiedSystem.activityLogs = result.logs || result.data || [];
+                    unifiedSystem.updateActivityLogsTable(unifiedSystem.activityLogs);
+                } else {
+                    throw new Error('Failed to load activity logs');
+                }
+            } catch (error) {
+                console.error('Error loading activity logs:', error);
+                unifiedSystem.activityLogs = unifiedSystem.getMockActivityLogs();
+                unifiedSystem.updateActivityLogsTable(unifiedSystem.activityLogs);
+                unifiedSystem.showAlert('تم تحميل بيانات تجريبية', 'info');
+            }
+        }
+
+        // 7. loadTimeSlots() - في تبويب "الساعات"، ربط بـ /api/time-slots
+        async function loadTimeSlots(stadiumId, date) {
+            try {
+                unifiedSystem.showLoading('timeSlotsContainer', 'جاري تحميل الساعات...');
+                
+                const response = await fetch(`/api/time-slots?stadium_id=${stadiumId}&date=${date}`, {
+                    headers: unifiedSystem.getAuthHeaders()
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    unifiedSystem.timeSlots = result.time_slots || result.data || [];
+                    unifiedSystem.displayTimeSlots();
+                    document.getElementById('addTimeSlotsSection').style.display = 'block';
+                } else {
+                    throw new Error('Failed to load time slots');
+                }
+            } catch (error) {
+                console.error('Error loading time slots:', error);
+                unifiedSystem.timeSlots = unifiedSystem.getMockTimeSlots();
+                unifiedSystem.displayTimeSlots();
+                document.getElementById('addTimeSlotsSection').style.display = 'block';
+                unifiedSystem.showAlert('تم تحميل بيانات تجريبية', 'info');
+            }
+        }
+
+        // 8. loadPitches() - في تبويب "الملاعب"، ربط بـ /api/stadiums
+        async function loadPitches() {
+            try {
+                unifiedSystem.showLoading('pitchesContainer', 'جاري تحميل الملاعب...');
+                
+                const endpoint = currentUserData.role === 'admin' ? '/api/stadiums' : '/api/manager/stadiums';
+                const response = await fetch(endpoint, {
+                    headers: unifiedSystem.getAuthHeaders()
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    unifiedSystem.allPitches = result.stadiums || result.data || [];
+                    unifiedSystem.managedPitches = unifiedSystem.allPitches;
+                    unifiedSystem.displayPitches();
+                    unifiedSystem.updateStats();
+                    unifiedSystem.populateStadiumSelect();
+                    unifiedSystem.updatePitchesFilter();
+                } else {
+                    throw new Error('Failed to load pitches');
+                }
+            } catch (error) {
+                console.error('Error loading pitches:', error);
+                unifiedSystem.allPitches = unifiedSystem.getMockStadiums();
+                unifiedSystem.managedPitches = unifiedSystem.allPitches;
+                unifiedSystem.displayPitches();
+                unifiedSystem.updateStats();
+                unifiedSystem.populateStadiumSelect();
+                unifiedSystem.updatePitchesFilter();
+                unifiedSystem.showAlert('تم تحميل بيانات تجريبية', 'info');
+            }
+        }
+
+        // 9. loadBookings() - في تبويب "الحجوزات"، ربط بـ /api/bookings
         async function loadBookings(pitchId = 'all') {
             try {
                 unifiedSystem.showLoading('bookingsTable', 'جاري تحميل الحجوزات...');
                 
-                let endpoint = '/api/admin/bookings';
+                let endpoint = '/api/bookings';
+                const params = new URLSearchParams();
+                
+                if (pitchId && pitchId !== 'all') {
+                    params.append('pitch_id', pitchId);
+                }
+                
                 if (currentUserData.role === 'manager' || currentUserData.role === 'multi_manager') {
-                    if (pitchId && pitchId !== 'all') {
-                        endpoint = `/api/manager/bookings?pitchId=${pitchId}`;
-                    } else {
-                        endpoint = '/api/manager/bookings';
-                    }
+                    params.append('manager_id', currentUserData.userId);
+                }
+                
+                if (params.toString()) {
+                    endpoint += '?' + params.toString();
                 }
                 
                 const response = await fetch(endpoint, {
@@ -1467,57 +1737,20 @@
             }
         }
 
-        async function loadTimeSlots(pitchId) {
-            if (pitchId && pitchId !== 'all') {
-                document.getElementById('stadiumSelect').value = pitchId;
-                await unifiedSystem.loadSelectedTimeSlots();
-            }
-        }
-
-        // 🆕 دوال التحميل المحسنة - تضيف هنا
-        async function loadPayments(pitchId = 'all') {
-            try {
-                unifiedSystem.showLoading('paymentsTable', 'جاري تحميل المدفوعات...');
-                
-                let endpoint = '/api/admin/payments';
-                if (currentUserData.role === 'manager' || currentUserData.role === 'multi_manager') {
-                    if (pitchId && pitchId !== 'all') {
-                        endpoint = `/api/manager/payments?pitchId=${pitchId}`;
-                    } else {
-                        endpoint = '/api/manager/payments';
-                    }
-                }
-                
-                const response = await fetch(endpoint, {
-                    headers: unifiedSystem.getAuthHeaders()
-                });
-                
-                if (response.ok) {
-                    const result = await response.json();
-                    unifiedSystem.allPayments = result.payments || result.data || [];
-                    unifiedSystem.updatePaymentsTable(unifiedSystem.allPayments);
-                } else {
-                    throw new Error('Failed to load payments');
-                }
-            } catch (error) {
-                console.error('Error loading payments:', error);
-                unifiedSystem.allPayments = unifiedSystem.getMockPayments();
-                unifiedSystem.updatePaymentsTable(unifiedSystem.allPayments);
-                unifiedSystem.showAlert('تم تحميل بيانات تجريبية', 'info');
-            }
-        }
-
         // 🆕 تحسين تحميل البيانات الأولية
         async function loadInitialData() {
             const userData = loadUserData();
             
             if (userData.role === 'admin') {
-                await unifiedSystem.loadPitches();
-                await unifiedSystem.loadAdminData();
-                await unifiedSystem.loadUsers();
+                await loadPitches();
+                await loadSystemMetrics();
+                await loadUsers();
                 await loadPayments();
+                await loadManagers();
+                await loadNotifications();
+                await loadActivityLogs();
             } else if (userData.role === 'manager' || userData.role === 'multi_manager') {
-                await unifiedSystem.loadPitches();
+                await loadPitches();
                 await unifiedSystem.loadManagerData();
                 await loadBookings(selectedPitchId);
                 await loadPayments(selectedPitchId);
@@ -1603,6 +1836,7 @@
                 this.pendingManagers = [];
                 this.timeSlots = [];
                 this.stats = {};
+                this.systemMetrics = {};
                 this.charts = {};
                 this.currentBookingToCancel = null;
                 this.currentDeleteAction = null;
@@ -1669,14 +1903,15 @@
                 const userData = loadUserData();
                 
                 if (userData.role === 'admin') {
-                    await this.loadPitches();
-                    await this.loadAdminData();
-                    await this.loadUsers();
+                    await loadPitches();
+                    await loadSystemMetrics();
+                    await loadUsers();
                     await loadPayments();
+                    await loadManagers();
                     await this.loadNotifications();
-                    await this.loadActivityLogs();
+                    await loadActivityLogs();
                 } else if (userData.role === 'manager' || userData.role === 'multi_manager') {
-                    await this.loadPitches();
+                    await loadPitches();
                     await this.loadManagerData();
                     await loadBookings(selectedPitchId);
                     await loadPayments(selectedPitchId);
@@ -1688,7 +1923,7 @@
                 try {
                     this.showLoading('pitchesContainer', 'جاري تحميل الملاعب...');
                     
-                    const endpoint = this.userRole === 'admin' ? '/api/admin/pitches' : '/api/manager/pitches';
+                    const endpoint = this.userRole === 'admin' ? '/api/stadiums' : '/api/manager/stadiums';
                     const response = await fetch(endpoint, {
                         headers: this.getAuthHeaders()
                     });
@@ -1719,13 +1954,19 @@
                 try {
                     this.showLoading('bookingsTable', 'جاري تحميل الحجوزات...');
                     
-                    let endpoint = '/api/admin/bookings';
+                    let endpoint = '/api/bookings';
+                    const params = new URLSearchParams();
+                    
+                    if (selectedPitchId && selectedPitchId !== 'all') {
+                        params.append('pitch_id', selectedPitchId);
+                    }
+                    
                     if (this.userRole === 'manager' || this.userRole === 'multi_manager') {
-                        if (selectedPitchId && selectedPitchId !== 'all') {
-                            endpoint = `/api/manager/bookings?pitchId=${selectedPitchId}`;
-                        } else {
-                            endpoint = '/api/manager/bookings';
-                        }
+                        params.append('manager_id', this.currentUser.userId);
+                    }
+                    
+                    if (params.toString()) {
+                        endpoint += '?' + params.toString();
                     }
                     
                     const response = await fetch(endpoint, {
@@ -1760,18 +2001,18 @@
                 table.innerHTML = bookings.map((booking, index) => `
                     <tr>
                         <td>${index + 1}</td>
-                        <td>${booking.customerName || booking.user?.username || 'غير معروف'}</td>
-                        <td>${booking.pitchName || booking.stadium?.name || 'غير معروف'}</td>
+                        <td>${booking.customer_name || booking.customerName || booking.user?.username || 'غير معروف'}</td>
+                        <td>${booking.pitch_name || booking.pitchName || booking.stadium?.name || 'غير معروف'}</td>
                         <td>${booking.date}</td>
                         <td>${booking.time}</td>
                         <td>${booking.amount} ج.م</td>
-                        <td>${booking.depositAmount || 0} ج.م</td>
+                        <td>${booking.deposit_amount || booking.depositAmount || 0} ج.م</td>
                         <td>
                             <span class="badge ${this.getStatusBadgeClass(booking.status)}">
                                 ${this.getStatusText(booking.status)}
                             </span>
                         </td>
-                        <td>${new Date(booking.createdAt).toLocaleDateString('ar-EG')}</td>
+                        <td>${new Date(booking.created_at || booking.createdAt).toLocaleDateString('ar-EG')}</td>
                         <td class="action-buttons">
                             ${booking.status === 'confirmed' ? `
                                 <button class="btn btn-warning btn-sm" onclick="unifiedSystem.cancelBooking('${booking.id}')">
@@ -1796,8 +2037,8 @@
 
                 table.innerHTML = bookings.map(booking => `
                     <tr>
-                        <td>${booking.customerName || booking.user?.username || 'غير معروف'}</td>
-                        <td>${booking.pitchName || booking.stadium?.name || 'غير معروف'}</td>
+                        <td>${booking.customer_name || booking.customerName || booking.user?.username || 'غير معروف'}</td>
+                        <td>${booking.pitch_name || booking.pitchName || booking.stadium?.name || 'غير معروف'}</td>
                         <td>${booking.date}</td>
                         <td>${booking.time}</td>
                         <td>${booking.amount} ج.م</td>
@@ -1818,7 +2059,7 @@
             // 🏟️ تحميل بيانات المدير
             async loadManagerData() {
                 try {
-                    const pitchesResponse = await fetch('/api/manager/pitches', {
+                    const pitchesResponse = await fetch('/api/manager/stadiums', {
                         headers: this.getAuthHeaders()
                     });
                     
@@ -1854,7 +2095,7 @@
                     const pendingBookings = bookings.filter(b => b.status === 'pending');
                     const totalRevenue = bookings
                         .filter(b => b.status === 'confirmed')
-                        .reduce((sum, b) => sum + (b.finalAmount || b.amount), 0);
+                        .reduce((sum, b) => sum + (b.final_amount || b.finalAmount || b.amount), 0);
 
                     const statsContainer = document.getElementById('managerQuickStats');
                     statsContainer.innerHTML = `
@@ -1920,26 +2161,8 @@
             // 👑 تحميل بيانات المسؤول
             async loadAdminData() {
                 try {
-                    const managersResponse = await fetch('/api/admin/pending-managers', {
-                        headers: this.getAuthHeaders()
-                    });
-                    
-                    if (managersResponse.ok) {
-                        const result = await managersResponse.json();
-                        this.pendingManagers = result.managers || result.data || [];
-                        this.updatePendingManagersTable(this.pendingManagers);
-                    }
-
-                    const statsResponse = await fetch('/api/admin/stats', {
-                        headers: this.getAuthHeaders()
-                    });
-                    
-                    if (statsResponse.ok) {
-                        const result = await statsResponse.json();
-                        this.stats = result.stats || result.data || {};
-                        this.updateAdminStats(this.stats);
-                    }
-
+                    await loadManagers();
+                    await loadSystemMetrics();
                 } catch (error) {
                     console.error('Error loading admin data:', error);
                 }
@@ -1950,7 +2173,7 @@
                 try {
                     this.showLoading('usersTable', 'جاري تحميل المستخدمين...');
                     
-                    const response = await fetch('/api/admin/users', {
+                    const response = await fetch('/api/users', {
                         headers: this.getAuthHeaders()
                     });
                     
@@ -1959,6 +2182,7 @@
                         this.allUsers = result.users || result.data || [];
                         this.updateUsersTable(this.allUsers);
                         this.populateNotificationUsers();
+                        this.populateActivityUserFilter();
                     } else {
                         throw new Error('Failed to load users');
                     }
@@ -1967,6 +2191,7 @@
                     this.allUsers = this.getMockUsers();
                     this.updateUsersTable(this.allUsers);
                     this.populateNotificationUsers();
+                    this.populateActivityUserFilter();
                     this.showAlert('تم تحميل بيانات تجريبية', 'info');
                 }
             }
@@ -1976,7 +2201,7 @@
                 try {
                     this.showLoading('paymentsTable', 'جاري تحميل المدفوعات...');
                     
-                    const response = await fetch('/api/admin/payments', {
+                    const response = await fetch('/api/payments', {
                         headers: this.getAuthHeaders()
                     });
                     
@@ -1998,7 +2223,7 @@
             // 🆕 تحميل الإشعارات
             async loadNotifications() {
                 try {
-                    const response = await fetch('/api/admin/notifications', {
+                    const response = await fetch('/api/notifications', {
                         headers: this.getAuthHeaders()
                     });
                     
@@ -2017,19 +2242,19 @@
             // 🆕 تحميل سجل الأنشطة
             async loadActivityLogs() {
                 try {
-                    const response = await fetch('/api/admin/activity-logs', {
+                    const response = await fetch('/api/activity-logs', {
                         headers: this.getAuthHeaders()
                     });
                     
                     if (response.ok) {
                         const result = await response.json();
                         this.activityLogs = result.logs || result.data || [];
-                        this.updateActivityLogs();
+                        this.updateActivityLogsTable(this.activityLogs);
                     }
                 } catch (error) {
                     console.error('Error loading activity logs:', error);
                     this.activityLogs = this.getMockActivityLogs();
-                    this.updateActivityLogs();
+                    this.updateActivityLogsTable(this.activityLogs);
                 }
             }
 
@@ -2048,27 +2273,27 @@
                 table.innerHTML = managers.map((manager, index) => `
                     <tr>
                         <td>${index + 1}</td>
-                        <td>${manager.userInfo?.username || manager.username || 'غير معروف'}</td>
-                        <td>${manager.userInfo?.email || manager.email || 'غير معروف'}</td>
+                        <td>${manager.username}</td>
+                        <td>${manager.email}</td>
                         <td>
-                            ${(manager.managedPitches || []).map(pitch => 
-                                `<span class="badge bg-secondary me-1">${pitch}</span>`
+                            ${(manager.requested_pitch_ids || []).map(pitchId => 
+                                `<span class="badge bg-secondary me-1">ملعب ${pitchId}</span>`
                             ).join('')}
-                            ${manager.managedPitches && manager.managedPitches.length === 0 ? 
+                            ${manager.requested_pitch_ids && manager.requested_pitch_ids.length === 0 ? 
                                 '<span class="text-muted">لا توجد ملاعب</span>' : ''}
                         </td>
                         <td>
                             <span class="badge bg-warning">قيد الانتظار</span>
                         </td>
-                        <td>${new Date(manager.createdAt || manager.requestDate).toLocaleDateString('ar-EG')}</td>
+                        <td>${new Date(manager.created_at).toLocaleDateString('ar-EG')}</td>
                         <td>
-                            <button class="btn btn-success btn-sm" onclick="unifiedSystem.showApproveManagerModal('${manager.id}')">
+                            <button class="btn btn-success btn-sm" onclick="unifiedSystem.approveManagerRequest('${manager.id}')">
                                 <i class="bi bi-check-lg me-1"></i>موافقة
                             </button>
-                            <button class="btn btn-danger btn-sm" onclick="unifiedSystem.rejectManager('${manager.id}')">
+                            <button class="btn btn-danger btn-sm" onclick="unifiedSystem.rejectManagerRequest('${manager.id}')">
                                 <i class="bi bi-x-lg me-1"></i>رفض
                             </button>
-                            <button class="btn btn-info btn-sm" onclick="unifiedSystem.sendNotificationToUser('${manager.userId || manager.id}', '${manager.userInfo?.username || manager.username}')">
+                            <button class="btn btn-info btn-sm" onclick="unifiedSystem.sendNotificationToUser('${manager.user_id || manager.id}', '${manager.username}')">
                                 <i class="bi bi-bell me-1"></i>إشعار
                             </button>
                         </td>
@@ -2080,7 +2305,7 @@
             updateUsersTable(users) {
                 const table = document.getElementById('usersTable');
                 if (users.length === 0) {
-                    table.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">لا توجد مستخدمين</td></tr>';
+                    table.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">لا توجد مستخدمين</td></tr>';
                     return;
                 }
 
@@ -2089,15 +2314,14 @@
                         <td>${index + 1}</td>
                         <td>${user.username}</td>
                         <td>${user.email}</td>
-                        <td>${user.phone || 'غير متوفر'}</td>
                         <td>
                             <span class="badge ${this.getRoleBadgeClass(user.role)}">
                                 ${this.getRoleText(user.role)}
                             </span>
                         </td>
                         <td>
-                            <span class="badge ${this.getStatusBadgeClass(user.status)}">
-                                ${this.getStatusText(user.status)}
+                            <span class="badge ${this.getStatusBadgeClass(user.approved ? 'approved' : 'pending')}">
+                                ${user.approved ? 'مفعل' : 'قيد الانتظار'}
                             </span>
                         </td>
                         <td>
@@ -2105,9 +2329,8 @@
                                 ${user.is_active ? 'نشط' : 'غير نشط'}
                             </span>
                         </td>
-                        <td>${new Date(user.createdAt).toLocaleDateString('ar-EG')}</td>
                         <td class="action-buttons">
-                            ${user.status === 'pending' ? `
+                            ${!user.approved ? `
                                 <button class="btn btn-success btn-sm" onclick="unifiedSystem.approveUser('${user.id}')">
                                     <i class="bi bi-check-lg"></i> قبول
                                 </button>
@@ -2136,29 +2359,23 @@
             updatePaymentsTable(payments) {
                 const table = document.getElementById('paymentsTable');
                 if (payments.length === 0) {
-                    table.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">لا توجد مدفوعات</td></tr>';
+                    table.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">لا توجد مدفوعات</td></tr>';
                     return;
                 }
 
                 table.innerHTML = payments.map((payment, index) => `
                     <tr>
                         <td>${index + 1}</td>
-                        <td>${payment.user?.username || 'غير معروف'}</td>
+                        <td>${payment.payer_name || payment.user?.username || 'غير معروف'}</td>
                         <td>${payment.amount} ج.م</td>
-                        <td>${this.getPaymentMethodText(payment.method)}</td>
-                        <td>${payment.transactionId || 'غير متوفر'}</td>
                         <td>
                             <span class="badge ${this.getPaymentStatusBadgeClass(payment.status)}">
                                 ${this.getPaymentStatusText(payment.status)}
                             </span>
                         </td>
-                        <td>${new Date(payment.createdAt).toLocaleDateString('ar-EG')}</td>
+                        <td>${this.getPaymentMethodText(payment.provider)}</td>
+                        <td>${new Date(payment.date || payment.created_at).toLocaleDateString('ar-EG')}</td>
                         <td class="action-buttons">
-                            ${payment.status === 'pending' ? `
-                                <button class="btn btn-success btn-sm" onclick="unifiedSystem.confirmPayment('${payment.id}')">
-                                    <i class="bi bi-check-lg"></i> تأكيد
-                                </button>
-                            ` : ''}
                             <button class="btn btn-info btn-sm" onclick="unifiedSystem.showPaymentDetails('${payment.id}')">
                                 <i class="bi bi-eye"></i> تفاصيل
                             </button>
@@ -2195,30 +2412,36 @@
                 `).join('');
             }
 
-            // 🆕 تحديث سجل الأنشطة
-            updateActivityLogs() {
-                const container = document.getElementById('activityLogsContainer');
-                if (this.activityLogs.length === 0) {
-                    container.innerHTML = '<div class="text-center text-muted py-4">لا توجد أنشطة مسجلة</div>';
+            // 🆕 تحديث جدول سجل الأنشطة
+            updateActivityLogsTable(logs) {
+                const table = document.getElementById('activityLogsTable');
+                if (logs.length === 0) {
+                    table.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">لا توجد أنشطة مسجلة</td></tr>';
                     return;
                 }
 
-                container.innerHTML = this.activityLogs.map(log => `
-                    <div class="activity-log-item">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-1">${log.action}</h6>
-                                <p class="mb-1 text-muted">${log.description}</p>
-                                <small>بواسطة: ${log.user?.username || 'النظام'}</small>
-                            </div>
-                            <div class="text-end">
-                                <small class="text-muted">${new Date(log.timestamp).toLocaleString('ar-EG')}</small>
-                                <br>
-                                <span class="badge ${this.getActivityTypeBadge(log.type)}">${this.getActivityTypeText(log.type)}</span>
-                            </div>
-                        </div>
-                    </div>
+                table.innerHTML = logs.map((log, index) => `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${log.user_id ? (log.user?.username || `مستخدم ${log.user_id}`) : 'النظام'}</td>
+                        <td>${log.action}</td>
+                        <td>${log.description}</td>
+                        <td>${log.ip_address || 'غير متوفر'}</td>
+                        <td>${new Date(log.created_at).toLocaleString('ar-EG')}</td>
+                    </tr>
                 `).join('');
+            }
+
+            // 🆕 تحديث إحصائيات النظام
+            updateSystemMetrics(metrics) {
+                document.getElementById('totalUsersCount').textContent = metrics.total_users || 0;
+                document.getElementById('totalBookingsCount').textContent = metrics.total_bookings || 0;
+                document.getElementById('totalRevenueAmount').textContent = metrics.total_revenue || 0;
+                document.getElementById('activePitchesCount').textContent = metrics.active_stadiums || 0;
+                document.getElementById('successfulPaymentsCount').textContent = metrics.successful_payments || 0;
+                
+                // تحديث الرسوم البيانية
+                this.updateChartsWithMetrics(metrics);
             }
 
             // 🎛️ إعداد الرسوم البيانية
@@ -2328,6 +2551,50 @@
                         }
                     });
                 }
+
+                // 🆕 رسم بياني للمدفوعات
+                const paymentsCtx = document.getElementById('paymentsChart');
+                if (paymentsCtx) {
+                    this.charts.payments = new Chart(paymentsCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['ناجحة', 'فاشلة', 'قيد الانتظار'],
+                            datasets: [{
+                                data: [70, 15, 15],
+                                backgroundColor: [
+                                    '#1a7f46',
+                                    '#e74c3c',
+                                    '#f39c12'
+                                ]
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+
+            // 🆕 تحديث الرسوم البيانية بالإحصائيات
+            updateChartsWithMetrics(metrics) {
+                if (this.charts.monthlyRevenue && metrics.monthly_data) {
+                    this.charts.monthlyRevenue.data.datasets[0].data = metrics.monthly_data.revenues || [];
+                    this.charts.monthlyRevenue.update();
+                }
+                
+                if (this.charts.payments && metrics.payment_stats) {
+                    this.charts.payments.data.datasets[0].data = [
+                        metrics.payment_stats.successful || 0,
+                        metrics.payment_stats.failed || 0,
+                        metrics.payment_stats.pending || 0
+                    ];
+                    this.charts.payments.update();
+                }
             }
 
             // 🛠️ دوال المساعدة
@@ -2405,7 +2672,6 @@
 
             getPaymentStatusBadgeClass(status) {
                 const classes = {
-                    'confirmed': 'bg-success',
                     'paid': 'bg-success',
                     'pending': 'bg-warning',
                     'failed': 'bg-danger'
@@ -2415,7 +2681,6 @@
 
             getPaymentStatusText(status) {
                 const texts = {
-                    'confirmed': 'مؤكد',
                     'paid': 'مدفوع',
                     'pending': 'قيد الانتظار',
                     'failed': 'فاشل'
@@ -2440,28 +2705,6 @@
                     'success': 'نجاح',
                     'warning': 'تحذير',
                     'error': 'خطأ'
-                };
-                return texts[type] || type;
-            }
-
-            getActivityTypeBadge(type) {
-                const classes = {
-                    'create': 'bg-success',
-                    'update': 'bg-primary',
-                    'delete': 'bg-danger',
-                    'login': 'bg-info',
-                    'system': 'bg-secondary'
-                };
-                return classes[type] || 'bg-secondary';
-            }
-
-            getActivityTypeText(type) {
-                const texts = {
-                    'create': 'إنشاء',
-                    'update': 'تحديث',
-                    'delete': 'حذف',
-                    'login': 'تسجيل دخول',
-                    'system': 'نظام'
                 };
                 return texts[type] || type;
             }
@@ -2537,7 +2780,7 @@
                 const data = Object.fromEntries(formData);
                 
                 try {
-                    const response = await fetch(`/api/admin/stadiums/${data.id}`, {
+                    const response = await fetch(`/api/stadiums/${data.id}`, {
                         method: 'PUT',
                         headers: this.getAuthHeaders(),
                         body: JSON.stringify(data)
@@ -2558,7 +2801,7 @@
 
             async addPitch(formData) {
                 try {
-                    const response = await fetch('/api/admin/stadiums', {
+                    const response = await fetch('/api/stadiums', {
                         method: 'POST',
                         headers: this.getAuthHeaders(),
                         body: JSON.stringify(formData)
@@ -2594,7 +2837,7 @@
                 const { type, id } = this.currentDeleteAction;
                 
                 try {
-                    const response = await fetch(`/api/admin/${type}s/${id}`, {
+                    const response = await fetch(`/api/${type}s/${id}`, {
                         method: 'DELETE',
                         headers: this.getAuthHeaders()
                     });
@@ -2625,8 +2868,8 @@
 
                 document.getElementById('cancelBookingDetails').innerHTML = `
                     <div class="alert alert-warning">
-                        <p><strong>العميل:</strong> ${booking.customerName || booking.user?.username || 'غير معروف'}</p>
-                        <p><strong>الملعب:</strong> ${booking.pitchName || booking.stadium?.name || 'غير معروف'}</p>
+                        <p><strong>العميل:</strong> ${booking.customer_name || booking.customerName || booking.user?.username || 'غير معروف'}</p>
+                        <p><strong>الملعب:</strong> ${booking.pitch_name || booking.pitchName || booking.stadium?.name || 'غير معروف'}</p>
                         <p><strong>التاريخ:</strong> ${booking.date}</p>
                         <p><strong>الوقت:</strong> ${booking.time}</p>
                         <p><strong>المبلغ:</strong> ${booking.amount} ج.م</p>
@@ -2644,14 +2887,14 @@
             async executeCancelBooking(reason) {
                 try {
                     const endpoint = this.userRole === 'admin' ? 
-                        `/api/admin/bookings/${this.currentBookingToCancel}/cancel` : 
+                        `/api/bookings/${this.currentBookingToCancel}/cancel` : 
                         `/api/manager/bookings/${this.currentBookingToCancel}/cancel`;
 
                     const response = await fetch(endpoint, {
                         method: 'PUT',
                         headers: this.getAuthHeaders(),
                         body: JSON.stringify({
-                            cancellationReason: reason || 'إلغاء من المدير'
+                            cancellation_reason: reason || 'إلغاء من المدير'
                         })
                     });
 
@@ -2685,22 +2928,22 @@
                             <p><strong>التاريخ:</strong> ${booking.date}</p>
                             <p><strong>الوقت:</strong> ${booking.time}</p>
                             <p><strong>المبلغ:</strong> ${booking.amount} ج.م</p>
-                            <p><strong>العربون:</strong> ${booking.depositAmount || 0} ج.م</p>
+                            <p><strong>العربون:</strong> ${booking.deposit_amount || booking.depositAmount || 0} ج.م</p>
                         </div>
                         <div class="col-md-6">
                             <h6>معلومات العميل</h6>
-                            <p><strong>الاسم:</strong> ${booking.customerName || booking.user?.username || 'غير معروف'}</p>
+                            <p><strong>الاسم:</strong> ${booking.customer_name || booking.customerName || booking.user?.username || 'غير معروف'}</p>
                             <p><strong>البريد:</strong> ${booking.user?.email || 'غير متوفر'}</p>
                             <p><strong>الهاتف:</strong> ${booking.user?.phone || 'غير متوفر'}</p>
                             <h6 class="mt-3">معلومات الملعب</h6>
-                            <p><strong>الاسم:</strong> ${booking.pitchName || booking.stadium?.name || 'غير معروف'}</p>
+                            <p><strong>الاسم:</strong> ${booking.pitch_name || booking.pitchName || booking.stadium?.name || 'غير معروف'}</p>
                             <p><strong>الموقع:</strong> ${booking.stadium?.location || 'غير متوفر'}</p>
                         </div>
                     </div>
-                    ${booking.cancellationReason ? `
+                    ${booking.cancellation_reason ? `
                         <div class="alert alert-warning mt-3">
                             <h6>سبب الإلغاء:</h6>
-                            <p>${booking.cancellationReason}</p>
+                            <p>${booking.cancellation_reason}</p>
                         </div>
                     ` : ''}
                 `;
@@ -2718,15 +2961,15 @@
                     <div class="row">
                         <div class="col-md-6">
                             <h6>معلومات الدفع</h6>
-                            <p><strong>رقم العملية:</strong> ${payment.transactionId || 'غير متوفر'}</p>
+                            <p><strong>رقم العملية:</strong> ${payment.transaction_id || 'غير متوفر'}</p>
                             <p><strong>المبلغ:</strong> ${payment.amount} ج.م</p>
-                            <p><strong>طريقة الدفع:</strong> ${this.getPaymentMethodText(payment.method)}</p>
+                            <p><strong>طريقة الدفع:</strong> ${this.getPaymentMethodText(payment.provider)}</p>
                             <p><strong>الحالة:</strong> <span class="badge ${this.getPaymentStatusBadgeClass(payment.status)}">${this.getPaymentStatusText(payment.status)}</span></p>
-                            <p><strong>التاريخ:</strong> ${new Date(payment.createdAt).toLocaleDateString('ar-EG')}</p>
+                            <p><strong>التاريخ:</strong> ${new Date(payment.date || payment.created_at).toLocaleDateString('ar-EG')}</p>
                         </div>
                         <div class="col-md-6">
                             <h6>معلومات المستخدم</h6>
-                            <p><strong>الاسم:</strong> ${payment.user?.username || 'غير معروف'}</p>
+                            <p><strong>الاسم:</strong> ${payment.payer_name || payment.user?.username || 'غير معروف'}</p>
                             <p><strong>البريد:</strong> ${payment.user?.email || 'غير متوفر'}</p>
                             <h6 class="mt-3">معلومات إضافية</h6>
                             <p><strong>مسار الإيصال:</strong> ${payment.receipt_path || 'غير متوفر'}</p>
@@ -2736,6 +2979,250 @@
                 `;
 
                 new bootstrap.Modal(document.getElementById('paymentDetailsModal')).show();
+            }
+
+            // 🆕 الموافقة على طلب مدير
+            async approveManagerRequest(managerId) {
+                try {
+                    const response = await fetch(`/api/managers/approve/${managerId}`, {
+                        method: 'POST',
+                        headers: this.getAuthHeaders()
+                    });
+
+                    if (response.ok) {
+                        this.showAlert('✅ تمت الموافقة على المدير بنجاح', 'success');
+                        await loadManagers();
+                        
+                        // إرسال إشعار للمستخدم
+                        const manager = this.pendingManagers.find(m => m.id === managerId);
+                        if (manager) {
+                            await sendNotification({
+                                title: 'تمت الموافقة على طلبك',
+                                message: 'تمت الموافقة على طلبك كمدير للملاعب. يمكنك الآن إدارة الملاعب المسندة إليك.',
+                                type: 'success',
+                                user_id: manager.user_id || manager.id,
+                                action_url: '/manager/dashboard'
+                            });
+                        }
+                    } else {
+                        throw new Error('Failed to approve manager');
+                    }
+                } catch (error) {
+                    console.error('Error approving manager:', error);
+                    this.showAlert('❌ حدث خطأ أثناء الموافقة على المدير', 'danger');
+                }
+            }
+
+            // 🆕 رفض طلب مدير
+            async rejectManagerRequest(managerId) {
+                if (!confirm('هل أنت متأكد من رفض هذا الطلب؟')) return;
+
+                try {
+                    const response = await fetch(`/api/managers/reject/${managerId}`, {
+                        method: 'POST',
+                        headers: this.getAuthHeaders()
+                    });
+
+                    if (response.ok) {
+                        this.showAlert('✅ تم رفض طلب المدير', 'success');
+                        await loadManagers();
+                        
+                        // إرسال إشعار للمستخدم
+                        const manager = this.pendingManagers.find(m => m.id === managerId);
+                        if (manager) {
+                            await sendNotification({
+                                title: 'تم رفض طلبك',
+                                message: 'نأسف لإبلاغك بأن طلبك كمدير للملاعب قد تم رفضه. يمكنك التواصل مع الإدارة للمزيد من المعلومات.',
+                                type: 'error',
+                                user_id: manager.user_id || manager.id
+                            });
+                        }
+                    } else {
+                        throw new Error('Failed to reject manager');
+                    }
+                } catch (error) {
+                    console.error('Error rejecting manager:', error);
+                    this.showAlert('❌ حدث خطأ أثناء رفض المدير', 'danger');
+                }
+            }
+
+            // 🆕 تفعيل المستخدم
+            async approveUser(userId) {
+                try {
+                    const response = await fetch(`/api/users/${userId}/approve`, {
+                        method: 'PUT',
+                        headers: this.getAuthHeaders()
+                    });
+
+                    if (response.ok) {
+                        this.showAlert('✅ تم تفعيل المستخدم بنجاح', 'success');
+                        this.loadUsers();
+                    } else {
+                        throw new Error('Failed to approve user');
+                    }
+                } catch (error) {
+                    console.error('Error approving user:', error);
+                    this.showAlert('❌ حدث خطأ أثناء تفعيل المستخدم', 'danger');
+                }
+            }
+
+            // 🆕 تبديل حالة المستخدم
+            async toggleUserStatus(userId, isActive) {
+                try {
+                    const response = await fetch(`/api/users/${userId}/status`, {
+                        method: 'PUT',
+                        headers: this.getAuthHeaders(),
+                        body: JSON.stringify({ is_active: isActive })
+                    });
+
+                    if (response.ok) {
+                        this.showAlert(`✅ تم ${isActive ? 'تفعيل' : 'إيقاف'} المستخدم بنجاح`, 'success');
+                        this.loadUsers();
+                    } else {
+                        throw new Error('Failed to toggle user status');
+                    }
+                } catch (error) {
+                    console.error('Error toggling user status:', error);
+                    this.showAlert('❌ حدث خطأ أثناء تغيير حالة المستخدم', 'danger');
+                }
+            }
+
+            // 🆕 إرسال إشعار للمستخدم
+            sendNotificationToUser(userId, username) {
+                document.getElementById('notificationUserId').value = userId;
+                document.getElementById('notificationUserName').value = username;
+                new bootstrap.Modal(document.getElementById('sendNotificationModal')).show();
+            }
+
+            // 🆕 إرسال إشعار جماعي
+            async sendNotification() {
+                const title = document.getElementById('notificationTitle').value;
+                const message = document.getElementById('notificationMessage').value;
+                const type = document.getElementById('notificationType').value;
+                const userId = document.getElementById('notificationUser').value;
+                const actionUrl = document.getElementById('notificationActionUrl').value;
+
+                try {
+                    await sendNotification({
+                        title,
+                        message,
+                        type,
+                        user_id: userId === 'all' ? null : userId,
+                        action_url: actionUrl || null
+                    });
+                    
+                    document.getElementById('notificationForm').reset();
+                    await this.loadNotifications();
+                } catch (error) {
+                    console.error('Error sending notification:', error);
+                }
+            }
+
+            // 🆕 تعبئة قائمة المستخدمين في الإشعارات
+            populateNotificationUsers() {
+                const select = document.getElementById('notificationUser');
+                select.innerHTML = '<option value="all">جميع المستخدمين</option>';
+                
+                this.allUsers.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.id;
+                    option.textContent = `${user.username} (${this.getRoleText(user.role)})`;
+                    select.appendChild(option);
+                });
+            }
+
+            // 🆕 تعبئة قائمة المستخدمين في فلتر سجل الأنشطة
+            populateActivityUserFilter() {
+                const select = document.getElementById('activityUserFilter');
+                select.innerHTML = '<option value="">جميع المستخدمين</option>';
+                
+                this.allUsers.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.id;
+                    option.textContent = `${user.username} (${this.getRoleText(user.role)})`;
+                    select.appendChild(option);
+                });
+            }
+
+            // 🆕 إنشاء تقرير جديد
+            async generateReport() {
+                try {
+                    const response = await fetch('/api/admin-reports/generate', {
+                        method: 'POST',
+                        headers: this.getAuthHeaders(),
+                        body: JSON.stringify({
+                            type: 'comprehensive',
+                            start_date: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+                            end_date: new Date().toISOString().split('T')[0]
+                        })
+                    });
+
+                    if (response.ok) {
+                        this.showAlert('✅ تم إنشاء التقرير بنجاح', 'success');
+                        await loadSystemMetrics();
+                    } else {
+                        throw new Error('Failed to generate report');
+                    }
+                } catch (error) {
+                    console.error('Error generating report:', error);
+                    this.showAlert('❌ حدث خطأ أثناء إنشاء التقرير', 'danger');
+                }
+            }
+
+            // 🆕 تصدير إلى PDF
+            async exportToPDF() {
+                try {
+                    const response = await fetch('/api/export/pdf', {
+                        headers: this.getAuthHeaders()
+                    });
+
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `report-${new Date().toISOString().split('T')[0]}.pdf`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                        
+                        this.showAlert('✅ تم تصدير التقرير إلى PDF', 'success');
+                    } else {
+                        throw new Error('Failed to export PDF');
+                    }
+                } catch (error) {
+                    console.error('Error exporting PDF:', error);
+                    this.showAlert('❌ حدث خطأ أثناء تصدير PDF', 'danger');
+                }
+            }
+
+            // 🆕 تصدير إلى Excel
+            async exportToExcel() {
+                try {
+                    const response = await fetch('/api/export/excel', {
+                        headers: this.getAuthHeaders()
+                    });
+
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `report-${new Date().toISOString().split('T')[0]}.xlsx`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                        
+                        this.showAlert('✅ تم تصدير التقرير إلى Excel', 'success');
+                    } else {
+                        throw new Error('Failed to export Excel');
+                    }
+                } catch (error) {
+                    console.error('Error exporting Excel:', error);
+                    this.showAlert('❌ حدث خطأ أثناء تصدير Excel', 'danger');
+                }
             }
 
             viewPitchBookings(pitchId) {
@@ -2768,41 +3255,7 @@
                 const date = document.getElementById('slotDate').value;
                 
                 if (stadiumId && date) {
-                    await this.loadTimeSlots(stadiumId, date);
-                }
-            }
-
-            async loadTimeSlots(stadiumId, date) {
-                try {
-                    this.showLoading('timeSlotsContainer', 'جاري تحميل الساعات...');
-                    
-                    const response = await fetch(`/api/stadiums/${stadiumId}/time-slots?date=${date}`, {
-                        headers: this.getAuthHeaders()
-                    });
-                    
-                    if (response.ok) {
-                        const result = await response.json();
-                        this.timeSlots = result.timeSlots || result.data || [];
-                        this.displayTimeSlots();
-                        document.getElementById('addTimeSlotsSection').style.display = 'block';
-                    } else {
-                        throw new Error('Failed to load time slots');
-                    }
-                } catch (error) {
-                    console.error('Error loading time slots:', error);
-                    this.timeSlots = this.getMockTimeSlots();
-                    this.displayTimeSlots();
-                    document.getElementById('addTimeSlotsSection').style.display = 'block';
-                    this.showAlert('تم تحميل بيانات تجريبية', 'info');
-                }
-            }
-
-            // 🆕 دالة toggleTimeSlot
-            toggleTimeSlot(slotId) {
-                const slot = this.timeSlots.find(s => s.id === slotId);
-                if (slot && slot.status === 'available') {
-                    slot.selected = !slot.selected;
-                    this.displayTimeSlots();
+                    await loadTimeSlots(stadiumId, date);
                 }
             }
 
@@ -2824,11 +3277,11 @@
                     <h6 class="mb-3">الساعات المتاحة</h6>
                     <div class="time-slot-grid">
                         ${this.timeSlots.map(slot => `
-                            <div class="time-slot ${slot.status === 'available' ? 'available' : 'booked'} ${slot.selected ? 'selected' : ''}" 
+                            <div class="time-slot ${slot.status === 'available' ? 'available' : slot.status === 'booked' ? 'booked' : 'blocked'} ${slot.selected ? 'selected' : ''}" 
                                  onclick="unifiedSystem.toggleTimeSlot(${slot.id})">
                                 ${slot.start_time}
                                 <br>
-                                <small>${slot.status === 'available' ? 'متاح' : 'محجوز'}</small>
+                                <small>${slot.status === 'available' ? 'متاح' : slot.status === 'booked' ? 'محجوز' : 'مغلق'}</small>
                             </div>
                         `).join('')}
                     </div>
@@ -2838,6 +3291,15 @@
                         </button>
                     </div>
                 `;
+            }
+
+            // 🆕 دالة toggleTimeSlot
+            toggleTimeSlot(slotId) {
+                const slot = this.timeSlots.find(s => s.id === slotId);
+                if (slot && slot.status === 'available') {
+                    slot.selected = !slot.selected;
+                    this.displayTimeSlots();
+                }
             }
 
             async addTimeSlots() {
@@ -2850,19 +3312,20 @@
                 }
 
                 try {
-                    const response = await fetch(`/api/stadiums/${stadiumId}/time-slots`, {
+                    const response = await fetch(`/api/time-slots`, {
                         method: 'POST',
                         headers: this.getAuthHeaders(),
                         body: JSON.stringify({
+                            stadium_id: stadiumId,
                             date: date,
-                            startTime: document.getElementById('startTime').value,
-                            endTime: document.getElementById('endTime').value
+                            start_time: document.getElementById('startTime').value,
+                            end_time: document.getElementById('endTime').value
                         })
                     });
 
                     if (response.ok) {
                         this.showAlert('✅ تم إضافة الساعات بنجاح', 'success');
-                        await this.loadTimeSlots(stadiumId, date);
+                        await loadTimeSlots(stadiumId, date);
                     } else {
                         this.showAlert('❌ حدث خطأ أثناء إضافة الساعات', 'danger');
                     }
@@ -2870,6 +3333,58 @@
                     console.error('Error adding time slots:', error);
                     this.showAlert('❌ حدث خطأ أثناء إضافة الساعات', 'danger');
                 }
+            }
+
+            displayPitches() {
+                const container = document.getElementById('pitchesContainer');
+                
+                if (this.allPitches.length === 0) {
+                    container.innerHTML = `
+                        <div class="col-12">
+                            <div class="empty-state">
+                                <i class="bi bi-map"></i>
+                                <h5>لا توجد ملاعب</h5>
+                                <p>يمكنك إضافة ملاعب جديدة للنظام</p>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = this.allPitches.map(stadium => `
+                    <div class="col-lg-6 col-xl-4 mb-4">
+                        <div class="stadium-card">
+                            <div class="stadium-image" style="background-image: url('${stadium.image || '/api/placeholder/400/300'}')">
+                                <span class="stadium-badge">${stadium.type === 'natural' ? 'نجيلة طبيعية' : 'نجيلة صناعية'}</span>
+                                <span class="stadium-price">${stadium.price} ج.م/ساعة</span>
+                            </div>
+                            <div class="p-3">
+                                <h5 class="mb-2">${stadium.name}</h5>
+                                <p class="text-muted mb-2">
+                                    <i class="bi bi-geo-alt me-1"></i>${stadium.location}
+                                </p>
+                                <p class="text-muted mb-2">
+                                    <i class="bi bi-calendar me-1"></i>${stadium.availability || 'متاح'}
+                                </p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" onclick="unifiedSystem.editStadium(${stadium.id})">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        ${this.userRole === 'admin' ? `
+                                            <button class="btn btn-outline-danger" onclick="unifiedSystem.confirmDelete('stadium', ${stadium.id}, '${stadium.name}')">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        ` : ''}
+                                        <button class="btn btn-outline-info" onclick="unifiedSystem.viewStadiumDetails(${stadium.id})">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
             }
 
             filterStadiums() {
@@ -2916,6 +3431,9 @@
                                 <p class="text-muted mb-2">
                                     <i class="bi bi-geo-alt me-1"></i>${stadium.location}
                                 </p>
+                                <p class="text-muted mb-2">
+                                    <i class="bi bi-calendar me-1"></i>${stadium.availability || 'متاح'}
+                                </p>
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div class="btn-group btn-group-sm">
                                         <button class="btn btn-outline-primary" onclick="unifiedSystem.editStadium(${stadium.id})">
@@ -2926,6 +3444,9 @@
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         ` : ''}
+                                        <button class="btn btn-outline-info" onclick="unifiedSystem.viewStadiumDetails(${stadium.id})">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -2946,7 +3467,7 @@
                 }
 
                 if (pitchFilter) {
-                    filteredBookings = filteredBookings.filter(booking => booking.pitchId == pitchFilter || booking.stadium?.id == pitchFilter);
+                    filteredBookings = filteredBookings.filter(booking => booking.pitch_id == pitchFilter || booking.stadium?.id == pitchFilter);
                 }
 
                 if (dateFilter) {
@@ -2969,7 +3490,7 @@
                 }
 
                 if (providerFilter) {
-                    filteredPayments = filteredPayments.filter(payment => payment.method === providerFilter);
+                    filteredPayments = filteredPayments.filter(payment => payment.provider === providerFilter);
                 }
 
                 if (dateFrom) {
@@ -2995,7 +3516,7 @@
                 }
 
                 if (statusFilter) {
-                    filteredUsers = filteredUsers.filter(user => user.status === statusFilter);
+                    filteredUsers = filteredUsers.filter(user => (user.approved ? 'approved' : 'pending') === statusFilter);
                 }
 
                 if (activeFilter) {
@@ -3006,260 +3527,32 @@
                 this.updateUsersTable(filteredUsers);
             }
 
-            showApproveManagerModal(managerId) {
-                const manager = this.pendingManagers.find(m => m.id === managerId);
-                if (!manager) return;
+            // 🆕 فلترة سجل الأنشطة
+            filterActivityLogs() {
+                const userFilter = document.getElementById('activityUserFilter').value;
+                const actionFilter = document.getElementById('activityActionFilter').value;
+                const dateFrom = document.getElementById('activityDateFrom').value;
+                const dateTo = document.getElementById('activityDateTo').value;
 
-                this.currentManagerToApprove = managerId;
+                let filteredLogs = this.activityLogs;
 
-                document.getElementById('managerRequestDetails').innerHTML = `
-                    <div class="alert alert-info">
-                        <h6>تفاصيل الطلب:</h6>
-                        <p><strong>اسم المستخدم:</strong> ${manager.userInfo?.username || manager.username}</p>
-                        <p><strong>البريد الإلكتروني:</strong> ${manager.userInfo?.email || manager.email}</p>
-                        <p><strong>الملاعب المطلوبة:</strong> ${(manager.managedPitches || []).join('، ')}</p>
-                        <p><strong>تاريخ الطلب:</strong> ${new Date(manager.createdAt || manager.requestDate).toLocaleDateString('ar-EG')}</p>
-                    </div>
-                `;
-
-                document.getElementById('confirmApproveBtn').onclick = () => this.approveManager(managerId);
-                new bootstrap.Modal(document.getElementById('approveManagerModal')).show();
-            }
-
-            // 🆕 دوال المديرين
-            async approveManager(managerId) {
-                try {
-                    const response = await fetch(`/api/admin/managers/${managerId}/approve`, {
-                        method: 'PUT',
-                        headers: this.getAuthHeaders()
-                    });
-
-                    if (response.ok) {
-                        this.showAlert('✅ تمت الموافقة على المدير بنجاح', 'success');
-                        bootstrap.Modal.getInstance(document.getElementById('approveManagerModal')).hide();
-                        this.loadAdminData();
-                    } else {
-                        throw new Error('Failed to approve manager');
-                    }
-                } catch (error) {
-                    console.error('Error approving manager:', error);
-                    this.showAlert('❌ حدث خطأ أثناء الموافقة على المدير', 'danger');
+                if (userFilter) {
+                    filteredLogs = filteredLogs.filter(log => log.user_id == userFilter);
                 }
-            }
 
-            async rejectManager(managerId) {
-                if (!confirm('هل أنت متأكد من رفض هذا الطلب؟')) return;
-
-                try {
-                    const response = await fetch(`/api/admin/managers/${managerId}/reject`, {
-                        method: 'PUT',
-                        headers: this.getAuthHeaders()
-                    });
-
-                    if (response.ok) {
-                        this.showAlert('✅ تم رفض طلب المدير', 'success');
-                        this.loadAdminData();
-                    } else {
-                        throw new Error('Failed to reject manager');
-                    }
-                } catch (error) {
-                    console.error('Error rejecting manager:', error);
-                    this.showAlert('❌ حدث خطأ أثناء رفض المدير', 'danger');
+                if (actionFilter) {
+                    filteredLogs = filteredLogs.filter(log => log.action === actionFilter);
                 }
-            }
 
-            async approveUser(userId) {
-                try {
-                    const response = await fetch(`/api/admin/users/${userId}/approve`, {
-                        method: 'PUT',
-                        headers: this.getAuthHeaders()
-                    });
-
-                    if (response.ok) {
-                        this.showAlert('✅ تم تفعيل المستخدم بنجاح', 'success');
-                        this.loadUsers();
-                    } else {
-                        throw new Error('Failed to approve user');
-                    }
-                } catch (error) {
-                    console.error('Error approving user:', error);
-                    this.showAlert('❌ حدث خطأ أثناء تفعيل المستخدم', 'danger');
+                if (dateFrom) {
+                    filteredLogs = filteredLogs.filter(log => new Date(log.created_at) >= new Date(dateFrom));
                 }
-            }
 
-            // 🆕 تبديل حالة المستخدم
-            async toggleUserStatus(userId, isActive) {
-                try {
-                    const response = await fetch(`/api/admin/users/${userId}/status`, {
-                        method: 'PUT',
-                        headers: this.getAuthHeaders(),
-                        body: JSON.stringify({ is_active: isActive })
-                    });
-
-                    if (response.ok) {
-                        this.showAlert(`✅ تم ${isActive ? 'تفعيل' : 'إيقاف'} المستخدم بنجاح`, 'success');
-                        this.loadUsers();
-                    } else {
-                        throw new Error('Failed to toggle user status');
-                    }
-                } catch (error) {
-                    console.error('Error toggling user status:', error);
-                    this.showAlert('❌ حدث خطأ أثناء تغيير حالة المستخدم', 'danger');
+                if (dateTo) {
+                    filteredLogs = filteredLogs.filter(log => new Date(log.created_at) <= new Date(dateTo));
                 }
-            }
 
-            async confirmPayment(paymentId) {
-                try {
-                    const response = await fetch(`/api/admin/payments/${paymentId}/confirm`, {
-                        method: 'PUT',
-                        headers: this.getAuthHeaders()
-                    });
-
-                    if (response.ok) {
-                        this.showAlert('✅ تم تأكيد الدفع بنجاح', 'success');
-                        this.loadPayments();
-                    } else {
-                        throw new Error('Failed to confirm payment');
-                    }
-                } catch (error) {
-                    console.error('Error confirming payment:', error);
-                    this.showAlert('❌ حدث خطأ أثناء تأكيد الدفع', 'danger');
-                }
-            }
-
-            // 🆕 إرسال إشعار للمستخدم
-            sendNotificationToUser(userId, username) {
-                document.getElementById('notificationUserId').value = userId;
-                document.getElementById('notificationUserName').value = username;
-                new bootstrap.Modal(document.getElementById('sendNotificationModal')).show();
-            }
-
-            // 🆕 إرسال إشعار جماعي
-            async sendNotification() {
-                const title = document.getElementById('notificationTitle').value;
-                const message = document.getElementById('notificationMessage').value;
-                const type = document.getElementById('notificationType').value;
-                const userId = document.getElementById('notificationUser').value;
-                const actionUrl = document.getElementById('notificationActionUrl').value;
-
-                try {
-                    const response = await fetch('/api/admin/notifications', {
-                        method: 'POST',
-                        headers: this.getAuthHeaders(),
-                        body: JSON.stringify({
-                            title,
-                            message,
-                            type,
-                            user_id: userId === 'all' ? null : userId,
-                            action_url: actionUrl || null
-                        })
-                    });
-
-                    if (response.ok) {
-                        this.showAlert('✅ تم إرسال الإشعار بنجاح', 'success');
-                        document.getElementById('notificationForm').reset();
-                        this.loadNotifications();
-                    } else {
-                        throw new Error('Failed to send notification');
-                    }
-                } catch (error) {
-                    console.error('Error sending notification:', error);
-                    this.showAlert('❌ حدث خطأ أثناء إرسال الإشعار', 'danger');
-                }
-            }
-
-            // 🆕 تعبئة قائمة المستخدمين في الإشعارات
-            populateNotificationUsers() {
-                const select = document.getElementById('notificationUser');
-                select.innerHTML = '<option value="all">جميع المستخدمين</option>';
-                
-                this.allUsers.forEach(user => {
-                    const option = document.createElement('option');
-                    option.value = user.id;
-                    option.textContent = `${user.username} (${this.getRoleText(user.role)})`;
-                    select.appendChild(option);
-                });
-            }
-
-            // 🆕 إنشاء تقرير جديد
-            async generateReport() {
-                try {
-                    const response = await fetch('/api/admin/reports/generate', {
-                        method: 'POST',
-                        headers: this.getAuthHeaders(),
-                        body: JSON.stringify({
-                            type: 'monthly',
-                            start_date: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-                            end_date: new Date().toISOString().split('T')[0]
-                        })
-                    });
-
-                    if (response.ok) {
-                        this.showAlert('✅ تم إنشاء التقرير بنجاح', 'success');
-                        this.loadAdminData();
-                    } else {
-                        throw new Error('Failed to generate report');
-                    }
-                } catch (error) {
-                    console.error('Error generating report:', error);
-                    this.showAlert('❌ حدث خطأ أثناء إنشاء التقرير', 'danger');
-                }
-            }
-
-            // 🆕 تصدير إلى PDF
-            async exportToPDF() {
-                try {
-                    const response = await fetch('/api/admin/export/pdf', {
-                        headers: this.getAuthHeaders()
-                    });
-
-                    if (response.ok) {
-                        const blob = await response.blob();
-                        const url = window.URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `report-${new Date().toISOString().split('T')[0]}.pdf`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        window.URL.revokeObjectURL(url);
-                        
-                        this.showAlert('✅ تم تصدير التقرير إلى PDF', 'success');
-                    } else {
-                        throw new Error('Failed to export PDF');
-                    }
-                } catch (error) {
-                    console.error('Error exporting PDF:', error);
-                    this.showAlert('❌ حدث خطأ أثناء تصدير PDF', 'danger');
-                }
-            }
-
-            // 🆕 تصدير إلى Excel
-            async exportToExcel() {
-                try {
-                    const response = await fetch('/api/admin/export/excel', {
-                        headers: this.getAuthHeaders()
-                    });
-
-                    if (response.ok) {
-                        const blob = await response.blob();
-                        const url = window.URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `report-${new Date().toISOString().split('T')[0]}.xlsx`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        window.URL.revokeObjectURL(url);
-                        
-                        this.showAlert('✅ تم تصدير التقرير إلى Excel', 'success');
-                    } else {
-                        throw new Error('Failed to export Excel');
-                    }
-                } catch (error) {
-                    console.error('Error exporting Excel:', error);
-                    this.showAlert('❌ حدث خطأ أثناء تصدير Excel', 'danger');
-                }
+                this.updateActivityLogsTable(filteredLogs);
             }
 
             // 🎛️ دوال التحديث والإعداد
@@ -3299,7 +3592,7 @@
                 const totalBookings = this.allBookings.filter(b => b.status === 'confirmed').length;
                 const totalRevenue = this.allBookings
                     .filter(b => b.status === 'confirmed')
-                    .reduce((sum, b) => sum + (b.finalAmount || b.amount), 0);
+                    .reduce((sum, b) => sum + (b.final_amount || b.finalAmount || b.amount), 0);
 
                 // تحديث الإحصائيات في واجهة المسؤول
                 const statsElements = {
@@ -3335,7 +3628,7 @@
                                     <i class="bi bi-people"></i>
                                 </div>
                                 <div>
-                                    <div class="stat-number">${stats.totalUsers || this.allUsers.length}</div>
+                                    <div class="stat-number">${stats.total_users || this.allUsers.length}</div>
                                     <div class="stat-label">إجمالي المستخدمين</div>
                                 </div>
                             </div>
@@ -3348,7 +3641,7 @@
                                     <i class="bi bi-building"></i>
                                 </div>
                                 <div>
-                                    <div class="stat-number">${stats.totalStadiums || this.allPitches.length}</div>
+                                    <div class="stat-number">${stats.total_stadiums || this.allPitches.length}</div>
                                     <div class="stat-label">إجمالي الملاعب</div>
                                 </div>
                             </div>
@@ -3361,7 +3654,7 @@
                                     <i class="bi bi-calendar-check"></i>
                                 </div>
                                 <div>
-                                    <div class="stat-number">${stats.totalBookings || this.allBookings.length}</div>
+                                    <div class="stat-number">${stats.total_bookings || this.allBookings.length}</div>
                                     <div class="stat-label">إجمالي الحجوزات</div>
                                 </div>
                             </div>
@@ -3374,7 +3667,7 @@
                                     <i class="bi bi-currency-dollar"></i>
                                 </div>
                                 <div>
-                                    <div class="stat-number">${stats.totalRevenue || 0}</div>
+                                    <div class="stat-number">${stats.total_revenue || 0}</div>
                                     <div class="stat-label">إجمالي الإيرادات</div>
                                 </div>
                             </div>
@@ -3405,17 +3698,6 @@
                 document.getElementById('notificationForm').addEventListener('submit', async (e) => {
                     e.preventDefault();
                     await this.sendNotification();
-                });
-
-                // البحث في سجل الأنشطة
-                document.getElementById('activitySearch').addEventListener('input', (e) => {
-                    const searchTerm = e.target.value.toLowerCase();
-                    const filteredLogs = this.activityLogs.filter(log => 
-                        log.action.toLowerCase().includes(searchTerm) || 
-                        log.description.toLowerCase().includes(searchTerm) ||
-                        (log.user?.username || '').toLowerCase().includes(searchTerm)
-                    );
-                    this.updateActivityLogs(filteredLogs);
                 });
 
                 // تحديث التقارير عند تغيير التبويبات
@@ -3456,6 +3738,7 @@
                         image: "/images/tyara-1.jpg",
                         price: 250,
                         features: ["نجيلة صناعية", "كشافات ليلية", "غرف تبديل"],
+                        availability: "متاح",
                         max_daily_hours: 3,
                         max_weekly_hours: 5
                     },
@@ -3468,6 +3751,7 @@
                         image: "/images/raei.jpg",
                         price: 300,
                         features: ["نجيلة طبيعية", "مقاعد جماهير", "كافيتريا"],
+                        availability: "متاح",
                         max_daily_hours: 3,
                         max_weekly_hours: 5
                     }
@@ -3478,25 +3762,25 @@
                 return [
                     {
                         id: 1,
-                        customerName: "أحمد محمد",
-                        pitchName: "نادي الطيارة - الملعب الرئيسي",
+                        customer_name: "أحمد محمد",
+                        pitch_name: "نادي الطيارة - الملعب الرئيسي",
                         date: "2024-01-15",
                         time: "18:00 - 19:00",
                         amount: 250,
-                        depositAmount: 50,
+                        deposit_amount: 50,
                         status: "confirmed",
-                        createdAt: "2024-01-10T10:00:00Z"
+                        created_at: "2024-01-10T10:00:00Z"
                     },
                     {
                         id: 2,
-                        customerName: "محمود علي",
-                        pitchName: "الراعي الصالح",
+                        customer_name: "محمود علي",
+                        pitch_name: "الراعي الصالح",
                         date: "2024-01-16",
                         time: "20:00 - 21:00",
                         amount: 300,
-                        depositAmount: 60,
+                        deposit_amount: 60,
                         status: "pending",
-                        createdAt: "2024-01-11T11:00:00Z"
+                        created_at: "2024-01-11T11:00:00Z"
                     }
                 ];
             }
@@ -3507,21 +3791,19 @@
                         id: 1,
                         username: "ahmed2024",
                         email: "ahmed@example.com",
-                        phone: "01012345678",
                         role: "player",
-                        status: "approved",
+                        approved: true,
                         is_active: true,
-                        createdAt: "2024-01-01T00:00:00Z"
+                        created_at: "2024-01-01T00:00:00Z"
                     },
                     {
                         id: 2,
                         username: "stadium_owner1",
                         email: "owner@example.com",
-                        phone: "01087654321",
                         role: "stadium_owner",
-                        status: "approved",
+                        approved: true,
                         is_active: true,
-                        createdAt: "2024-01-02T00:00:00Z"
+                        created_at: "2024-01-02T00:00:00Z"
                     }
                 ];
             }
@@ -3530,37 +3812,71 @@
                 return [
                     {
                         id: 1,
-                        user: { username: "ahmed2024" },
+                        payer_name: "أحمد محمد",
                         amount: 250,
-                        method: "cash",
-                        transactionId: "TXN001",
-                        status: "confirmed",
+                        status: "paid",
+                        provider: "vodafone_cash",
+                        date: "2024-01-10",
+                        transaction_id: "TXN001",
                         receipt_path: "/receipts/txn001.pdf",
                         confirmed_by: "admin1",
-                        createdAt: "2024-01-10T10:00:00Z"
+                        created_at: "2024-01-10T10:00:00Z"
                     },
                     {
                         id: 2,
-                        user: { username: "mohamed2024" },
+                        payer_name: "محمود علي",
                         amount: 300,
-                        method: "vodafone_cash",
-                        transactionId: "TXN002",
                         status: "pending",
+                        provider: "instapay",
+                        date: "2024-01-11",
+                        transaction_id: "TXN002",
                         receipt_path: "/receipts/txn002.pdf",
                         confirmed_by: null,
-                        createdAt: "2024-01-11T11:00:00Z"
+                        created_at: "2024-01-11T11:00:00Z"
                     }
                 ];
+            }
+
+            getMockPendingManagers() {
+                return [
+                    {
+                        id: 1,
+                        username: "new_manager",
+                        email: "manager@example.com",
+                        requested_pitch_ids: [1, 2],
+                        user_id: 3,
+                        created_at: "2024-01-12T09:00:00Z"
+                    }
+                ];
+            }
+
+            getMockSystemMetrics() {
+                return {
+                    total_users: 150,
+                    total_bookings: 450,
+                    total_revenue: 125000,
+                    active_stadiums: 8,
+                    successful_payments: 380,
+                    monthly_data: {
+                        revenues: [120, 150, 180, 200, 170, 220]
+                    },
+                    payment_stats: {
+                        successful: 380,
+                        failed: 25,
+                        pending: 45
+                    }
+                };
             }
 
             getMockTimeSlots() {
                 const slots = [];
                 for (let hour = 8; hour <= 22; hour++) {
+                    const status = Math.random() > 0.6 ? 'available' : (Math.random() > 0.5 ? 'booked' : 'blocked');
                     slots.push({
                         id: hour,
                         start_time: `${hour}:00`,
                         end_time: `${hour + 1}:00`,
-                        status: Math.random() > 0.3 ? 'available' : 'booked',
+                        status: status,
                         selected: false
                     });
                 }
@@ -3595,27 +3911,30 @@
                 return [
                     {
                         id: 1,
-                        action: "تسجيل دخول",
-                        description: "قام المستخدم admin بتسجيل الدخول",
-                        type: "login",
+                        user_id: 1,
                         user: { username: "admin" },
-                        timestamp: "2024-01-15T09:00:00Z"
+                        action: "login",
+                        description: "قام المستخدم admin بتسجيل الدخول",
+                        ip_address: "192.168.1.100",
+                        created_at: "2024-01-15T09:00:00Z"
                     },
                     {
                         id: 2,
-                        action: "إنشاء حجز",
-                        description: "تم إنشاء حجز جديد للملعب الرئيسي",
-                        type: "create",
+                        user_id: 2,
                         user: { username: "ahmed2024" },
-                        timestamp: "2024-01-15T10:30:00Z"
+                        action: "create",
+                        description: "تم إنشاء حجز جديد للملعب الرئيسي",
+                        ip_address: "192.168.1.101",
+                        created_at: "2024-01-15T10:30:00Z"
                     },
                     {
                         id: 3,
-                        action: "تحديث ملعب",
-                        description: "تم تحديث معلومات ملعب الراعي الصالح",
-                        type: "update",
+                        user_id: 3,
                         user: { username: "stadium_owner1" },
-                        timestamp: "2024-01-15T11:15:00Z"
+                        action: "update",
+                        description: "تم تحديث معلومات ملعب الراعي الصالح",
+                        ip_address: "192.168.1.102",
+                        created_at: "2024-01-15T11:15:00Z"
                     }
                 ];
             }
@@ -3694,11 +4013,32 @@
             const title = document.getElementById('userNotificationTitle').value;
             const message = document.getElementById('userNotificationMessage').value;
             
-            unifiedSystem.sendNotificationToUserDirect(userId, title, message);
+            sendNotification({
+                title: title,
+                message: message,
+                type: 'info',
+                user_id: userId,
+                action_url: null
+            }).then(() => {
+                bootstrap.Modal.getInstance(document.getElementById('sendNotificationModal')).hide();
+                document.getElementById('userNotificationForm').reset();
+            });
         }
 
         function generateReport() {
             unifiedSystem.generateReport();
+        }
+
+        function exportToPDF() {
+            unifiedSystem.exportToPDF();
+        }
+
+        function exportToExcel() {
+            unifiedSystem.exportToExcel();
+        }
+
+        function filterActivityLogs() {
+            unifiedSystem.filterActivityLogs();
         }
 
         // 🎯 تهيئة الصفحة
