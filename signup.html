@@ -11,9 +11,17 @@
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   
   <style>
+    :root {
+      --primary-color: #1a7f46;
+      --secondary-color: #38f9d7;
+      --error-color: #e74c3c;
+      --success-color: #2ecc71;
+      --warning-color: #f39c12;
+    }
+    
     body {
       font-family: 'Cairo', sans-serif;
-      background: linear-gradient(135deg, #1a7f46 0%, #38f9d7 100%);
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
@@ -29,7 +37,7 @@
       border-radius: 16px;
       box-shadow: 0 15px 35px rgba(0,0,0,0.1);
       width: 100%;
-      max-width: 480px;
+      max-width: 500px;
       position: relative;
       overflow: hidden;
     }
@@ -41,7 +49,7 @@
       right: 0;
       width: 100%;
       height: 4px;
-      background: linear-gradient(90deg, #1a7f46, #38f9d7);
+      background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
     }
     
     .logo {
@@ -51,7 +59,7 @@
     
     .logo i {
       font-size: 2.5rem;
-      color: #1a7f46;
+      color: var(--primary-color);
       margin-bottom: 0.5rem;
     }
     
@@ -65,19 +73,19 @@
     }
     
     .form-control:focus {
-      border-color: #1a7f46;
+      border-color: var(--primary-color);
       box-shadow: 0 0 0 0.25rem rgba(26, 127, 70, 0.25);
     }
     
     .btn-success {
-      background: linear-gradient(135deg, #1a7f46, #2ecc71);
+      background: linear-gradient(135deg, var(--primary-color), var(--success-color));
       border: none;
       padding: 12px;
       font-weight: 600;
       transition: all 0.3s ease;
     }
     
-    .btn-success:hover {
+    .btn-success:hover:not(:disabled) {
       transform: translateY(-2px);
       box-shadow: 0 5px 15px rgba(26, 127, 70, 0.3);
     }
@@ -112,9 +120,9 @@
       border-radius: 2px;
     }
     
-    .strength-weak { background: #e74c3c; width: 33%; }
-    .strength-medium { background: #f39c12; width: 66%; }
-    .strength-strong { background: #2ecc71; width: 100%; }
+    .strength-weak { background: var(--error-color); width: 33%; }
+    .strength-medium { background: var(--warning-color); width: 66%; }
+    .strength-strong { background: var(--success-color); width: 100%; }
     
     .requirements {
       font-size: 0.8rem;
@@ -133,8 +141,8 @@
       margin-left: 0.5rem;
     }
     
-    .valid { color: #2ecc71; }
-    .invalid { color: #e74c3c; }
+    .valid { color: var(--success-color); }
+    .invalid { color: var(--error-color); }
     
     .nav-links {
       position: absolute;
@@ -168,6 +176,45 @@
     @keyframes spin {
       from { transform: rotate(0deg); }
       to { transform: rotate(360deg); }
+    }
+    
+    .password-toggle-group {
+      position: relative;
+    }
+    
+    .password-toggle-btn {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      border: none;
+      background: transparent;
+      z-index: 10;
+      color: #666;
+    }
+    
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+    
+    .approval-notice {
+      background: #fff3cd;
+      border: 1px solid #ffeaa7;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 1rem;
+      display: none;
+    }
+    
+    .manager-warning {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 1rem;
+      display: none;
     }
     
     @media (max-width: 576px) {
@@ -213,27 +260,18 @@
       .requirements {
         color: #a0aec0;
       }
-    }
-
-    /* 🆕 إضافة ستايل لزر إظهار/إخفاء كلمة المرور */
-    .password-toggle-group {
-      position: relative;
-    }
-    
-    .password-toggle-btn {
-      position: absolute;
-      left: 10px;
-      top: 50%;
-      transform: translateY(-50%);
-      border: none;
-      background: transparent;
-      z-index: 10;
-    }
-
-    /* 🆕 ستايل للزر المعطل */
-    .btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
+      
+      .approval-notice {
+        background: #453411;
+        border-color: #66512c;
+        color: #e2e8f0;
+      }
+      
+      .manager-warning {
+        background: #3c1a1a;
+        border-color: #5c2c2c;
+        color: #e2e8f0;
+      }
     }
   </style>
 </head>
@@ -254,21 +292,36 @@
       <h2 class="h4 mb-3" id="formTitle">إنشاء حساب جديد</h2>
     </div>
 
-    <!-- 🆕 نظام التنبيهات مع ARIA -->
+    <!-- 🆕 تنبيه موافقة المدير -->
+    <div class="approval-notice" id="approvalNotice">
+      <i class="bi bi-info-circle-fill text-warning me-2"></i>
+      <strong>ملاحظة:</strong> حساب المدير يحتاج إلى موافقة من الإدارة. سيتم إعلامك عبر البريد الإلكتروني عند الموافقة.
+    </div>
+
+    <!-- 🆕 تنبيه تحذيري للمدير -->
+    <div class="manager-warning" id="managerWarning">
+      <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>
+      <strong>تنبيه:</strong> حساب المدير يحتاج إلى موافقة إدارية. لن تتمكن من الدخول حتى يتم مراجعة طلبك والموافقة عليه.
+    </div>
+
     <div id="alertsContainer" aria-live="polite" aria-atomic="true"></div>
 
-    <!-- ✅ إضافة role و aria-labelledby للنموذج -->
     <form id="signupForm" novalidate role="form" aria-labelledby="formTitle">
-      <!-- CSRF Token -->
       <input type="hidden" name="_csrf" id="csrfToken">
       
+      <!-- كود الدعوة -->
+      <div class="mb-3">
+        <label class="form-label">كود الدعوة (اختياري)</label>
+        <input type="text" class="form-control" id="referralCode" name="referralCode" 
+               placeholder="أدخل كود الدعوة إذا كان لديك">
+        <div class="form-text">إذا كان لديك كود دعوة، يمكنك إدخاله للحصول على مزايا إضافية</div>
+      </div>
+
       <!-- اسم المستخدم -->
       <div class="form-floating">
         <input type="text" class="form-control" id="username" name="username"
                placeholder="اسم المستخدم" required minlength="3" maxlength="30"
-               pattern="[A-Za-z0-9_\u0600-\u06FF\s]+" autocomplete="username"
-               title="يجب أن يحتوي على أحرف عربية/إنجليزية وأرقام فقط"
-               aria-describedby="usernameHelp">
+               pattern="[A-Za-z0-9_\u0600-\u06FF\s]+" autocomplete="username">
         <label for="username">
           <i class="bi bi-person me-1"></i> اسم المستخدم
         </label>
@@ -279,34 +332,31 @@
       <div class="form-floating">
         <input type="email" class="form-control" id="email" name="email"
                placeholder="البريد الإلكتروني" required
-               pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}" autocomplete="email"
-               aria-describedby="emailHelp">
+               pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}" autocomplete="email">
         <label for="email">
           <i class="bi bi-envelope me-1"></i> البريد الإلكتروني
         </label>
         <div class="invalid-feedback">يرجى إدخال بريد إلكتروني صحيح</div>
       </div>
 
-      <!-- ✅ رقم الهاتف - معدل -->
+      <!-- رقم الهاتف -->
       <div class="form-floating">
         <input type="tel" class="form-control" id="phone" name="phone"
                pattern="^(?:\+20|0)?1[0125][0-9]{8}$"
-               placeholder="رقم الهاتف" required autocomplete="tel"
-               aria-describedby="phoneHelp">
+               placeholder="رقم الهاتف" required autocomplete="tel">
         <label for="phone">
           <i class="bi bi-phone me-1"></i> رقم الهاتف
         </label>
-        <div id="phoneHelp" class="form-text">مثال: 01012345678 أو +201012345678</div>
-        <div class="invalid-feedback">يرجى إدخال رقم هاتف مصري صحيح (مثال: 01012345678)</div>
+        <div class="form-text">مثال: 01012345678 أو +201012345678</div>
+        <div class="invalid-feedback">يرجى إدخال رقم هاتف مصري صحيح</div>
       </div>
 
-      <!-- ✅ كلمة المرور مع زر الإظهار/الإخفاء -->
+      <!-- كلمة المرور -->
       <div class="form-floating password-toggle-group">
         <input type="password" class="form-control" id="password" name="password"
                placeholder="كلمة المرور" required minlength="6"
-               oninput="checkPasswordStrength()" autocomplete="new-password"
-               aria-describedby="passwordHelp">
-        <button type="button" class="password-toggle-btn" id="togglePassword" onclick="togglePasswordVisibility()">
+               oninput="checkPasswordStrength()" autocomplete="new-password">
+        <button type="button" class="password-toggle-btn" id="togglePassword" onclick="togglePasswordVisibility()" aria-label="إظهار كلمة المرور">
           <i class="bi bi-eye"></i>
         </button>
         <label for="password">
@@ -328,12 +378,12 @@
         <div class="invalid-feedback">كلمة المرور يجب أن تكون 6 أحرف على الأقل وتحتوي على حرف خاص أو رقم</div>
       </div>
 
-      <!-- ✅ تأكيد كلمة المرور مع زر الإظهار/الإخفاء -->
+      <!-- تأكيد كلمة المرور -->
       <div class="form-floating password-toggle-group">
         <input type="password" class="form-control" id="confirmPassword" name="confirmPassword"
                placeholder="تأكيد كلمة المرور" required autocomplete="new-password"
                oninput="checkPasswordMatch()">
-        <button type="button" class="password-toggle-btn" id="toggleConfirmPassword" onclick="toggleConfirmPasswordVisibility()">
+        <button type="button" class="password-toggle-btn" id="toggleConfirmPassword" onclick="toggleConfirmPasswordVisibility()" aria-label="إظهار كلمة المرور">
           <i class="bi bi-eye"></i>
         </button>
         <label for="confirmPassword">
@@ -342,7 +392,7 @@
         <div class="invalid-feedback">كلمات المرور غير متطابقة</div>
       </div>
 
-      <!-- الحقول الجديدة للملف الشخصي -->
+      <!-- معلومات الملف الشخصي -->
       <div class="row">
         <div class="col-md-6 mb-3">
           <label class="form-label">الاسم المستعار (اختياري)</label>
@@ -359,9 +409,9 @@
         <textarea class="form-control" name="bio" rows="3" placeholder="اكتب نبذة مختصرة عن نفسك..." autocomplete="bio"></textarea>
       </div>
 
-      <!-- ✅ نوع الحساب - معدل بإضافة multi_manager -->
+      <!-- نوع الحساب -->
       <div class="form-floating">
-        <select class="form-select" id="role" name="role" required aria-describedby="roleHelp">
+        <select class="form-select" id="role" name="role" required>
           <option value="">اختر نوع الحساب</option>
           <option value="user">مستخدم عادي</option>
           <option value="manager">مدير ملعب</option>
@@ -370,12 +420,9 @@
         <label for="role">
           <i class="bi bi-person-badge me-1"></i> نوع الحساب
         </label>
-        <div id="roleHelp" class="form-text">
-          <small>سيحتاج حساب المدير إلى موافقة من الإدارة</small>
-        </div>
       </div>
 
-      <!-- ✅ حقول المديرين - ديناميكية -->
+      <!-- حقول المديرين -->
       <div id="managerFields" style="display: none;">
         <div class="mb-3">
           <label class="form-label">الملاعب التي تريد إدارتها</label>
@@ -387,7 +434,7 @@
 
       <!-- الشروط والأحكام -->
       <div class="form-check mb-3">
-        <input class="form-check-input" type="checkbox" id="terms" name="terms" required aria-describedby="termsHelp">
+        <input class="form-check-input" type="checkbox" id="terms" name="terms" required>
         <label class="form-check-label" for="terms">
           أوافق على <a href="/terms.html" target="_blank">الشروط والأحكام</a> 
           و <a href="/privacy.html" target="_blank">سياسة الخصوصية</a>
@@ -420,26 +467,28 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
+    // ========== المتغيرات العامة ==========
+    let isSubmitting = false;
+    const originalBtnText = document.getElementById('submitBtn').innerHTML;
+
+    // ========== دوال المساعدة ==========
+
     // ✅ دالة لعرض التنبيهات - آمنة ضد XSS
     function showAlert(message, type = 'info') {
       const alertsContainer = document.getElementById('alertsContainer');
       const alertId = 'alert-' + Date.now();
       
-      const div = document.createElement('div');
-      div.id = alertId;
-      div.className = `alert alert-${type} alert-dismissible fade show`;
-      div.setAttribute('role', 'alert');
-      div.textContent = message;
+      const alertDiv = document.createElement('div');
+      alertDiv.id = alertId;
+      alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+      alertDiv.setAttribute('role', 'alert');
+      alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
+      `;
       
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'btn-close';
-      btn.setAttribute('data-bs-dismiss', 'alert');
-      btn.setAttribute('aria-label', 'إغلاق');
-      
-      div.appendChild(btn);
       alertsContainer.innerHTML = '';
-      alertsContainer.appendChild(div);
+      alertsContainer.appendChild(alertDiv);
       
       setTimeout(() => {
         const alertElement = document.getElementById(alertId);
@@ -449,64 +498,19 @@
       }, 5000);
     }
 
-    // ✅ جلب CSRF token مع credentials
-    fetch('/csrf-token', { credentials: 'include' })
-      .then(r => {
-        if (r.ok) return r.json();
-        throw new Error('Network response was not ok');
-      })
-      .then(d => {
-        if (d?.csrfToken) {
-          document.getElementById('csrfToken').value = d.csrfToken;
-        }
-      })
-      .catch(err => {
-        console.error('Failed to fetch CSRF token:', err);
-        showAlert('⚠️ تعذر تحميل رمز الأمان', 'warning');
-      });
-
-    // ✅ تحميل الملاعب ديناميكياً
-    async function loadPitches() {
+    // ✅ جلب CSRF token
+    async function fetchCSRFToken() {
       try {
-        const res = await fetch('/api/pitches', { credentials: 'include' });
-        if (!res.ok) throw new Error('Failed to load pitches');
-        const pitches = await res.json();
-        
-        const container = document.getElementById('managerPitchesContainer');
-        container.innerHTML = '';
-        
-        pitches.forEach(pitch => {
-          const div = document.createElement('div');
-          div.className = 'form-check';
-          div.innerHTML = `
-            <input class="form-check-input" type="checkbox" name="pitchIds" value="${pitch.id}" id="pitch${pitch.id}">
-            <label class="form-check-label" for="pitch${pitch.id}">${pitch.name}</label>
-          `;
-          container.appendChild(div);
+        const response = await fetch('/api/csrf-token', {
+          credentials: 'include'
         });
+        if (response.ok) {
+          const data = await response.json();
+          document.getElementById('csrfToken').value = data.csrfToken;
+        }
       } catch (error) {
-        console.error('Error loading pitches:', error);
-        const defaultPitches = [
-          { id: 1, name: 'نادي الطيارة - الملعب الرئيسي' },
-          { id: 2, name: 'نادي الطيارة - الملعب الثاني' },
-          { id: 3, name: 'الراعي الصالح' },
-          { id: 4, name: 'نادي الجزيرة' },
-          { id: 5, name: 'نادي المقطم' },
-          { id: 6, name: 'نادي مصر للتأمين' }
-        ];
-        
-        const container = document.getElementById('managerPitchesContainer');
-        container.innerHTML = '';
-        
-        defaultPitches.forEach(pitch => {
-          const div = document.createElement('div');
-          div.className = 'form-check';
-          div.innerHTML = `
-            <input class="form-check-input" type="checkbox" name="pitchIds" value="${pitch.id}" id="pitch${pitch.id}">
-            <label class="form-check-label" for="pitch${pitch.id}">${pitch.name}</label>
-          `;
-          container.appendChild(div);
-        });
+        console.error('Failed to fetch CSRF token:', error);
+        showAlert('⚠️ تعذر تحميل رمز الأمان', 'warning');
       }
     }
 
@@ -594,11 +598,69 @@
       }
     }
 
+    // ✅ تحميل الملاعب للمديرين
+    async function loadPitches() {
+      try {
+        const response = await fetch('/api/pitches', {
+          credentials: 'include'
+        });
+        
+        if (!response.ok) throw new Error('Failed to load pitches');
+        const pitches = await response.json();
+        
+        const container = document.getElementById('managerPitchesContainer');
+        container.innerHTML = '';
+        
+        pitches.forEach(pitch => {
+          const div = document.createElement('div');
+          div.className = 'form-check mb-2';
+          div.innerHTML = `
+            <input class="form-check-input" type="checkbox" name="pitchIds" value="${pitch.id}" id="pitch${pitch.id}">
+            <label class="form-check-label" for="pitch${pitch.id}">
+              ${pitch.name} - ${pitch.location}
+            </label>
+          `;
+          container.appendChild(div);
+        });
+      } catch (error) {
+        console.error('Error loading pitches:', error);
+        
+        // ✅ قائمة افتراضية للملاعب في حالة فشل التحميل
+        const defaultPitches = [
+          { id: 1, name: 'نادي الطيارة - الملعب الرئيسي', location: 'القاهرة' },
+          { id: 2, name: 'نادي الطيارة - الملعب الثاني', location: 'القاهرة' },
+          { id: 3, name: 'الراعي الصالح', location: 'الجيزة' },
+          { id: 4, name: 'نادي الجزيرة', location: 'الجيزة' },
+          { id: 5, name: 'نادي المقطم', location: 'القاهرة' },
+          { id: 6, name: 'نادي مصر للتأمين', location: 'القاهرة' }
+        ];
+        
+        const container = document.getElementById('managerPitchesContainer');
+        container.innerHTML = '';
+        
+        defaultPitches.forEach(pitch => {
+          const div = document.createElement('div');
+          div.className = 'form-check mb-2';
+          div.innerHTML = `
+            <input class="form-check-input" type="checkbox" name="pitchIds" value="${pitch.id}" id="pitch${pitch.id}">
+            <label class="form-check-label" for="pitch${pitch.id}">
+              ${pitch.name} - ${pitch.location}
+            </label>
+          `;
+          container.appendChild(div);
+        });
+        
+        showAlert('⚠️ تم تحميل قائمة افتراضية للملاعب', 'info');
+      }
+    }
+
     // ✅ التحقق من صحة النموذج
     function validateForm() {
-      const inputs = form.querySelectorAll('input, select');
+      const form = document.getElementById('signupForm');
+      const inputs = form.querySelectorAll('input[required], select[required]');
       let isValid = true;
       
+      // التحقق من الحقول الإلزامية
       inputs.forEach(input => {
         if (!input.checkValidity()) {
           input.classList.add('is-invalid');
@@ -609,6 +671,7 @@
         }
       });
       
+      // التحقق من تطابق كلمات المرور
       const password = document.getElementById('password').value;
       const confirmPassword = document.getElementById('confirmPassword').value;
       if (password !== confirmPassword) {
@@ -616,29 +679,31 @@
         isValid = false;
       }
       
+      // التحقق من قوة كلمة المرور
       const strength = checkPasswordStrength();
       if (strength < 2 && password.length > 0) {
         showAlert('⚠️ كلمة المرور ضعيفة. يرجى استخدام 6 أحرف على الأقل مع حرف خاص أو رقم', 'warning');
         isValid = false;
       }
 
+      // التحقق من اختيار الملاعب للمديرين
       const role = document.getElementById('role').value;
-      if ((role === 'manager' || role === 'multi_manager') && pitchIds.length === 0) {
-        showAlert('⚠️ يجب اختيار ملاعب للإدارة', 'warning');
-        isValid = false;
+      if ((role === 'manager' || role === 'multi_manager')) {
+        const pitchCheckboxes = document.querySelectorAll('input[name="pitchIds"]:checked');
+        if (pitchCheckboxes.length === 0) {
+          showAlert('⚠️ يجب اختيار ملاعب للإدارة', 'warning');
+          isValid = false;
+        }
       }
       
       return isValid;
     }
 
-    // ✅ متغير لمنع الإرسال المتكرر
-    let submitting = false;
-
     // ✅ إرسال النموذج
-    form.addEventListener('submit', async (e) => {
+    async function handleFormSubmit(e) {
       e.preventDefault();
       
-      if (submitting) {
+      if (isSubmitting) {
         showAlert('⏳ جاري معالجة طلبك السابق...', 'warning');
         return;
       }
@@ -648,171 +713,158 @@
         return;
       }
 
-      const username = document.getElementById('username').value.trim();
-      const email = document.getElementById('email').value.trim();
-      const phone = document.getElementById('phone').value.trim();
-      const password = document.getElementById('password').value;
-      const role = document.getElementById('role').value;
-      const nickname = document.querySelector('[name="nickname"]').value;
-      const age = document.querySelector('[name="age"]').value;
-      const bio = document.querySelector('[name="bio"]').value;
-      const _csrf = document.getElementById('csrfToken').value;
-
-      let pitchIds = [];
-      if (role === 'manager' || role === 'multi_manager') {
-        const pitchCheckboxes = document.querySelectorAll('input[name="pitchIds"]:checked');
-        pitchIds = Array.from(pitchCheckboxes).map(cb => cb.value);
-      }
-
-      submitting = true;
+      const submitBtn = document.getElementById('submitBtn');
+      
+      isSubmitting = true;
       submitBtn.disabled = true;
       submitBtn.innerHTML = '<i class="bi bi-arrow-repeat spinner me-2"></i> جاري إنشاء الحساب...';
 
       try {
-        const res = await fetch('/signup', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 
-            'Content-Type': 'application/json',
-            'X-CSRF-Token': _csrf
-          },
-          body: JSON.stringify({ 
-            username, email, phone, password, role, 
-            nickname, age, bio, pitchIds
-          })
-        });
-
-        if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(`خطأ في السيرفر: ${res.status} - ${errorText}`);
+        const formData = new FormData(this);
+        const data = {
+          username: formData.get('username').trim(),
+          email: formData.get('email').trim(),
+          phone: formData.get('phone').trim(),
+          password: formData.get('password'),
+          role: formData.get('role'),
+          nickname: formData.get('nickname')?.trim(),
+          age: formData.get('age'),
+          bio: formData.get('bio')?.trim(),
+          referralCode: formData.get('referralCode')?.trim(),
+          _csrf: formData.get('_csrf')
+        };
+        
+        // ✅ إضافة الملاعب المختارة للمديرين
+        if (data.role === 'manager' || data.role === 'multi_manager') {
+          const pitchCheckboxes = document.querySelectorAll('input[name="pitchIds"]:checked');
+          data.pitchIds = Array.from(pitchCheckboxes).map(cb => cb.value);
         }
 
-        const data = await res.json();
+        const response = await fetch('/api/signup', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': data._csrf
+          },
+          credentials: 'include',
+          body: JSON.stringify(data)
+        });
 
-        if (data.success) {
-          // ✅ التعديل: حفظ userId بعد التسجيل
-          if (data.userId) {
-            localStorage.setItem('userId', data.userId);
-            console.log('✅ User ID saved:', data.userId);
+        const result = await response.json();
+
+        if (result.success) {
+          showAlert('✅ ' + result.message, 'success');
+          
+          // ✅ حفظ بيانات المستخدم في localStorage
+          if (result.user) {
+            localStorage.setItem('userId', result.user.id);
+            localStorage.setItem('userRole', result.user.role);
+            localStorage.setItem('username', result.user.username);
+            localStorage.setItem('userEmail', result.user.email);
+            localStorage.setItem('token', result.token);
           }
           
-          const successMessage = data.message || 'تم إنشاء الحساب بنجاح! يُرجى تأكيد البريد الإلكتروني عبر الرابط المرسل.';
-          showAlert('✅ ' + successMessage, 'success');
-          
-          form.reset();
-          
-          form.querySelectorAll('.is-valid').forEach(el => {
+          // ✅ إعادة تعيين النموذج
+          this.reset();
+          this.querySelectorAll('.is-valid').forEach(el => {
             el.classList.remove('is-valid');
           });
           
-          document.getElementById('managerFields').style.display = 'none';
-          
+          // ✅ إعادة التوجيه بعد نجاح التسجيل
           setTimeout(() => {
-            if (role === 'user') {
-              window.location.href = '/index.html';
-            } else if (role === 'manager' && pitchIds.length === 1) {
-              window.location.href = `/admin.html?pitchId=${pitchIds[0]}`;
-            } else if (role === 'multi_manager' || pitchIds.length > 1) {
-              window.location.href = '/admin-overview.html';
+            if (result.user.role === 'admin') {
+              window.location.href = '/admin.html';
+            } else if (result.user.role === 'manager' || result.user.role === 'multi_manager') {
+              // ✅ إذا كان مديراً ولم يتم الموافقة بعد
+              if (!result.user.approved) {
+                window.location.href = '/pending-approval.html';
+              } else {
+                window.location.href = '/manager-dashboard.html';
+              }
             } else {
-              window.location.href = '/login';
+              window.location.href = '/profile.html';
             }
-          }, 3000);
+          }, 2000);
+          
         } else {
-          const errorMessage = data.message || 'حدث خطأ أثناء التسجيل. يرجى المحاولة مرة أخرى.';
-          showAlert('❌ ' + errorMessage, 'danger');
+          showAlert('❌ ' + result.message, 'danger');
         }
+        
       } catch (error) {
         console.error('Error:', error);
-        
-        let errorMessage = 'تعذر الاتصال بالخادم. ';
-        
-        if (error.message.includes('خطأ في السيرفر')) {
-          errorMessage += 'حدث خطأ تقني. يرجى المحاولة مرة أخرى بعد قليل.';
-        } else if (error.message.includes('Failed to fetch')) {
-          errorMessage += 'يرجى التحقق من اتصال الإنترنت والمحاولة مرة أخرى.';
-        } else {
-          errorMessage += 'يرجى المحاولة مرة أخرى أو الاتصال بالدعم الفني.';
-        }
-        
-        showAlert('❌ ' + errorMessage, 'danger');
+        showAlert('❌ حدث خطأ أثناء التسجيل. يرجى المحاولة مرة أخرى.', 'danger');
       } finally {
-        submitting = false;
+        isSubmitting = false;
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalBtnText;
       }
-    });
+    }
 
-    // عناصر DOM
-    const form = document.getElementById('signupForm');
-    const submitBtn = document.getElementById('submitBtn');
-    const originalBtnText = submitBtn.innerHTML;
-
-    // ✅ إظهار/إخفاء حقول المدير
-    document.getElementById('role').addEventListener('change', function() {
+    // ✅ إظهار/إخفاء حقول المديرين وتنبيه الموافقة
+    function handleRoleChange() {
       const managerFields = document.getElementById('managerFields');
-      if (this.value === 'manager' || this.value === 'multi_manager') {
+      const approvalNotice = document.getElementById('approvalNotice');
+      const managerWarning = document.getElementById('managerWarning');
+      const role = this.value;
+      
+      if (role === 'manager' || role === 'multi_manager') {
         managerFields.style.display = 'block';
+        approvalNotice.style.display = 'block';
+        managerWarning.style.display = 'block';
         loadPitches();
       } else {
         managerFields.style.display = 'none';
+        approvalNotice.style.display = 'none';
+        managerWarning.style.display = 'none';
       }
-    });
+    }
 
-    // ✅ التحقق الفوري
-    form.querySelectorAll('input').forEach(input => {
-      input.addEventListener('blur', () => {
-        if (input.checkValidity()) {
-          input.classList.remove('is-invalid');
-          input.classList.add('is-valid');
-        } else {
-          input.classList.add('is-invalid');
-          input.classList.remove('is-valid');
-        }
-        
-        if (input.type === 'email' && input.value) {
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          if (!emailRegex.test(input.value)) {
-            input.classList.add('is-invalid');
-            input.classList.remove('is-valid');
+    // ✅ التحقق الفوري من الحقول
+    function setupFieldValidation() {
+      document.querySelectorAll('#signupForm input, #signupForm select').forEach(input => {
+        input.addEventListener('blur', function() {
+          if (this.checkValidity()) {
+            this.classList.remove('is-invalid');
+            this.classList.add('is-valid');
+          } else {
+            this.classList.add('is-invalid');
+            this.classList.remove('is-valid');
           }
-        }
+        });
+        
+        input.addEventListener('input', function() {
+          if (this.checkValidity()) {
+            this.classList.remove('is-invalid');
+          }
+        });
       });
-      
-      input.addEventListener('input', () => {
-        if (input.checkValidity()) {
-          input.classList.remove('is-invalid');
-        }
-      });
-    });
+    }
 
-    // ✅ تهيئة الصفحة
+    // ========== تهيئة الصفحة ==========
     document.addEventListener('DOMContentLoaded', function() {
-      fetch('/csrf-token', { credentials: 'include' })
-        .then(r => r.json())
-        .then(d => {
-          if (d?.csrfToken) {
-            document.getElementById('csrfToken').value = d.csrfToken;
-          }
-        })
-        .catch(console.error);
-        
+      // جلب CSRF token
+      fetchCSRFToken();
+      
+      // إعداد ARIA labels
       const formTitle = document.getElementById('formTitle');
       if (formTitle) {
         formTitle.setAttribute('role', 'heading');
         formTitle.setAttribute('aria-level', '2');
       }
 
-      const roleSelect = document.getElementById('role');
-      roleSelect.addEventListener('change', function() {
-        localStorage.setItem('userRole', this.value);
-      });
+      // إعداد event listeners
+      document.getElementById('signupForm').addEventListener('submit', handleFormSubmit);
+      document.getElementById('role').addEventListener('change', handleRoleChange);
+      setupFieldValidation();
 
+      // استعادة الدور المحفوظ إن وجد
       const savedRole = localStorage.getItem('userRole');
       if (savedRole) {
-        roleSelect.value = savedRole;
+        document.getElementById('role').value = savedRole;
         if (savedRole === 'manager' || savedRole === 'multi_manager') {
           document.getElementById('managerFields').style.display = 'block';
+          document.getElementById('approvalNotice').style.display = 'block';
+          document.getElementById('managerWarning').style.display = 'block';
           loadPitches();
         }
       }
