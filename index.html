@@ -3449,5 +3449,127 @@
       }).join('');
   }
 </script>
+  <script>
+// ✅ تحميل الملاعب
+async function loadStadiums() {
+  try {
+    const res = await fetch('/api/stadiums');
+    const stadiums = await res.json();
+    const container = document.getElementById('stadiumsContainer');
+    container.innerHTML = '';
+
+    stadiums.forEach(stadium => {
+      container.innerHTML += `
+        <div class="col-md-4 mb-4">
+          <div class="stadium-card">
+            <div class="stadium-image" style="background-image: url('${stadium.image}')">
+              <div class="stadium-badge">${stadium.area}</div>
+              <div class="stadium-price">${stadium.price} جنيه</div>
+              <div class="stadium-deposit">${stadium.deposit} عربون</div>
+            </div>
+            <div class="stadium-info">
+              <h5 class="stadium-title">${stadium.name}</h5>
+              <p class="stadium-location">${stadium.location}</p>
+              <div class="stadium-features">
+                ${stadium.features.map(f => `<span class="feature"><i class="bi bi-check-circle"></i>${f}</span>`).join('')}
+              </div>
+              ${renderRatingStars(stadium.rating)}
+              <a href="/booking.html?pitchId=${stadium.id}" class="btn btn-primary w-100 mt-2">احجز الآن</a>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+  } catch (err) {
+    showToast('فشل تحميل الملاعب');
+  }
+}
+
+// ✅ تحميل البانرز
+async function loadHomepageBanners() {
+  try {
+    const res = await fetch('/api/homepage-banners');
+    const banners = await res.json();
+    const container = document.getElementById('bannersContainer');
+    container.innerHTML = '';
+
+    banners.forEach(banner => {
+      container.innerHTML += `
+        <div class="col-md-4 mb-4">
+          <div class="banner-card">
+            <div class="banner-image" style="background-image: url('${banner.image}')">
+              <div class="banner-badge">${banner.label}</div>
+            </div>
+            <div class="banner-content">
+              <h5>${banner.title}</h5>
+              <p>${banner.description}</p>
+              <a href="${banner.link}" class="btn btn-outline-primary btn-sm">عرض التفاصيل</a>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+  } catch (err) {
+    showToast('فشل تحميل العروض');
+  }
+}
+
+// ✅ عرض التقييمات
+function renderRatingStars(rating) {
+  const fullStars = Math.floor(rating);
+  return `
+    <div class="rating-stars">
+      ${[1,2,3,4,5].map(i => `<i class="bi bi-star${i <= fullStars ? '-fill active' : ''}"></i>`).join('')}
+    </div>
+  `;
+}
+
+// ✅ التحقق من صلاحية المستخدم
+function checkUserRole() {
+  const role = localStorage.getItem('userRole');
+  if (role === 'manager' || role === 'admin') {
+    document.getElementById('addStadiumNavItem').style.display = 'block';
+    document.getElementById('addStadiumHeroBtn').style.display = 'inline-block';
+  }
+}
+
+// ✅ شاشة التحميل
+function initLoadingOverlay() {
+  setTimeout(() => {
+    document.getElementById('loadingOverlay').classList.add('fade-out');
+  }, 1000);
+}
+
+// ✅ زر العودة لأعلى
+function scrollToTop() {
+  const toTopBtn = document.getElementById('toTop');
+  window.addEventListener('scroll', () => {
+    toTopBtn.style.display = window.scrollY > 300 ? 'block' : 'none';
+  });
+  toTopBtn.addEventListener('click', () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+}
+
+// ✅ إشعارات سريعة
+function showToast(message) {
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.innerText = message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
+}
+
+// ✅ تهيئة الصفحة
+function initIndexPage() {
+  initLoadingOverlay();
+  scrollToTop();
+  checkUserRole();
+  loadStadiums();
+  loadHomepageBanners();
+}
+
+document.addEventListener('DOMContentLoaded', initIndexPage);
+</script>
 </body>
 </html>
