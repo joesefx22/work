@@ -6,7 +6,7 @@
   <title>احجزلي - حجز ملاعب كرة القدم</title>
   
   <!-- Meta Tags for SEO & Security -->
-  <meta name="description" content="ملعبك في ضغطة، وحجزك مؤكد 💚 - احجز ملاعب كرة القدم بسهولة مع احجزلي. دفع عربون، طلب لاعبين إضافيين، أكواد دفع">
+  <meta name="description" content="ملعبك في ضغطة، وحجزك مؤكد عندنا - احجز ملاعب كرة القدم بسهولة مع احجزلي. دفع عربون، طلب لاعبين إضافيين، أكواد دفع">
   <meta name="theme-color" content="#1a7f46">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://cdn.jsdelivr.net https://fonts.googleapis.com https://fonts.gstatic.com https://placehold.co; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://cdn.jsdelivr.net https://fonts.googleapis.com 'unsafe-inline';">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,6 +29,13 @@
       --light-color: #ecf0f1;
       --blue-color: #3498db;
       --gold-color: #ffd700;
+      
+      /* ألوان الوضع الليلي */
+      --night-bg: #0a1929;
+      --night-card: #132f4c;
+      --night-text: #e0e0e0;
+      --night-border: #1e4976;
+      --night-primary: #1976d2;
     }
     
     body {
@@ -36,6 +43,85 @@
       background-color: #f8f9fa;
       color: #333;
       overflow-x: hidden;
+      transition: all 0.3s ease;
+    }
+
+    /* الوضع الليلي */
+    body.night-mode {
+      background-color: var(--night-bg);
+      color: var(--night-text);
+    }
+
+    .night-mode .navbar {
+      background: rgba(19, 47, 76, 0.95) !important;
+    }
+
+    .night-mode .navbar-brand,
+    .night-mode .nav-link {
+      color: var(--night-text) !important;
+    }
+
+    .night-mode .stadium-card,
+    .night-mode .feature-card,
+    .night-mode .area-card,
+    .night-mode .banner-content {
+      background: var(--night-card);
+      color: var(--night-text);
+      border: 1px solid var(--night-border);
+    }
+
+    .night-mode .footer {
+      background: var(--night-card) !important;
+    }
+
+    .night-mode .form-control,
+    .night-mode .form-select {
+      background: var(--night-card);
+      color: var(--night-text);
+      border-color: var(--night-border);
+    }
+
+    .night-mode .section-title {
+      color: var(--night-text);
+    }
+
+    .night-mode .features-section,
+    .night-mode .areas-section,
+    .night-mode .how-it-works {
+      background: var(--night-bg);
+    }
+
+    .night-mode .featured-stadiums {
+      background: linear-gradient(135deg, var(--night-bg), var(--night-card));
+    }
+
+    /* زر الوضع الليلي */
+    .theme-toggle {
+      position: fixed;
+      top: 100px;
+      left: 30px;
+      width: 50px;
+      height: 50px;
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      font-size: 1.2rem;
+      cursor: pointer;
+      z-index: 1000;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .theme-toggle:hover {
+      background: var(--secondary-color);
+      transform: translateY(-3px);
+    }
+
+    .night-mode .theme-toggle {
+      background: var(--night-primary);
     }
 
     /* 🆕 إضافات جديدة */
@@ -80,6 +166,11 @@
       margin: 1rem 0;
     }
     
+    .night-mode .voucher-section {
+      border-color: var(--night-primary);
+      background: rgba(25, 118, 210, 0.1);
+    }
+    
     .voucher-input-group {
       display: flex;
       gap: 0.5rem;
@@ -113,21 +204,6 @@
       font-weight: 500;
     }
 
-    /* 🆕 زر إضافة ملعب في النافبار */
-    .add-stadium-btn {
-      background: linear-gradient(135deg, var(--accent-color), #ffed4e);
-      color: #000 !important;
-      border: none;
-      font-weight: 600;
-      border-radius: 25px;
-      padding: 0.5rem 1.5rem;
-    }
-    
-    .add-stadium-btn:hover {
-      background: linear-gradient(135deg, #ffed4e, var(--accent-color));
-      transform: translateY(-2px);
-    }
-
     /* 🆕 قسم كيف يعمل */
     .how-it-works {
       padding: 4rem 0;
@@ -153,14 +229,6 @@
       margin: 0 auto 1rem;
     }
     
-    /* 🆕 قسم إضافة ملعب */
-    .add-stadium-section {
-      padding: 4rem 0;
-      background: linear-gradient(135deg, #1a7f46, #2ecc71);
-      color: white;
-      text-align: center;
-    }
-
     /* 🆕 قسم البانرز والعروض */
     .banners-section {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -290,6 +358,10 @@
       align-items: center;
       z-index: 9999;
       transition: opacity 0.4s ease;
+    }
+    
+    .night-mode #loadingOverlay {
+      background: linear-gradient(135deg, var(--night-primary), #0a1929);
     }
     
     #loadingOverlay.fade-out {
@@ -423,6 +495,13 @@
       font-weight: 700;
       color: var(--primary-color) !important;
       font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+    }
+    
+    .logo-img {
+      height: 40px;
+      margin-left: 10px;
     }
     
     .nav-link {
@@ -436,10 +515,10 @@
       color: var(--primary-color) !important;
     }
     
-    /* Hero Section */
+    /* Hero Section مع صورة النجيلة */
     .hero-section {
       background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), 
-                  url('./images/hero-bg.jpg') center/cover no-repeat;
+                  url('https://images.unsplash.com/photo-1551632811-561732d1e306?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80') center/cover no-repeat;
       min-height: 80vh;
       display: flex;
       align-items: center;
@@ -506,6 +585,10 @@
       font-size: 1.3rem;
       font-weight: 600;
       color: var(--dark-color);
+    }
+    
+    .night-mode .area-title {
+      color: var(--night-text);
     }
     
     /* 🆕 تحسين بطاقات الملاعب */
@@ -588,9 +671,17 @@
       margin-bottom: 0.5rem;
     }
     
+    .night-mode .stadium-title {
+      color: var(--night-text);
+    }
+    
     .stadium-location {
       color: #666;
       margin-bottom: 1rem;
+    }
+    
+    .night-mode .stadium-location {
+      color: #b0b0b0;
     }
     
     .stadium-features {
@@ -609,6 +700,11 @@
       background: #f8f9fa;
       padding: 0.3rem 0.6rem;
       border-radius: 12px;
+    }
+    
+    .night-mode .feature {
+      background: var(--night-border);
+      color: var(--night-text);
     }
     
     .feature i {
@@ -656,6 +752,12 @@
       transition: all 0.3s ease;
       font-weight: 500;
       font-size: 0.9rem;
+    }
+    
+    .night-mode .time-slot {
+      background: var(--night-card);
+      border-color: var(--night-border);
+      color: var(--night-text);
     }
     
     .time-slot.available {
@@ -706,6 +808,10 @@
     .rating-text {
       font-size: 0.9rem;
       color: #666;
+    }
+    
+    .night-mode .rating-text {
+      color: #b0b0b0;
     }
     
     /* Buttons */
@@ -888,6 +994,10 @@
       transform: translateY(-3px);
     }
 
+    .night-mode #toTop {
+      background: var(--night-primary);
+    }
+
     /* 🆕 Toast notifications */
     .toast {
       position: fixed;
@@ -981,11 +1091,15 @@
         left: 50px;
       }
       
-      #toTop {
+      #toTop, .theme-toggle {
         left: 20px;
         bottom: 20px;
         width: 45px;
         height: 45px;
+      }
+      
+      .theme-toggle {
+        top: 90px;
       }
       
       .hero-buttons {
@@ -1031,6 +1145,11 @@
 <!-- 🆕 زر العودة لأعلى -->
 <button id="toTop" title="العودة لأعلى">⬆</button>
 
+<!-- 🆕 زر الوضع الليلي -->
+<button class="theme-toggle" id="themeToggle" title="الوضع الليلي">
+  <i class="bi bi-moon"></i>
+</button>
+
 <!-- 🆕 شريط متابعة الحجز -->
 <div class="booking-tracker" id="bookingTracker">
   <div class="container">
@@ -1061,7 +1180,9 @@
 <nav class="navbar navbar-expand-lg navbar-light fixed-top">
   <div class="container">
     <a class="navbar-brand" href="/">
-      <i class="bi bi-calendar-check me-2"></i>احجزلي
+      <!-- ضع صورة اللوجو هنا -->
+      <img src="./images/logo.png" alt="احجزلي" class="logo-img">
+      احجزلي
     </a>
     
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -1088,12 +1209,6 @@
             <i class="bi bi-people me-1"></i>لاعبوني معاكم
           </a>
         </li>
-        <!-- 🆕 زر إضافة ملعب للمستخدمين المصرح لهم -->
-        <li class="nav-item" id="addStadiumNavItem" style="display: none;">
-          <a class="nav-link add-stadium-btn" href="/add-stadium">
-            <i class="bi bi-plus-circle me-1"></i>أضف ملعبك
-          </a>
-        </li>
         <li class="nav-item">
           <a class="nav-link" href="/profile">
             <i class="bi bi-person me-1"></i>ملفي
@@ -1114,14 +1229,11 @@
   <div class="container">
     <div class="hero-content fade-in">
       <!-- 🆕 النصوص التسويقية الجديدة -->
-      <h1 class="hero-title text-light">ملعبك في ضغطة، وحجزك مؤكد 💚</h1>
-      <p class="hero-subtitle text-light">مع احجزلي هتجرب أسهل وأسرع طريقة لحجز الملاعب وإدارة الحجوزات — للاعبين وأصحاب الملاعب على حد سواء. احجز، نظّم، وابدأ اللعبة!</p>
+      <h1 class="hero-title text-light">ملعبك في ضغطة، وحجزك مؤكد عندنا</h1>
+      <p class="hero-subtitle text-light">مع احجزلي هتجرب أسهل وأسرع طريقة لحجز الملاعب وإدارة الحجوزات احجز، نظّم، وابدأ اللعبة!</p>
       <div class="hero-buttons">
         <a href="#stadiums" class="btn btn-primary btn-lg">
           <i class="bi bi-search me-2"></i>احجز الآن
-        </a>
-        <a href="/add-stadium" class="btn btn-outline-light btn-lg" id="addStadiumHeroBtn" style="display: none;">
-          <i class="bi bi-plus-circle me-2"></i>أضف ملعبك
         </a>
       </div>
     </div>
@@ -1148,22 +1260,16 @@
   <div class="container">
     <h2 class="section-title">المناطق المتاحة للحجز</h2>
     <div class="row">
-      <div class="col-md-4 mb-4">
+      <div class="col-md-6 mb-4">
         <div class="area-card">
           <div class="area-image" style="background-image: url('./images/mokatam-area.jpg')"></div>
           <div class="area-title">المقطم</div>
         </div>
       </div>
-      <div class="col-md-4 mb-4">
+      <div class="col-md-6 mb-4">
         <div class="area-card">
           <div class="area-image" style="background-image: url('./images/hedaba-area.jpg')"></div>
           <div class="area-title">الهضبة الوسطي</div>
-        </div>
-      </div>
-      <div class="col-md-4 mb-4">
-        <div class="area-card">
-          <div class="area-image" style="background-image: url('./images/70-feddan-area.jpg')"></div>
-          <div class="area-title">السبعين فدان</div>
         </div>
       </div>
     </div>
@@ -1263,7 +1369,6 @@
           <option value="">جميع المناطق</option>
           <option value="mokatam">المقطم</option>
           <option value="hedaba">الهضبة الوسطي</option>
-          <option value="70feddan">السبعين فدان</option>
         </select>
       </div>
       <div class="col-md-4">
@@ -1299,8 +1404,8 @@
   <div class="container">
     <h2 class="section-title">لماذا تختار احجزلي؟</h2>
     <div class="row">
-      <!-- 🆕 6 مميزات مقنعة -->
-      <div class="col-md-4 mb-4">
+      <!-- 🆕 4 مميزات مقنعة -->
+      <div class="col-md-6 mb-4">
         <div class="feature-card">
           <div class="feature-icon">
             <i class="bi bi-lightning-charge"></i>
@@ -1309,16 +1414,7 @@
           <p>احجز وادفع عربونك ببضع نقرات. نظام دفع آمن ومشفّر</p>
         </div>
       </div>
-      <div class="col-md-4 mb-4">
-        <div class="feature-card">
-          <div class="feature-icon">
-            <i class="bi bi-speedometer2"></i>
-          </div>
-          <h4>لوحة تحكم للمدير</h4>
-          <p>أضف ملاعبك، راجع الحجوزات وإدارة الأوقات بسهولة</p>
-        </div>
-      </div>
-      <div class="col-md-4 mb-4">
+      <div class="col-md-6 mb-4">
         <div class="feature-card">
           <div class="feature-icon">
             <i class="bi bi-clock-history"></i>
@@ -1327,25 +1423,16 @@
           <p>اعلن عن حاجتك للاعبين بسهولة واجذب المشاركين</p>
         </div>
       </div>
-      <div class="col-md-4 mb-4">
+      <div class="col-md-6 mb-4">
         <div class="feature-card">
           <div class="feature-icon">
             <i class="bi bi-tags"></i>
           </div>
-          <h4>نظام خصومات وڤاوتشرات</h4>
+          <h4>نظام خصومات ودفع سهل</h4>
           <p>ادعم عملائك بكود خصم أو أكواد دفع بقيم مختلفة</p>
         </div>
       </div>
-      <div class="col-md-4 mb-4">
-        <div class="feature-card">
-          <div class="feature-icon">
-            <i class="bi bi-graph-up"></i>
-          </div>
-          <h4>تقارير وإحصائيات</h4>
-          <p>اطّلع على إشغال الملاعب والأرباح وتقارير الأداء</p>
-        </div>
-      </div>
-      <div class="col-md-4 mb-4">
+      <div class="col-md-6 mb-4">
         <div class="feature-card">
           <div class="feature-icon">
             <i class="bi bi-headset"></i>
@@ -1358,22 +1445,11 @@
   </div>
 </section>
 
-<!-- 🆕 قسم إضافة ملعب -->
-<section class="add-stadium-section" id="add-stadium-section">
-  <div class="container">
-    <h2 class="section-title text-light">أضف ملعبك</h2>
-    <p class="lead mb-4">لأصحاب الملاعب: ضيف ملعبك مرة واحدة وسيظهر تلقائياً في الواجهة الرئيسية لكل المستخدمين.</p>
-    <a href="/add-stadium" class="btn btn-warning btn-lg">
-      <i class="bi bi-plus-circle me-2"></i>سجّل ملعبك الآن
-    </a>
-  </div>
-</section>
-
 <!-- 🆕 شريط المميزات السريعة -->
 <section class="features-bar">
   <div class="container">
     <div class="row">
-      <div class="col-md-2 col-6">
+      <div class="col-md-4 col-6">
         <div class="feature-item">
           <div class="feature-icon">
             <i class="bi bi-lightning-charge"></i>
@@ -1381,7 +1457,7 @@
           <div class="feature-text">حجز فوري</div>
         </div>
       </div>
-      <div class="col-md-2 col-6">
+      <div class="col-md-4 col-6">
         <div class="feature-item">
           <div class="feature-icon">
             <i class="bi bi-shield-check"></i>
@@ -1389,7 +1465,7 @@
           <div class="feature-text">دفع آمن</div>
         </div>
       </div>
-      <div class="col-md-2 col-6">
+      <div class="col-md-4 col-6">
         <div class="feature-item">
           <div class="feature-icon">
             <i class="bi bi-people"></i>
@@ -1397,7 +1473,7 @@
           <div class="feature-text">لاعبين إضافيين</div>
         </div>
       </div>
-      <div class="col-md-2 col-6">
+      <div class="col-md-4 col-6">
         <div class="feature-item">
           <div class="feature-icon">
             <i class="bi bi-tags"></i>
@@ -1405,15 +1481,7 @@
           <div class="feature-text">أكواد خصم</div>
         </div>
       </div>
-      <div class="col-md-2 col-6">
-        <div class="feature-item">
-          <div class="feature-icon">
-            <i class="bi bi-graph-up"></i>
-          </div>
-          <div class="feature-text">تقارير متقدمة</div>
-        </div>
-      </div>
-      <div class="col-md-2 col-6">
+      <div class="col-md-4 col-6">
         <div class="feature-item">
           <div class="feature-icon">
             <i class="bi bi-headset"></i>
@@ -1431,7 +1499,7 @@
     <div class="row">
       <div class="col-lg-4 col-md-6 mb-4">
         <h5>احجزلي</h5>
-        <p>المنصة الأولى لحجز الملاعب في شرق القاهرة. نغطي مناطق المقطم، الهضبة الوسطي، والسبعين فدان.</p>
+        <p>أقوي منصة لحجز الملاعب نغطي مناطق المقطم، الهضبة الوسطي.</p>
         <div class="social-links">
           <a href="#"><i class="bi bi-facebook"></i></a>
           <a href="#"><i class="bi bi-whatsapp"></i></a>
@@ -1443,7 +1511,6 @@
         <div class="footer-links">
           <a href="#areas">المقطم</a>
           <a href="#areas">الهضبة الوسطي</a>
-          <a href="#areas">السبعين فدان</a>
         </div>
       </div>
       <div class="col-lg-3 col-md-6 mb-4">
@@ -1460,14 +1527,13 @@
         <h5>اتصل بنا</h5>
         <div class="footer-links">
           <a href="tel:+201000000000"><i class="bi bi-phone me-2"></i>+20 100 000 0000</a>
-          <a href="mailto:info@ehgzly.com"><i class="bi bi-envelope me-2"></i>info@ehgzly.com</a>
           <a href="#"><i class="bi bi-geo-alt me-2"></i>شرق القاهرة</a>
         </div>
       </div>
     </div>
     <hr>
     <div class="text-center py-3">
-      <p class="mb-0">&copy; 2024 احجزلي. جميع الحقوق محفوظة.</p>
+      <p class="mb-0">&copy; 2025 احجزلي. جميع الحقوق محفوظة.</p>
     </div>
   </div>
 </footer>
@@ -2230,6 +2296,29 @@
       
       // 🆕 نظام التعرف الصوتي
       initVoiceRecognition();
+
+      // 🆕 تبديل الوضع الليلي
+      document.getElementById('themeToggle').addEventListener('click', function() {
+          document.body.classList.toggle('night-mode');
+          const icon = this.querySelector('i');
+          if (document.body.classList.contains('night-mode')) {
+              icon.className = 'bi bi-sun';
+              this.title = 'الوضع النهاري';
+              localStorage.setItem('theme', 'night');
+          } else {
+              icon.className = 'bi bi-moon';
+              this.title = 'الوضع الليلي';
+              localStorage.setItem('theme', 'light');
+          }
+      });
+
+      // تحميل الوضع المحفوظ
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'night') {
+          document.body.classList.add('night-mode');
+          document.getElementById('themeToggle').querySelector('i').className = 'bi bi-sun';
+          document.getElementById('themeToggle').title = 'الوضع النهاري';
+      }
   });
 
   async function initializeApp() {
@@ -2748,15 +2837,6 @@
               badge: "👥 جديد",
               ctaText: "اكتشف المزيد",
               ctaAction: "window.location.href='/players-with-you'"
-          },
-          {
-              id: 3,
-              title: "أضف ملعبك وزد دخلك",
-              description: "انضم كشريك واجعل ملعبك مرئياً لألاف اللاعبين",
-              image: "https://placehold.co/600x400/1a7f46/white?text=أضف+ملعبك",
-              badge: "🏟️ لأصحاب الملاعب",
-              ctaText: "سجل ملعبك",
-              ctaAction: "window.location.href='/add-stadium'"
           }
       ];
   }
@@ -3151,160 +3231,6 @@
       console.log('Starting countdown for booking:', bookingId);
   }
 
-  // ======= 🎯 التهيئة النهائية =======
-
-  document.addEventListener('DOMContentLoaded', function() {
-      // تحميل الملاعب من النظام الجديد
-      fetchStadiums();
-      
-      // 🆕 تحميل البانرز
-      fetchBanners();
-      
-      // 🆕 تحميل الملاعب المميزة
-      fetchFeaturedStadiums();
-      
-      // تحميل الساعات الذهبية
-      loadGoldenSlots();
-      
-      // التحقق من صلاحيات المستخدم
-      checkUserPermissions();
-      
-      // إعداد الفلاتر
-      const debouncedFilter = debounce(filterStadiums, 300);
-      document.getElementById('areaFilter').addEventListener('change', debouncedFilter);
-      document.getElementById('sortFilter').addEventListener('change', debouncedFilter);
-      document.getElementById('typeFilter').addEventListener('change', debouncedFilter);
-      document.getElementById('priceFilter').addEventListener('change', debouncedFilter);
-      document.getElementById('ratingFilter').addEventListener('change', debouncedFilter);
-      document.getElementById('availabilityFilter').addEventListener('change', debouncedFilter);
-      document.getElementById('searchStadiums').addEventListener('input', debouncedFilter);
-      
-      // جلب رمز CSRF
-      safeFetch('/csrf-token')
-          .then(data => {
-              if (data?.csrfToken) {
-                  document.getElementById('csrfToken').value = data.csrfToken;
-                  document.getElementById('ratingCsrfToken').value = data.csrfToken;
-              }
-          })
-          .catch(err => console.error('CSRF token error:', err));
-
-      // إعداد أحداث التمرير
-      window.addEventListener('scroll', function() {
-          if (window.scrollY > 100) {
-              document.querySelector('.navbar').classList.add('scrolled');
-          } else {
-              document.querySelector('.navbar').classList.remove('scrolled');
-          }
-
-          document.querySelectorAll('section').forEach(sec => {
-              let top = window.scrollY;
-              if(top >= sec.offsetTop - 200){
-                  document.querySelectorAll('.nav-link').forEach(a => a.classList.remove('active'));
-                  document.querySelector(`.nav-link[href="#${sec.id}"]`)?.classList.add('active');
-              }
-          });
-
-          document.getElementById('toTop').style.display = window.scrollY > 200 ? 'block' : 'none';
-      });
-
-      // زر العودة لأعلى
-      document.getElementById('toTop').onclick = () => {
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-      };
-
-      // إعداد سبب الإلغاء
-      document.getElementById('cancellationReason').addEventListener('change', function() {
-          const otherReason = document.getElementById('otherReason');
-          otherReason.style.display = this.value === 'آخر' ? 'block' : 'none';
-      });
-
-      // إخفاء شاشة التحميل
-      window.addEventListener('load', () => {
-          setTimeout(() => {
-              document.getElementById('loadingOverlay').classList.add('fade-out');
-          }, 1000);
-      });
-
-      // تحديث الساعات الذهبية كل دقيقة
-      setInterval(loadGoldenSlots, 60000);
-
-      // إعداد أحداث النجوم في التقييم
-      document.querySelectorAll('#ratingStars .star').forEach(star => {
-          star.addEventListener('click', function() {
-              const rating = parseInt(this.dataset.rating);
-              document.getElementById('selectedRating').value = rating;
-              
-              document.querySelectorAll('#ratingStars .star').forEach(s => {
-                  const starRating = parseInt(s.dataset.rating);
-                  if (starRating <= rating) {
-                      s.classList.add('active', 'bi-star-fill');
-                      s.classList.remove('bi-star');
-                      s.setAttribute('aria-checked', 'true');
-                  } else {
-                      s.classList.remove('active', 'bi-star-fill');
-                      s.classList.add('bi-star');
-                      s.setAttribute('aria-checked', 'false');
-                  }
-              });
-          });
-      });
-  });
-
-  function checkUserPermissions() {
-      const token = localStorage.getItem('authToken');
-      const userRole = localStorage.getItem('userRole');
-      
-      if (token && (userRole === 'owner' || userRole === 'admin')) {
-          document.getElementById('addStadiumNavItem').style.display = 'block';
-          document.getElementById('addStadiumHeroBtn').style.display = 'block';
-      }
-  }
-
-  // 🆕 دالة الفلترة المتقدمة
-  function filterStadiums() {
-      const area = document.getElementById('areaFilter').value;
-      const sort = document.getElementById('sortFilter').value;
-      const type = document.getElementById('typeFilter').value;
-      const price = document.getElementById('priceFilter').value;
-      const rating = document.getElementById('ratingFilter').value;
-      const availability = document.getElementById('availabilityFilter').value;
-      const search = document.getElementById('searchStadiums').value.toLowerCase();
-      
-      showToast('جاري تطبيق الفلترة...', 'info');
-      
-      // هنا سيتم تطبيق الفلترة على الملاعب المعروضة
-      // هذه دالة افتراضية - يمكن تطويرها حسب الحاجة
-      console.log('Applying filters:', { area, sort, type, price, rating, availability, search });
-  }
-
-  // 🆕 دوال إضافية للمميزات الجديدة
-  function startVoiceRating() {
-      const recognition = initVoiceRating();
-      if (recognition) {
-          recognition.start();
-          showToast('🎤 التحدث الآن...', 'info');
-      } else {
-          showToast('المتصفح لا يدعم التعرف الصوتي', 'error');
-      }
-  }
-
-  function submitAdvancedRating() {
-      showToast('تم إرسال التقييم المتقدم', 'success');
-      bootstrap.Modal.getInstance(document.getElementById('advancedRatingModal')).hide();
-  }
-
-  function shareStadiumReview() {
-      showToast('تم نسخ رابط المشاركة', 'success');
-  }
-
-  function initVoiceRecognition() {
-      // تهيئة نظام التعرف الصوتي
-      if ('webkitSpeechRecognition' in window) {
-          console.log('Voice recognition supported');
-      }
-  }
-
   // 🆕 دالة عرض البانرز
   async function fetchBanners() {
       try {
@@ -3324,7 +3250,7 @@
       }
 
       container.innerHTML = banners.map(banner => `
-          <div class="col-md-4 mb-3">
+          <div class="col-md-6 mb-3">
               <div class="banner-card">
                   <div class="banner-image" style="background-image: url('${banner.image || 'https://placehold.co/600x400/667eea/white?text=عرض+خاص'}')">
                       ${banner.badge ? `<span class="banner-badge">${banner.badge}</span>` : ''}
@@ -3346,7 +3272,7 @@
   function renderDefaultBanners() {
       const container = document.getElementById('bannersContainer');
       container.innerHTML = `
-          <div class="col-md-4 mb-3">
+          <div class="col-md-6 mb-3">
               <div class="banner-card">
                   <div class="banner-image" style="background-image: url('https://placehold.co/600x400/667eea/white?text=خصم+25%')">
                       <span class="banner-badge">🔥 محدود</span>
@@ -3360,7 +3286,7 @@
                   </div>
               </div>
           </div>
-          <div class="col-md-4 mb-3">
+          <div class="col-md-6 mb-3">
               <div class="banner-card">
                   <div class="banner-image" style="background-image: url('https://placehold.co/600x400/764ba2/white?text=لاعبوني+معاكم')">
                       <span class="banner-badge">👥 جديد</span>
@@ -3370,20 +3296,6 @@
                       <p class="text-muted">انضم لمباريات جديدة واجذب لاعبين إضافيين لمباراتك</p>
                       <button class="btn btn-primary w-100" onclick="window.location.href='/players-with-you'">
                           اكتشف المزيد
-                      </button>
-                  </div>
-              </div>
-          </div>
-          <div class="col-md-4 mb-3">
-              <div class="banner-card">
-                  <div class="banner-image" style="background-image: url('https://placehold.co/600x400/1a7f46/white?text=أضف+ملعبك')">
-                      <span class="banner-badge">🏟️ لأصحاب الملاعب</span>
-                  </div>
-                  <div class="banner-content">
-                      <h5>أضف ملعبك وزد دخلك</h5>
-                      <p class="text-muted">انضم كشريك واجعل ملعبك مرئياً لألاف اللاعبين</p>
-                      <button class="btn btn-primary w-100" onclick="window.location.href='/add-stadium'">
-                          سجل ملعبك
                       </button>
                   </div>
               </div>
@@ -3448,128 +3360,131 @@
               </div>`;
       }).join('');
   }
-</script>
-  <script>
-// ✅ تحميل الملاعب
-async function loadStadiums() {
-  try {
-    const res = await fetch('/api/stadiums');
-    const stadiums = await res.json();
-    const container = document.getElementById('stadiumsContainer');
-    container.innerHTML = '';
 
-    stadiums.forEach(stadium => {
-      container.innerHTML += `
-        <div class="col-md-4 mb-4">
-          <div class="stadium-card">
-            <div class="stadium-image" style="background-image: url('${stadium.image}')">
-              <div class="stadium-badge">${stadium.area}</div>
-              <div class="stadium-price">${stadium.price} جنيه</div>
-              <div class="stadium-deposit">${stadium.deposit} عربون</div>
-            </div>
-            <div class="stadium-info">
-              <h5 class="stadium-title">${stadium.name}</h5>
-              <p class="stadium-location">${stadium.location}</p>
-              <div class="stadium-features">
-                ${stadium.features.map(f => `<span class="feature"><i class="bi bi-check-circle"></i>${f}</span>`).join('')}
-              </div>
-              ${renderRatingStars(stadium.rating)}
-              <a href="/booking.html?pitchId=${stadium.id}" class="btn btn-primary w-100 mt-2">احجز الآن</a>
-            </div>
-          </div>
-        </div>
-      `;
-    });
-  } catch (err) {
-    showToast('فشل تحميل الملاعب');
+  // 🆕 دالة الفلترة المتقدمة
+  function filterStadiums() {
+      const area = document.getElementById('areaFilter').value;
+      const sort = document.getElementById('sortFilter').value;
+      const type = document.getElementById('typeFilter').value;
+      const price = document.getElementById('priceFilter').value;
+      const rating = document.getElementById('ratingFilter').value;
+      const availability = document.getElementById('availabilityFilter').value;
+      const search = document.getElementById('searchStadiums').value.toLowerCase();
+      
+      showToast('جاري تطبيق الفلترة...', 'info');
+      
+      // هنا سيتم تطبيق الفلترة على الملاعب المعروضة
+      // هذه دالة افتراضية - يمكن تطويرها حسب الحاجة
+      console.log('Applying filters:', { area, sort, type, price, rating, availability, search });
   }
-}
 
-// ✅ تحميل البانرز
-async function loadHomepageBanners() {
-  try {
-    const res = await fetch('/api/homepage-banners');
-    const banners = await res.json();
-    const container = document.getElementById('bannersContainer');
-    container.innerHTML = '';
-
-    banners.forEach(banner => {
-      container.innerHTML += `
-        <div class="col-md-4 mb-4">
-          <div class="banner-card">
-            <div class="banner-image" style="background-image: url('${banner.image}')">
-              <div class="banner-badge">${banner.label}</div>
-            </div>
-            <div class="banner-content">
-              <h5>${banner.title}</h5>
-              <p>${banner.description}</p>
-              <a href="${banner.link}" class="btn btn-outline-primary btn-sm">عرض التفاصيل</a>
-            </div>
-          </div>
-        </div>
-      `;
-    });
-  } catch (err) {
-    showToast('فشل تحميل العروض');
+  // 🆕 دوال إضافية للمميزات الجديدة
+  function startVoiceRating() {
+      const recognition = initVoiceRating();
+      if (recognition) {
+          recognition.start();
+          showToast('🎤 التحدث الآن...', 'info');
+      } else {
+          showToast('المتصفح لا يدعم التعرف الصوتي', 'error');
+      }
   }
-}
 
-// ✅ عرض التقييمات
-function renderRatingStars(rating) {
-  const fullStars = Math.floor(rating);
-  return `
-    <div class="rating-stars">
-      ${[1,2,3,4,5].map(i => `<i class="bi bi-star${i <= fullStars ? '-fill active' : ''}"></i>`).join('')}
-    </div>
-  `;
-}
-
-// ✅ التحقق من صلاحية المستخدم
-function checkUserRole() {
-  const role = localStorage.getItem('userRole');
-  if (role === 'manager' || role === 'admin') {
-    document.getElementById('addStadiumNavItem').style.display = 'block';
-    document.getElementById('addStadiumHeroBtn').style.display = 'inline-block';
+  function submitAdvancedRating() {
+      showToast('تم إرسال التقييم المتقدم', 'success');
+      bootstrap.Modal.getInstance(document.getElementById('advancedRatingModal')).hide();
   }
-}
 
-// ✅ شاشة التحميل
-function initLoadingOverlay() {
-  setTimeout(() => {
-    document.getElementById('loadingOverlay').classList.add('fade-out');
-  }, 1000);
-}
+  function shareStadiumReview() {
+      showToast('تم نسخ رابط المشاركة', 'success');
+  }
 
-// ✅ زر العودة لأعلى
-function scrollToTop() {
-  const toTopBtn = document.getElementById('toTop');
-  window.addEventListener('scroll', () => {
-    toTopBtn.style.display = window.scrollY > 300 ? 'block' : 'none';
+  function initVoiceRecognition() {
+      // تهيئة نظام التعرف الصوتي
+      if ('webkitSpeechRecognition' in window) {
+          console.log('Voice recognition supported');
+      }
+  }
+
+  // إعداد أحداث التمرير
+  window.addEventListener('scroll', function() {
+      if (window.scrollY > 100) {
+          document.querySelector('.navbar').classList.add('scrolled');
+      } else {
+          document.querySelector('.navbar').classList.remove('scrolled');
+      }
+
+      document.querySelectorAll('section').forEach(sec => {
+          let top = window.scrollY;
+          if(top >= sec.offsetTop - 200){
+              document.querySelectorAll('.nav-link').forEach(a => a.classList.remove('active'));
+              document.querySelector(`.nav-link[href="#${sec.id}"]`)?.classList.add('active');
+          }
+      });
+
+      document.getElementById('toTop').style.display = window.scrollY > 200 ? 'block' : 'none';
   });
-  toTopBtn.addEventListener('click', () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // زر العودة لأعلى
+  document.getElementById('toTop').onclick = () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // إعداد سبب الإلغاء
+  document.getElementById('cancellationReason').addEventListener('change', function() {
+      const otherReason = document.getElementById('otherReason');
+      otherReason.style.display = this.value === 'آخر' ? 'block' : 'none';
   });
-}
 
-// ✅ إشعارات سريعة
-function showToast(message) {
-  const toast = document.createElement('div');
-  toast.className = 'toast';
-  toast.innerText = message;
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 4000);
-}
+  // إخفاء شاشة التحميل
+  window.addEventListener('load', () => {
+      setTimeout(() => {
+          document.getElementById('loadingOverlay').classList.add('fade-out');
+      }, 1000);
+  });
 
-// ✅ تهيئة الصفحة
-function initIndexPage() {
-  initLoadingOverlay();
-  scrollToTop();
-  checkUserRole();
-  loadStadiums();
-  loadHomepageBanners();
-}
+  // تحديث الساعات الذهبية كل دقيقة
+  setInterval(loadGoldenSlots, 60000);
 
-document.addEventListener('DOMContentLoaded', initIndexPage);
+  // إعداد أحداث النجوم في التقييم
+  document.querySelectorAll('#ratingStars .star').forEach(star => {
+      star.addEventListener('click', function() {
+          const rating = parseInt(this.dataset.rating);
+          document.getElementById('selectedRating').value = rating;
+          
+          document.querySelectorAll('#ratingStars .star').forEach(s => {
+              const starRating = parseInt(s.dataset.rating);
+              if (starRating <= rating) {
+                  s.classList.add('active', 'bi-star-fill');
+                  s.classList.remove('bi-star');
+                  s.setAttribute('aria-checked', 'true');
+              } else {
+                  s.classList.remove('active', 'bi-star-fill');
+                  s.classList.add('bi-star');
+                  s.setAttribute('aria-checked', 'false');
+              }
+          });
+      });
+  });
+
+  // إعداد الفلاتر
+  const debouncedFilter = debounce(filterStadiums, 300);
+  document.getElementById('areaFilter').addEventListener('change', debouncedFilter);
+  document.getElementById('sortFilter').addEventListener('change', debouncedFilter);
+  document.getElementById('typeFilter').addEventListener('change', debouncedFilter);
+  document.getElementById('priceFilter').addEventListener('change', debouncedFilter);
+  document.getElementById('ratingFilter').addEventListener('change', debouncedFilter);
+  document.getElementById('availabilityFilter').addEventListener('change', debouncedFilter);
+  document.getElementById('searchStadiums').addEventListener('input', debouncedFilter);
+  
+  // جلب رمز CSRF
+  safeFetch('/csrf-token')
+      .then(data => {
+          if (data?.csrfToken) {
+              document.getElementById('csrfToken').value = data.csrfToken;
+              document.getElementById('ratingCsrfToken').value = data.csrfToken;
+          }
+      })
+      .catch(err => console.error('CSRF token error:', err));
 </script>
 </body>
 </html>
