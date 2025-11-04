@@ -2257,6 +2257,28 @@
 
       updateFavoriteButtons();
       
+      // 🆕 تبديل الوضع الليلي
+      document.getElementById('themeToggle').addEventListener('click', function() {
+          document.body.classList.toggle('night-mode');
+          const icon = this.querySelector('i');
+          if (document.body.classList.contains('night-mode')) {
+              icon.className = 'bi bi-sun';
+              this.title = 'الوضع النهاري';
+              localStorage.setItem('theme', 'night');
+          } else {
+              icon.className = 'bi bi-moon';
+              this.title = 'الوضع الليلي';
+              localStorage.setItem('theme', 'light');
+          }
+      });
+
+      // تحميل الوضع المحفوظ
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'night') {
+          document.body.classList.add('night-mode');
+          document.getElementById('themeToggle').querySelector('i').className = 'bi bi-sun';
+          document.getElementById('themeToggle').title = 'الوضع النهاري';
+      }
       // إضافة منتقي الأيام لكل ملعب
       stadiums.forEach(st => {
           setTimeout(() => {
@@ -3668,6 +3690,86 @@
               </div>`;
       }).join('');
   }
+  
+  // 🆕 دالة الفلترة المتقدمة
+  function filterStadiums() {
+      const area = document.getElementById('areaFilter').value;
+      const sort = document.getElementById('sortFilter').value;
+      const type = document.getElementById('typeFilter').value;
+      const price = document.getElementById('priceFilter').value;
+      const rating = document.getElementById('ratingFilter').value;
+      const availability = document.getElementById('availabilityFilter').value;
+      const search = document.getElementById('searchStadiums').value.toLowerCase();
+      
+      showToast('جاري تطبيق الفلترة...', 'info');
+      
+      // هنا سيتم تطبيق الفلترة على الملاعب المعروضة
+      // هذه دالة افتراضية - يمكن تطويرها حسب الحاجة
+      console.log('Applying filters:', { area, sort, type, price, rating, availability, search });
+  }
+
+  // 🆕 دوال إضافية للمميزات الجديدة
+  function startVoiceRating() {
+      const recognition = initVoiceRating();
+      if (recognition) {
+          recognition.start();
+          showToast('🎤 التحدث الآن...', 'info');
+      } else {
+          showToast('المتصفح لا يدعم التعرف الصوتي', 'error');
+      }
+  }
+
+  function submitAdvancedRating() {
+      showToast('تم إرسال التقييم المتقدم', 'success');
+      bootstrap.Modal.getInstance(document.getElementById('advancedRatingModal')).hide();
+  }
+
+  function shareStadiumReview() {
+      showToast('تم نسخ رابط المشاركة', 'success');
+  }
+
+  function initVoiceRecognition() {
+      // تهيئة نظام التعرف الصوتي
+      if ('webkitSpeechRecognition' in window) {
+          console.log('Voice recognition supported');
+      }
+  }
+
+  // إعداد أحداث التمرير
+  window.addEventListener('scroll', function() {
+      if (window.scrollY > 100) {
+          document.querySelector('.navbar').classList.add('scrolled');
+      } else {
+          document.querySelector('.navbar').classList.remove('scrolled');
+      }
+
+      document.querySelectorAll('section').forEach(sec => {
+          let top = window.scrollY;
+          if(top >= sec.offsetTop - 200){
+              document.querySelectorAll('.nav-link').forEach(a => a.classList.remove('active'));
+              document.querySelector(`.nav-link[href="#${sec.id}"]`)?.classList.add('active');
+          }
+      });
+
+      document.getElementById('toTop').style.display = window.scrollY > 200 ? 'block' : 'none';
+  });
+
+  // زر العودة لأعلى
+  document.getElementById('toTop').onclick = () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // إعداد سبب الإلغاء
+  document.getElementById('cancellationReason').addEventListener('change', function() {
+      const otherReason = document.getElementById('otherReason');
+      otherReason.style.display = this.value === 'آخر' ? 'block' : 'none';
+  });
+
+  // إخفاء شاشة التحميل
+  window.addEventListener('load', () => {
+      setTimeout(() => {
+          document.getElementById('loadingOverlay').classList.add('fade-out');
+      }, 1000);
 </script>
   <script>
 // ✅ تحميل الملاعب
@@ -3723,6 +3825,28 @@ function initIndexPage() {
   loadHomepageBanners();
 }
 
+  // تحديث الساعات الذهبية كل دقيقة
+  setInterval(loadGoldenSlots, 60000);
+
+  // إعداد أحداث النجوم في التقييم
+  document.querySelectorAll('#ratingStars .star').forEach(star => {
+      star.addEventListener('click', function() {
+          const rating = parseInt(this.dataset.rating);
+          document.getElementById('selectedRating').value = rating;
+          
+          document.querySelectorAll('#ratingStars .star').forEach(s => {
+              const starRating = parseInt(s.dataset.rating);
+              if (starRating <= rating) {
+                  s.classList.add('active', 'bi-star-fill');
+                  s.classList.remove('bi-star');
+                  s.setAttribute('aria-checked', 'true');
+              } else {
+                  s.classList.remove('active', 'bi-star-fill');
+                  s.classList.add('bi-star');
+                  s.setAttribute('aria-checked', 'false');
+              }
+          });
+      });
 document.addEventListener('DOMContentLoaded', initIndexPage)
 // ✅ تحميل البانرز
 async function loadHomepageBanners() {
@@ -3753,6 +3877,25 @@ async function loadHomepageBanners() {
   }
 }
 
+  // إعداد الفلاتر
+  const debouncedFilter = debounce(filterStadiums, 300);
+  document.getElementById('areaFilter').addEventListener('change', debouncedFilter);
+  document.getElementById('sortFilter').addEventListener('change', debouncedFilter);
+  document.getElementById('typeFilter').addEventListener('change', debouncedFilter);
+  document.getElementById('priceFilter').addEventListener('change', debouncedFilter);
+  document.getElementById('ratingFilter').addEventListener('change', debouncedFilter);
+  document.getElementById('availabilityFilter').addEventListener('change', debouncedFilter);
+  document.getElementById('searchStadiums').addEventListener('input', debouncedFilter);
+  
+  // جلب رمز CSRF
+  safeFetch('/csrf-token')
+      .then(data => {
+          if (data?.csrfToken) {
+              document.getElementById('csrfToken').value = data.csrfToken;
+              document.getElementById('ratingCsrfToken').value = data.csrfToken;
+          }
+      })
+      .catch(err => console.error('CSRF token error:', err));
 // ✅ عرض التقييمات
 function renderRatingStars(rating) {
   const fullStars = Math.floor(rating);
@@ -3907,3 +4050,4 @@ document.addEventListener('DOMContentLoaded', initIndexPage);
 </script>
 </body>
 </html>
+
