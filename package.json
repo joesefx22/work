@@ -17,6 +17,8 @@
     "db:migrate": "node scripts/migrateToPostgres.js",
     "db:backup": "pg_dump $DATABASE_URL > backup_$(date +%Y%m%d_%H%M%S).sql",
     "db:restore": "psql $DATABASE_URL < backup_latest.sql",
+    "db:health": "node -e \"require('./db').healthCheck().then(console.log).catch(console.error)\"",
+    "db:indexes": "node -e \"require('./db').createIndexes().then(() => console.log('✅ Indexes created')).catch(console.error)\"",
     "test": "NODE_ENV=test jest --testTimeout=10000 --verbose",
     "test:watch": "jest --watch --verbose",
     "test:coverage": "jest --coverage --verbose",
