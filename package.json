@@ -1,26 +1,32 @@
 {
   "name": "ehgzly-server",
-  "version": "2.0.0",
-  "description": "نظام حجز الملاعب - احجزلي",
+  "version": "5.0.0",
+  "description": "نظام حجز الملاعب - احجزلي - النسخة النهائية مع PostgreSQL",
   "main": "server.js",
-  "type": "module",
+  "type": "commonjs",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "migrate": "node migrateJsonToPostgres.js",
-    "db:init": "node -e \"import('./db.js').then(mod => mod.createTables())\"",
+    "dev:debug": "nodemon --inspect server.js",
+    "db:init": "node -e \"require('./db').createTables().then(() => require('./db').createEnhancedTables())\"",
     "db:seed": "node seedData.js",
     "db:reset": "node resetDatabase.js",
+    "db:migrate": "node migrateToPostgres.js",
     "test": "NODE_ENV=test jest --testTimeout=10000",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:integration": "NODE_ENV=test jest --testPathPattern=\"integration\" --testTimeout=30000",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "build": "echo 'No build step needed for Node.js'",
     "docker:build": "docker build -t ehgzly-server .",
     "docker:run": "docker run -p 3000:3000 --env-file .env ehgzly-server",
-    "docs": "jsdoc -c jsdoc.json"
+    "docs": "jsdoc -c jsdoc.json",
+    "clean": "rm -rf node_modules package-lock.json && npm install",
+    "audit": "npm audit --audit-level high",
+    "profile": "node --prof server.js",
+    "backup:db": "pg_dump $DATABASE_URL > backup_$(date +%Y%m%d_%H%M%S).sql"
   },
   "dependencies": {
     "express": "^4.18.2",
@@ -47,7 +53,13 @@
     "joi": "^17.11.0",
     "moment": "^2.29.4",
     "node-cron": "^3.0.3",
-    "winston": "^3.11.0"
+    "winston": "^3.11.0",
+    "lodash": "^4.17.21",
+    "axios": "^1.6.0",
+    "jsonwebtoken": "^9.0.2",
+    "node-cache": "^5.1.2",
+    "express-async-errors": "^3.1.1",
+    "http-status-codes": "^2.3.0"
   },
   "devDependencies": {
     "nodemon": "^2.0.22",
@@ -56,6 +68,7 @@
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-security": "^1.7.1",
     "prettier": "^3.1.1",
     "jsdoc": "^4.0.3"
   },
@@ -70,13 +83,23 @@
     "football",
     "pitch",
     "egypt",
-    "arabic"
+    "arabic",
+    "football-pitch",
+    "sports-booking",
+    "stadium-management",
+    "middle-east"
   ],
   "author": {
     "name": "Ehgzly Team",
     "email": "dev@ehgzly.com",
     "url": "https://ehgzly.com"
   },
+  "contributors": [
+    {
+      "name": "Ehgzly Development Team",
+      "email": "developers@ehgzly.com"
+    }
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -88,9 +111,27 @@
   "homepage": "https://ehgzly.com",
   "engines": {
     "node": ">=18.0.0",
-    "npm": ">=8.0.0"
+    "npm": ">=8.0.0",
+    "postgresql": ">=12.0"
   },
   "volta": {
     "node": "18.17.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "collectCoverageFrom": [
+      "**/*.js",
+      "!**/node_modules/**",
+      "!**/coverage/**",
+      "!**/test/**"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 70,
+        "functions": 70,
+        "lines": 70,
+        "statements": 70
+      }
+    }
   }
 }
