@@ -1,43 +1,58 @@
 /**
  * db.js - PostgreSQL Database Connection
- * إصدار محسن وجاهز للإنتاج
+ * إصدار محسن وجاهز للإنتاج - متوافق مع server.js و package.json و .env
  */
 
 const { Pool } = require('pg');
+require('dotenv').config();
 
-// تكوين متقدم لـ PostgreSQL
-const pool = new Pool({
+// تكوين متقدم لـ PostgreSQL مع دعم DATABASE_URL
+const poolConfig = process.env.DATABASE_URL ? {
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { 
+    rejectUnauthorized: false 
+  } : false
+} : {
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASS || '',
+  password: process.env.DB_PASS || process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'ehgzly_db',
   port: parseInt(process.env.DB_PORT) || 5432,
   ssl: process.env.NODE_ENV === 'production' ? { 
     rejectUnauthorized: false 
-  } : false,
-  
+  } : false
+};
+
+// إضافة الإعدادات المشتركة
+Object.assign(poolConfig, {
   // إعدادات الأداء المتقدمة
   max: parseInt(process.env.DB_MAX_CONNECTIONS) || 20,
-  min: parseInt(process.env.DB_MIN_CONNECTIONS) || 2,
   idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT) || 30000,
   connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT) || 5000,
-  maxUses: 7500,
   
   // إعدادات الاستعلام
-  statement_timeout: 30000,
-  query_timeout: 30000,
+  statement_timeout: parseInt(process.env.DB_STATEMENT_TIMEOUT) || 30000,
+  query_timeout: parseInt(process.env.DB_QUERY_TIMEOUT) || 60000,
+  
+  // إعدادات التطبيق
+  application_name: 'ehgzly-server',
+  timezone: process.env.DB_TIMEZONE || 'Africa/Cairo'
 });
+
+const pool = new Pool(poolConfig);
 
 // مراقبة الاتصال المتقدمة
 pool.on('connect', (client) => {
   console.log('✅ PostgreSQL connected successfully');
+  // تعيين إعدادات الجلسة
+  client.query(`SET TIME ZONE '${process.env.DB_TIMEZONE || 'Africa/Cairo'}'`).catch(console.error);
 });
 
 pool.on('error', (err, client) => {
-  console.error('❌ PostgreSQL connection error:', err);
+  console.error('❌ PostgreSQL connection error:', err.message);
   // إعادة الاتصال تلقائياً في حالات الخطأ
   setTimeout(() => {
-    pool.connect().catch(e => console.error('Failed to reconnect:', e));
+    pool.connect().catch(e => console.error('Failed to reconnect:', e.message));
   }, 5000);
 });
 
@@ -54,12 +69,12 @@ async function execQuery(sql, params = []) {
     const duration = Date.now() - start;
     
     // تسجيل الاستعلامات البطيئة
-    if (duration > 2000) {
+    if (duration > parseInt(process.env.SLOW_QUERY_THRESHOLD || 2000)) {
       console.warn(`⚠️ Slow Query (${duration}ms):`, sql.substring(0, 200));
     }
     
     // تسجيل أداء الاستعلامات في بيئة التطوير
-    if (process.env.NODE_ENV === 'development' && duration > 100) {
+    if (process.env.NODE_ENV === 'development' && duration > 100 && process.env.ENABLE_QUERY_LOGGING === 'true') {
       console.log(`📊 Query executed in ${duration}ms`);
     }
     
@@ -70,8 +85,17 @@ async function execQuery(sql, params = []) {
       code: err.code,
       detail: err.detail,
       query: sql.substring(0, 500),
-      params: params.map(p => typeof p === 'string' ? p.substring(0, 100) : p)
+      params: process.env.LOG_QUERY_PARAMS === 'true' ? 
+        params.map(p => typeof p === 'string' ? p.substring(0, 100) : p) : ['[HIDDEN]']
     });
+    
+    // إعادة المحاولة تلقائياً لبعض أنواع الأخطاء
+    if (err.code === '57P01' || err.code === '08006') { // connection errors
+      console.log('🔄 Attempting to reconnect...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return execQuery(sql, params);
+    }
+    
     throw err;
   } finally {
     client.release();
@@ -596,10 +620,23 @@ async function createTables() {
     console.log('✅ All PostgreSQL tables created successfully');
     
     // إنشاء الفهرس بعد إنشاء الجداول
-    await createIndexes();
+    if (process.env.AUTO_CREATE_INDEXES === 'true') {
+      await createIndexes();
+    }
     
   } catch (error) {
     console.error('❌ Error creating tables:', error);
+    throw error;
+  }
+}
+
+// دالة لإنشاء الجداول المحسنة
+async function createEnhancedTables() {
+  try {
+    console.log('✅ Enhanced tables are already included in createTables()');
+    return true;
+  } catch (error) {
+    console.error('❌ Error in enhanced tables:', error);
     throw error;
   }
 }
@@ -641,6 +678,7 @@ module.exports = {
   getClient,
   withTransaction,
   createTables,
+  createEnhancedTables,
   createIndexes,
   healthCheck,
   closePool
