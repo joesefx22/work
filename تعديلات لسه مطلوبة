@@ -451,3 +451,287 @@ describe('UI Components', () => {
 الوقت الإجمالي المقدر: 16 ساعة عمل
 
 كل هذه النقاط ستجعل النظام جاهزاً 100% للإنتاج بمستوى احترافي! 🚀
+
+❌ الدوال المفقودة من الإصدار القديم:
+1. دوال إدارة الحجوزات المتقدمة ❌
+javascript
+// 📍 الملف: admin-dashboard.js
+// ❌ ناقصة تماماً
+
+// تأكيد الحجز مع خصم
+async function confirmBookingWithDiscount(bookingId, discountAmount) {
+    try {
+        const response = await fetch(`/api/bookings/${bookingId}/confirm-with-discount`, {
+            method: 'POST',
+            headers: this.getAuthHeaders(),
+            body: JSON.stringify({ discount_amount: discountAmount })
+        });
+        if (response.ok) {
+            this.showAlert('تم تأكيد الحجز مع الخصم', 'success');
+            this.loadBookings();
+        }
+    } catch (error) {
+        this.handleApiError(error, 'confirmBookingWithDiscount');
+    }
+}
+
+// إعادة جدولة الحجز
+async function rescheduleBooking(bookingId, newDate, newTime) {
+    try {
+        const response = await fetch(`/api/bookings/${bookingId}/reschedule`, {
+            method: 'PUT',
+            headers: this.getAuthHeaders(),
+            body: JSON.stringify({ 
+                new_date: newDate, 
+                new_time: newTime 
+            })
+        });
+        if (response.ok) {
+            this.showAlert('تم إعادة جدولة الحجز', 'success');
+            this.loadBookings();
+        }
+    } catch (error) {
+        this.handleApiError(error, 'rescheduleBooking');
+    }
+}
+2. دوال إدارة الخصومات والأكواد ❌
+javascript
+// 📍 الملف: admin-dashboard.js
+// ❌ ناقصة تماماً
+
+// إنشاء كود خصم جديد
+async function createDiscountCode(codeData) {
+    try {
+        const response = await fetch('/api/discount-codes', {
+            method: 'POST',
+            headers: this.getAuthHeaders(),
+            body: JSON.stringify(codeData)
+        });
+        if (response.ok) {
+            this.showAlert('تم إنشاء كود الخصم بنجاح', 'success');
+        }
+    } catch (error) {
+        this.handleApiError(error, 'createDiscountCode');
+    }
+}
+
+// إدارة أكواد الخصم
+async function loadDiscountCodes() {
+    try {
+        const response = await fetch('/api/discount-codes', {
+            headers: this.getAuthHeaders()
+        });
+        if (response.ok) {
+            const result = await response.json();
+            this.discountCodes = result.codes || [];
+            this.updateDiscountCodesTable();
+        }
+    } catch (error) {
+        this.handleApiError(error, 'loadDiscountCodes');
+    }
+}
+
+// تحديث كود خصم
+async function updateDiscountCode(codeId, updateData) {
+    try {
+        const response = await fetch(`/api/discount-codes/${codeId}`, {
+            method: 'PUT',
+            headers: this.getAuthHeaders(),
+            body: JSON.stringify(updateData)
+        });
+        if (response.ok) {
+            this.showAlert('تم تحديث كود الخصم', 'success');
+            this.loadDiscountCodes();
+        }
+    } catch (error) {
+        this.handleApiError(error, 'updateDiscountCode');
+    }
+}
+3. دوال إدارة الحجوزات الجماعية ❌
+javascript
+// 📍 الملف: admin-dashboard.js
+// ❌ ناقصة تماماً
+
+// حذف حجوزات جماعي
+async function bulkDeleteBookings(bookingIds) {
+    try {
+        const response = await fetch('/api/bookings/bulk-delete', {
+            method: 'POST',
+            headers: this.getAuthHeaders(),
+            body: JSON.stringify({ booking_ids: bookingIds })
+        });
+        if (response.ok) {
+            this.showAlert(`تم حذف ${bookingIds.length} حجز`, 'success');
+            this.loadBookings();
+        }
+    } catch (error) {
+        this.handleApiError(error, 'bulkDeleteBookings');
+    }
+}
+
+// تحديث حالة حجوزات جماعي
+async function bulkUpdateBookingStatus(bookingIds, newStatus) {
+    try {
+        const response = await fetch('/api/bookings/bulk-update-status', {
+            method: 'PUT',
+            headers: this.getAuthHeaders(),
+            body: JSON.stringify({ 
+                booking_ids: bookingIds, 
+                new_status: newStatus 
+            })
+        });
+        if (response.ok) {
+            this.showAlert(`تم تحديث ${bookingIds.length} حجز`, 'success');
+            this.loadBookings();
+        }
+    } catch (error) {
+        this.handleApiError(error, 'bulkUpdateBookingStatus');
+    }
+}
+4. دوال الإحصائيات المتقدمة ❌
+javascript
+// 📍 الملف: admin-dashboard.js
+// ❌ ناقصة تماماً
+
+// إحصائيات الأداء اليومي
+async function loadDailyPerformanceStats(date) {
+    try {
+        const response = await fetch(`/api/stats/daily-performance?date=${date}`, {
+            headers: this.getAuthHeaders()
+        });
+        if (response.ok) {
+            const result = await response.json();
+            this.dailyStats = result.stats || {};
+            this.updateDailyPerformanceChart();
+        }
+    } catch (error) {
+        this.handleApiError(error, 'loadDailyPerformanceStats');
+    }
+}
+
+// تقرير الإيرادات التفصيلي
+async function generateRevenueReport(startDate, endDate, groupBy = 'daily') {
+    try {
+        const response = await fetch('/api/reports/revenue-detailed', {
+            method: 'POST',
+            headers: this.getAuthHeaders(),
+            body: JSON.stringify({
+                start_date: startDate,
+                end_date: endDate,
+                group_by: groupBy
+            })
+        });
+        if (response.ok) {
+            const result = await response.json();
+            this.revenueReport = result.report || {};
+            this.displayRevenueReport();
+        }
+    } catch (error) {
+        this.handleApiError(error, 'generateRevenueReport');
+    }
+}
+5. دوال إدارة الإشعارات المتقدمة ❌
+javascript
+// 📍 الملف: admin-dashboard.js
+// ❌ ناقصة تماماً
+
+// إرسال إشعارات جماعية
+async function sendBulkNotification(notificationData) {
+    try {
+        const response = await fetch('/api/notifications/bulk-send', {
+            method: 'POST',
+            headers: this.getAuthHeaders(),
+            body: JSON.stringify(notificationData)
+        });
+        if (response.ok) {
+            this.showAlert('تم إرسال الإشعارات الجماعية', 'success');
+            this.loadNotifications();
+        }
+    } catch (error) {
+        this.handleApiError(error, 'sendBulkNotification');
+    }
+}
+
+// قوالب الإشعارات
+async function loadNotificationTemplates() {
+    try {
+        const response = await fetch('/api/notification-templates', {
+            headers: this.getAuthHeaders()
+        });
+        if (response.ok) {
+            const result = await response.json();
+            this.notificationTemplates = result.templates || [];
+            this.updateNotificationTemplates();
+        }
+    } catch (error) {
+        this.handleApiError(error, 'loadNotificationTemplates');
+    }
+}
+6. دوال النسخ الاحتياطي والاستعادة ❌
+javascript
+// 📍 الملف: admin-dashboard.js
+// ❌ ناقصة تماماً
+
+// إنشاء نسخة احتياطية
+async function createBackup() {
+    try {
+        this.showAlert('جاري إنشاء النسخة الاحتياطية...', 'info');
+        const response = await fetch('/api/backup/create', {
+            method: 'POST',
+            headers: this.getAuthHeaders()
+        });
+        if (response.ok) {
+            const result = await response.json();
+            this.showAlert(`تم إنشاء النسخة الاحتياطية: ${result.backup_file}`, 'success');
+        }
+    } catch (error) {
+        this.handleApiError(error, 'createBackup');
+    }
+}
+
+// استعادة نسخة احتياطية
+async function restoreBackup(backupFile) {
+    try {
+        if (!confirm('هل أنت متأكد من استعادة هذه النسخة؟ سيتم استبدال جميع البيانات الحالية.')) {
+            return;
+        }
+        
+        const response = await fetch('/api/backup/restore', {
+            method: 'POST',
+            headers: this.getAuthHeaders(),
+            body: JSON.stringify({ backup_file: backupFile })
+        });
+        if (response.ok) {
+            this.showAlert('تم استعادة النسخة الاحتياطية بنجاح', 'success');
+            setTimeout(() => {
+                location.reload(); // إعادة تحميل الصفحة
+            }, 2000);
+        }
+    } catch (error) {
+        this.handleApiError(error, 'restoreBackup');
+    }
+}
+📊 ملخص الدوال الناقصة:
+النوع	عدد الدوال الناقصة	الأهمية
+إدارة الحجوزات المتقدمة	4 دوال	🟡 متوسطة
+إدارة الخصومات	3 دوال	🟢 مهمة
+إجراءات جماعية	2 دوال	🟡 متوسطة
+إحصائيات متقدمة	2 دوال	🟢 مهمة
+إشعارات متقدمة	2 دوال	🔴 منخفضة
+نسخ احتياطي	2 دوال	🟢 مهمة
+🎯 التوصية:
+الدوال المهمة والضرورية التي يجب إضافتها فوراً:
+إدارة الخصومات - ضرورية للتجارة
+
+النسخ الاحتياطي - ضرورية للأمان
+
+الإحصائيات المتقدمة - مهمة لاتخاذ القرارات
+
+الدوال التي يمكن تأجيلها:
+الإشعارات المتقدمة
+
+الإجراءات الجماعية (يمكن تعويضها بالإجراءات الفردية)
+
+الوقت المقدر لإضافة الدوال المهمة: 8-10 ساعات عمل
+
+هل تريدني أن أكمل كتابة هذه الدوال الناقصة؟
