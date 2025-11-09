@@ -1,0 +1,453 @@
+📋 القائمة التفصيلية للنقاط الناقصة
+1. 🔧 إكمال دالة addTimeSlots()
+الملف: admin-dashboard.js و owner-dashboard.js
+الكود الحالي (غير مكتمل):
+
+javascript
+async function addTimeSlots() {
+    adminSystem.showAlert('هذه الخاصية قيد التطوير', 'info');
+}
+الكود المطلوب:
+
+javascript
+async function addTimeSlots() {
+    const stadiumId = document.getElementById('stadiumSelect').value;
+    const date = document.getElementById('slotDate').value;
+    const startTime = document.getElementById('startTime').value;
+    const endTime = document.getElementById('endTime').value;
+    
+    if (!stadiumId || !date || !startTime || !endTime) {
+        adminSystem.showAlert('يرجى ملء جميع الحقول', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/time-slots/batch', {
+            method: 'POST',
+            headers: adminSystem.getAuthHeaders(),
+            body: JSON.stringify({
+                stadium_id: parseInt(stadiumId),
+                date: date,
+                start_time: startTime,
+                end_time: endTime,
+                price: 200, // السعر الافتراضي أو من إعدادات الملعب
+                interval: 60 // دقائق بين كل فترة
+            })
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            adminSystem.showAlert(`✅ تم إضافة ${result.added_slots} ساعة بنجاح`, 'success');
+            
+            // تحديث العرض
+            await adminSystem.loadTimeSlots(stadiumId, date);
+            
+            // إعادة تعيين الحقول
+            document.getElementById('startTime').value = '08:00';
+            document.getElementById('endTime').value = '22:00';
+        } else {
+            const error = await response.json();
+            adminSystem.showAlert(`❌ ${error.message || 'فشل في إضافة الساعات'}`, 'danger');
+        }
+    } catch (error) {
+        console.error('Error adding time slots:', error);
+        adminSystem.showAlert('❌ حدث خطأ في الإتصال بالخادم', 'danger');
+    }
+}
+2. 🔧 إكمال دالة generateReport()
+الملف: admin-dashboard.js
+الكود المطلوب:
+
+javascript
+async function generateReport() {
+    try {
+        // عرض نافذة اختيار نوع التقرير
+        const reportType = prompt('اختر نوع التقرير:\n1. تقرير شهري\n2. تقرير ربع سنوي\n3. تقرير سنوي', '1');
+        
+        let period = '';
+        switch(reportType) {
+            case '1': period = 'monthly'; break;
+            case '2': period = 'quarterly'; break;
+            case '3': period = 'yearly'; break;
+            default: return;
+        }
+
+        adminSystem.showLoading('reports', 'جاري إنشاء التقرير...');
+
+        const response = await fetch('/api/admin-reports/generate', {
+            method: 'POST',
+            headers: adminSystem.getAuthHeaders(),
+            body: JSON.stringify({
+                report_type: period,
+                start_date: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+                end_date: new Date().toISOString().split('T')[0],
+                include_charts: true,
+                format: 'pdf'
+            })
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            
+            // عرض معاينة التقرير
+            const reportPreview = `
+                <div class="alert alert-success">
+                    <h5>✅ تم إنشاء التقرير بنجاح</h5>
+                    <p><strong>نوع التقرير:</strong> ${period === 'monthly' ? 'شهري' : period === 'quarterly' ? 'ربع سنوي' : 'سنوي'}</p>
+                    <p><strong>الفترة:</strong> ${result.period_start} إلى ${result.period_end}</p>
+                    <p><strong>إجمالي الإيرادات:</strong> ${result.total_revenue} ج.م</p>
+                    <p><strong>عدد الحجوزات:</strong> ${result.total_bookings}</p>
+                    <div class="mt-3">
+                        <button class="btn btn-primary me-2" onclick="downloadReport(${result.report_id}, 'pdf')">
+                            <i class="bi bi-download me-1"></i>تحميل PDF
+                        </button>
+                        <button class="btn btn-success" onclick="downloadReport(${result.report_id}, 'excel')">
+                            <i class="bi bi-file-excel me-1"></i>تحميل Excel
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('reports').innerHTML = reportPreview;
+        } else {
+            throw new Error('Failed to generate report');
+        }
+    } catch (error) {
+        console.error('Error generating report:', error);
+        adminSystem.showAlert('❌ حدث خطأ أثناء إنشاء التقرير', 'danger');
+    }
+}
+
+// دالة مساعدة لتحميل التقرير
+async function downloadReport(reportId, format) {
+    try {
+        const response = await fetch(`/api/admin-reports/${reportId}/download?format=${format}`, {
+            headers: adminSystem.getAuthHeaders()
+        });
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `report-${reportId}.${format}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            adminSystem.showAlert('✅ تم تحميل التقرير بنجاح', 'success');
+        } else {
+            throw new Error('Failed to download report');
+        }
+    } catch (error) {
+        console.error('Error downloading report:', error);
+        adminSystem.showAlert('❌ حدث خطأ أثناء تحميل التقرير', 'danger');
+    }
+}
+3. 🔧 إكمال دوال التصدير exportToPDF() و exportToExcel()
+الملف: admin-dashboard.js و owner-dashboard.js
+الكود المطلوب:
+
+javascript
+async function exportToPDF() {
+    try {
+        const currentTab = document.querySelector('.tab-pane.active').id;
+        let endpoint = '';
+        let filename = '';
+
+        switch(currentTab) {
+            case 'reports':
+                endpoint = '/api/export/reports/pdf';
+                filename = `reports-${new Date().toISOString().split('T')[0]}.pdf`;
+                break;
+            case 'bookings':
+                endpoint = '/api/export/bookings/pdf';
+                filename = `bookings-${new Date().toISOString().split('T')[0]}.pdf`;
+                break;
+            case 'payments':
+                endpoint = '/api/export/payments/pdf';
+                filename = `payments-${new Date().toISOString().split('T')[0]}.pdf`;
+                break;
+            default:
+                endpoint = '/api/export/dashboard/pdf';
+                filename = `dashboard-${new Date().toISOString().split('T')[0]}.pdf`;
+        }
+
+        adminSystem.showAlert('جاري تحضير الملف...', 'info');
+
+        const response = await fetch(endpoint, {
+            headers: adminSystem.getAuthHeaders()
+        });
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            adminSystem.showAlert('✅ تم تصدير PDF بنجاح', 'success');
+        } else {
+            throw new Error('Failed to export PDF');
+        }
+    } catch (error) {
+        console.error('Error exporting PDF:', error);
+        adminSystem.showAlert('❌ حدث خطأ أثناء تصدير PDF', 'danger');
+    }
+}
+
+async function exportToExcel() {
+    try {
+        const currentTab = document.querySelector('.tab-pane.active').id;
+        let data = [];
+        let filename = '';
+
+        switch(currentTab) {
+            case 'bookings':
+                data = adminSystem.allBookings;
+                filename = `bookings-${new Date().toISOString().split('T')[0]}.xlsx`;
+                break;
+            case 'payments':
+                data = adminSystem.allPayments;
+                filename = `payments-${new Date().toISOString().split('T')[0]}.xlsx`;
+                break;
+            case 'users':
+                data = adminSystem.allUsers;
+                filename = `users-${new Date().toISOString().split('T')[0]}.xlsx`;
+                break;
+            default:
+                data = [
+                    ...adminSystem.allBookings,
+                    ...adminSystem.allPayments,
+                    ...adminSystem.allUsers
+                ];
+                filename = `export-${new Date().toISOString().split('T')[0]}.xlsx`;
+        }
+
+        adminSystem.showAlert('جاري تحضير الملف...', 'info');
+
+        const response = await fetch('/api/export/excel', {
+            method: 'POST',
+            headers: adminSystem.getAuthHeaders(),
+            body: JSON.stringify({
+                data: data,
+                filename: filename,
+                sheet_name: currentTab
+            })
+        });
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            adminSystem.showAlert('✅ تم تصدير Excel بنجاح', 'success');
+        } else {
+            throw new Error('Failed to export Excel');
+        }
+    } catch (error) {
+        console.error('Error exporting Excel:', error);
+        adminSystem.showAlert('❌ حدث خطأ أثناء تصدير Excel', 'danger');
+    }
+}
+4. 🛠️ تحسين معالجة الأخطاء
+الملف: admin-dashboard.js و owner-dashboard.js
+أضف هذه الدوال في قسم معالجة الأخطاء:
+
+javascript
+// دالة محسنة لمعالجة الأخطاء
+handleApiError(error, context) {
+    console.error(`❌ Error in ${context}:`, error);
+    
+    let userMessage = 'حدث خطأ غير متوقع';
+    
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        userMessage = 'تعذر الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت.';
+    } else if (error.response) {
+        // خطأ من الخادم
+        switch(error.response.status) {
+            case 401:
+                userMessage = 'انتهت جلستك. يرجى تسجيل الدخول مرة أخرى.';
+                this.handleAuthError();
+                return;
+            case 403:
+                userMessage = 'ليس لديك صلاحية للقيام بهذا الإجراء.';
+                break;
+            case 404:
+                userMessage = 'لم يتم العثور على البيانات المطلوبة.';
+                break;
+            case 500:
+                userMessage = 'خطأ في الخادم. يرجى المحاولة لاحقاً.';
+                break;
+            default:
+                userMessage = error.response.data?.message || `خطأ في الخادم (${error.response.status})`;
+        }
+    } else if (error.request) {
+        userMessage = 'تعذر الاتصال بالخادم. يرجى التحقق من اتصال الشبكة.';
+    }
+    
+    this.showAlert(`❌ ${userMessage}`, 'danger');
+    
+    // تسجيل الخطأ للتصحيح
+    this.logError({
+        context: context,
+        error: error.message,
+        timestamp: new Date().toISOString(),
+        user: this.currentUser?.username
+    });
+}
+
+// دالة تسجيل الأخطاء
+logError(errorData) {
+    // يمكن إرسال الأخطاء لخدمة مراقبة أو حفظها محلياً
+    if (process.env.NODE_ENV === 'development') {
+        console.log('📝 Error Log:', errorData);
+    }
+    
+    // حفظ في localStorage للتصحيح
+    const errorLogs = JSON.parse(localStorage.getItem('errorLogs') || '[]');
+    errorLogs.push(errorData);
+    if (errorLogs.length > 100) errorLogs.shift(); // حفظ آخر 100 خطأ فقط
+    localStorage.setItem('errorLogs', JSON.stringify(errorLogs));
+}
+
+// مثال على استخدام محسن في دالة التحميل
+async function loadPitchesWithRetry() {
+    const maxRetries = 3;
+    let retries = 0;
+    
+    while (retries < maxRetries) {
+        try {
+            await adminSystem.loadPitches();
+            break; // نجح، نخرج من الحلقة
+        } catch (error) {
+            retries++;
+            if (retries === maxRetries) {
+                adminSystem.handleApiError(error, 'loadPitches');
+            } else {
+                console.log(`🔄 Retry ${retries}/${maxRetries} for loadPitches`);
+                await new Promise(resolve => setTimeout(resolve, 1000 * retries)); // انتظار تصاعدي
+            }
+        }
+    }
+}
+5. 📋 توثيق الـ APIs المطلوبة
+إنشاء ملف: api-endpoints.md
+markdown
+# 📡 API Endpoints Documentation
+
+## 🔐 Authentication
+- `POST /api/login` - تسجيل الدخول
+- `GET /api/current-user` - بيانات المستخدم الحالي
+- `POST /api/logout` - تسجيل الخروج
+
+## 🏟️ Stadiums Management
+- `GET /api/stadiums` - جميع الملاعب (للأدمن)
+- `GET /api/owner/stadiums` - ملاعب المدير
+- `POST /api/stadiums` - إضافة ملعب جديد
+- `PUT /api/stadiums/:id` - تحديث بيانات الملعب
+- `DELETE /api/stadiums/:id` - حذف ملعب
+
+## 📅 Bookings Management
+- `GET /api/bookings` - جميع الحجوزات (للأدمن)
+- `GET /api/owner/bookings` - حجوزات المدير
+- `POST /api/owner/bookings/:id/confirm` - تأكيد الحجز
+- `POST /api/owner/bookings/:id/cancel` - إلغاء الحجز
+
+## 🕒 Time Slots Management
+- `GET /api/owner/time-slots/:stadium_id` - ساعات الملعب
+- `POST /api/time-slots/batch` - إضافة ساعات جديدة
+- `PUT /api/time-slots/:id` - تحديث ساعة
+- `DELETE /api/time-slots/:id` - حذف ساعة
+
+## 👥 Users Management
+- `GET /api/users` - إدارة المستخدمين
+- `PUT /api/users/:id/approve` - تفعيل مستخدم
+- `PUT /api/users/:id/status` - تغيير حالة المستخدم
+
+## 💰 Payments
+- `GET /api/payments` - جميع المدفوعات
+- `GET /api/owner/payments` - مدفوعات المدير
+
+## 📊 Reports & Export
+- `POST /api/admin-reports/generate` - إنشاء تقرير
+- `GET /api/export/:type/pdf` - تصدير PDF
+- `POST /api/export/excel` - تصدير Excel
+6. 🧪 إضافة اختبارات أساسية
+إنشاء ملف: admin-system.test.js
+javascript
+// اختبارات أساسية للنظام
+describe('Admin Management System', () => {
+    let adminSystem;
+
+    beforeEach(() => {
+        adminSystem = new AdminManagementSystem();
+    });
+
+    test('should initialize with correct default values', () => {
+        expect(adminSystem.userRole).toBe('admin');
+        expect(adminSystem.allBookings).toEqual([]);
+        expect(adminSystem.allPitches).toEqual([]);
+    });
+
+    test('should generate correct status badge classes', () => {
+        expect(adminSystem.getStatusBadgeClass('confirmed')).toBe('bg-success');
+        expect(adminSystem.getStatusBadgeClass('pending')).toBe('bg-warning');
+        expect(adminSystem.getStatusBadgeClass('cancelled')).toBe('bg-danger');
+    });
+
+    test('should handle authentication errors correctly', () => {
+        const mockError = { 
+            response: { status: 401 },
+            message: 'Unauthorized' 
+        };
+        
+        adminSystem.handleApiError(mockError, 'test');
+        // يجب أن يتم إعادة التوجيه لصفحة تسجيل الدخول
+    });
+});
+
+// اختبارات واجهة المستخدم
+describe('UI Components', () => {
+    test('should show loading state correctly', () => {
+        document.body.innerHTML = '<div id="testContainer"></div>';
+        adminSystem.showLoading('testContainer', 'جاري التحميل...');
+        
+        expect(document.getElementById('testContainer').innerHTML).toContain('loading-spinner');
+    });
+
+    test('should show alerts correctly', () => {
+        adminSystem.showAlert('Test message', 'success');
+        expect(document.getElementById('alertsContainer').innerHTML).toContain('Test message');
+    });
+});
+🎯 خطة التنفيذ:
+الأسبوع الأول:
+إكمال دوال إدارة الساعات (2 ساعة)
+
+تحسين معالجة الأخطاء (3 ساعات)
+
+الأسبوع الثاني:
+إكمال نظام التقارير (4 ساعات)
+
+توثيق الـ APIs (2 ساعة)
+
+الأسبوع الثالث:
+إضافة الاختبارات (3 ساعات)
+
+المراجعة النهائية (2 ساعة)
+
+الوقت الإجمالي المقدر: 16 ساعة عمل
+
+كل هذه النقاط ستجعل النظام جاهزاً 100% للإنتاج بمستوى احترافي! 🚀
