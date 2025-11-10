@@ -520,6 +520,11 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" href="#notifications" data-bs-toggle="tab">
+                                <i class="bi bi-bell me-2"></i>الإشعارات
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" href="#payments" data-bs-toggle="tab">
                                 <i class="bi bi-credit-card me-2"></i>المدفوعات
                             </a>
@@ -673,6 +678,9 @@
                                 <button class="btn btn-success" onclick="exportBookings()">
                                     <i class="bi bi-file-earmark-excel me-1"></i>تصدير
                                 </button>
+                                <button class="btn btn-warning" onclick="sendBulkNotification()">
+                                    <i class="bi bi-send me-1"></i>إرسال إشعار
+                                </button>
                             </div>
                         </div>
 
@@ -703,6 +711,9 @@
                     <div class="tab-pane fade" id="my-pitches">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h4>الملاعب التي أديرها</h4>
+                            <button class="btn btn-primary" onclick="generateDetailedReport()">
+                                <i class="bi bi-graph-up me-1"></i>تقرير مفصل
+                            </button>
                         </div>
 
                         <!-- فلترة الملاعب -->
@@ -789,6 +800,43 @@
                         </div>
                     </div>
 
+                    <!-- تبويب الإشعارات -->
+                    <div class="tab-pane fade" id="notifications">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h4>الإشعارات وسجل الأنشطة</h4>
+                            <button class="btn btn-primary" onclick="loadNotificationTemplates()">
+                                <i class="bi bi-plus-circle me-1"></i>قالب جديد
+                            </button>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="card card-hover">
+                                    <div class="card-header bg-primary text-white">
+                                        <h5 class="mb-0"><i class="bi bi-bell me-2"></i>الإشعارات الحديثة</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="notificationsList">
+                                            <!-- سيتم تعبئة الإشعارات هنا -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card card-hover">
+                                    <div class="card-header bg-info text-white">
+                                        <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>سجل الأنشطة</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="activityLog">
+                                            <!-- سيتم تعبئة سجل الأنشطة هنا -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- تبويب المدفوعات -->
                     <div class="tab-pane fade" id="payments">
                         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -847,6 +895,9 @@
                                 </button>
                                 <button class="btn btn-success" onclick="exportToExcel()">
                                     <i class="bi bi-file-excel me-1"></i>تصدير Excel
+                                </button>
+                                <button class="btn btn-info" onclick="generateReport()">
+                                    <i class="bi bi-graph-up me-1"></i>تقرير مخصص
                                 </button>
                             </div>
                         </div>
@@ -910,6 +961,18 @@
                                 <div class="chart-container">
                                     <h5 class="mb-3">توزيع الحجوزات</h5>
                                     <canvas id="bookingsChart" height="150"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- تقارير PDF و Excel -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <div class="chart-container">
+                                    <h5 class="mb-3">التقارير المحفوظة</h5>
+                                    <div id="savedReportsList">
+                                        <!-- سيتم تعبئة التقارير المحفوظة هنا -->
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1030,10 +1093,44 @@
         </div>
     </div>
 
+    <!-- مودال إرسال إشعار -->
+    <div class="modal fade modal-blur" id="sendNotificationModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content modal-scale">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">إرسال إشعار للعملاء</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="notificationModalContent">
+                    <!-- سيتم تعبئة النموذج هنا -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <script>
+        // 🔐 حماية الوصول - تضيفها في بداية الـ script
+        (function checkAuth() {
+            const userData = localStorage.getItem('user');
+            if (!userData) {
+                window.location.href = '/login.html';
+                return;
+            }
+            
+            const user = JSON.parse(userData);
+            const allowedRoles = ['owner', 'manager'];
+            
+            if (!allowedRoles.includes(user.role)) {
+                window.location.href = '/unauthorized.html';
+                return;
+            }
+            
+            console.log('✅ تم التحقق من الصلاحيات:', user.role);
+        })();
+
         // 🚀 نظام إدارة صاحب الملعب - ملف مدمج
         class OwnerManagementSystem {
             constructor() {
@@ -1095,6 +1192,8 @@
                 await this.loadBookings();
                 await this.loadPayments();
                 await this.loadOwnerStats();
+                await this.loadNotifications();
+                await this.loadActivityLog();
                 console.log('✅ تم تحميل بيانات صاحب الملعب بنجاح');
             }
 
@@ -1165,6 +1264,38 @@
                 }
             }
 
+            // 🔔 تحميل الإشعارات
+            async loadNotifications() {
+                try {
+                    const response = await fetch('/api/owner/notifications', {
+                        headers: this.getAuthHeaders()
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        this.displayNotifications(result.notifications || []);
+                    }
+                } catch (error) {
+                    console.error('❌ خطأ في تحميل الإشعارات:', error);
+                }
+            }
+
+            // 📝 تحميل سجل الأنشطة
+            async loadActivityLog() {
+                try {
+                    const response = await fetch('/api/owner/activity-log', {
+                        headers: this.getAuthHeaders()
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        this.displayActivityLog(result.activities || []);
+                    }
+                } catch (error) {
+                    console.error('❌ خطأ في تحميل سجل الأنشطة:', error);
+                }
+            }
+
             // 📊 تحميل إحصائيات المدير
             async loadOwnerStats() {
                 try {
@@ -1195,6 +1326,51 @@
                 document.getElementById('userInfo').textContent = `مرحبًا ${this.currentUser.username}`;
                 document.getElementById('userInfoSidebar').textContent = `مرحبًا ${this.currentUser.username}`;
                 document.getElementById('userRoleDisplay').textContent = 'صاحب الملعب';
+            }
+
+            // 🔔 عرض الإشعارات
+            displayNotifications(notifications) {
+                const container = document.getElementById('notificationsList');
+                
+                if (notifications.length === 0) {
+                    container.innerHTML = this.getEmptyState('bell', 'لا توجد إشعارات', 'سيظهر هنا أحدث الإشعارات');
+                    return;
+                }
+
+                container.innerHTML = notifications.map(notification => `
+                    <div class="notification-item alert alert-${notification.type || 'info'}">
+                        <div class="d-flex justify-content-between">
+                            <h6 class="alert-heading">${notification.title}</h6>
+                            <small>${new Date(notification.created_at).toLocaleDateString('ar-EG')}</small>
+                        </div>
+                        <p class="mb-1">${notification.message}</p>
+                        ${notification.action_url ? `
+                            <a href="${notification.action_url}" class="btn btn-sm btn-outline-primary">عرض</a>
+                        ` : ''}
+                    </div>
+                `).join('');
+            }
+
+            // 📝 عرض سجل الأنشطة
+            displayActivityLog(activities) {
+                const container = document.getElementById('activityLog');
+                
+                if (activities.length === 0) {
+                    container.innerHTML = this.getEmptyState('clock-history', 'لا توجد أنشطة', 'سيظهر هنا سجل الأنشطة الحديثة');
+                    return;
+                }
+
+                container.innerHTML = activities.slice(0, 10).map(activity => `
+                    <div class="d-flex mb-2">
+                        <div class="flex-shrink-0">
+                            <i class="bi bi-${activity.icon || 'circle'} text-${activity.type || 'muted'}"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <small class="d-block">${activity.description}</small>
+                            <small class="text-muted">${new Date(activity.timestamp).toLocaleString('ar-EG')}</small>
+                        </div>
+                    </div>
+                `).join('');
             }
 
             // 🏟️ عرض الملاعب المُدارة
@@ -1634,6 +1810,62 @@
                         <p class="text-muted">${message}</p>
                     </div>
                 `;
+            }
+
+            // 🧠 معالجة الأخطاء المحسنة
+            handleApiError(error, context) {
+                console.error(`❌ Error in ${context}:`, error);
+                
+                let userMessage = 'حدث خطأ غير متوقع';
+                
+                if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                    userMessage = 'تعذر الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت.';
+                } else if (error.response) {
+                    // خطأ من الخادم
+                    switch(error.response.status) {
+                        case 401:
+                            userMessage = 'انتهت جلستك. يرجى تسجيل الدخول مرة أخرى.';
+                            this.handleAuthError();
+                            return;
+                        case 403:
+                            userMessage = 'ليس لديك صلاحية للقيام بهذا الإجراء.';
+                            break;
+                        case 404:
+                            userMessage = 'لم يتم العثور على البيانات المطلوبة.';
+                            break;
+                        case 500:
+                            userMessage = 'خطأ في الخادم. يرجى المحاولة لاحقاً.';
+                            break;
+                        default:
+                            userMessage = error.response.data?.message || `خطأ في الخادم (${error.response.status})`;
+                    }
+                } else if (error.request) {
+                    userMessage = 'تعذر الاتصال بالخادم. يرجى التحقق من اتصال الشبكة.';
+                }
+                
+                this.showAlert(`❌ ${userMessage}`, 'danger');
+                
+                // تسجيل الخطأ للتصحيح
+                this.logError({
+                    context: context,
+                    error: error.message,
+                    timestamp: new Date().toISOString(),
+                    user: this.currentUser?.username
+                });
+            }
+
+            // دالة تسجيل الأخطاء
+            logError(errorData) {
+                // يمكن إرسال الأخطاء لخدمة مراقبة أو حفظها محلياً
+                if (process.env.NODE_ENV === 'development') {
+                    console.log('📝 Error Log:', errorData);
+                }
+                
+                // حفظ في localStorage للتصحيح
+                const errorLogs = JSON.parse(localStorage.getItem('errorLogs') || '[]');
+                errorLogs.push(errorData);
+                if (errorLogs.length > 100) errorLogs.shift(); // حفظ آخر 100 خطأ فقط
+                localStorage.setItem('errorLogs', JSON.stringify(errorLogs));
             }
 
             // 🎯 دوال الإجراءات
@@ -2219,62 +2451,6 @@
                 localStorage.removeItem('authToken');
                 window.location.href = '/login.html';
             }
-
-            // 🛠️ دوال معالجة الأخطاء المحسنة (التعديلات المطلوبة)
-            handleApiError(error, context) {
-                console.error(`❌ Error in ${context}:`, error);
-                
-                let userMessage = 'حدث خطأ غير متوقع';
-                
-                if (error.name === 'TypeError' && error.message.includes('fetch')) {
-                    userMessage = 'تعذر الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت.';
-                } else if (error.response) {
-                    // خطأ من الخادم
-                    switch(error.response.status) {
-                        case 401:
-                            userMessage = 'انتهت جلستك. يرجى تسجيل الدخول مرة أخرى.';
-                            this.handleAuthError();
-                            return;
-                        case 403:
-                            userMessage = 'ليس لديك صلاحية للقيام بهذا الإجراء.';
-                            break;
-                        case 404:
-                            userMessage = 'لم يتم العثور على البيانات المطلوبة.';
-                            break;
-                        case 500:
-                            userMessage = 'خطأ في الخادم. يرجى المحاولة لاحقاً.';
-                            break;
-                        default:
-                            userMessage = error.response.data?.message || `خطأ في الخادم (${error.response.status})`;
-                    }
-                } else if (error.request) {
-                    userMessage = 'تعذر الاتصال بالخادم. يرجى التحقق من اتصال الشبكة.';
-                }
-                
-                this.showAlert(`❌ ${userMessage}`, 'danger');
-                
-                // تسجيل الخطأ للتصحيح
-                this.logError({
-                    context: context,
-                    error: error.message,
-                    timestamp: new Date().toISOString(),
-                    user: this.currentUser?.username
-                });
-            }
-
-            // دالة تسجيل الأخطاء
-            logError(errorData) {
-                // يمكن إرسال الأخطاء لخدمة مراقبة أو حفظها محلياً
-                if (process.env.NODE_ENV === 'development') {
-                    console.log('📝 Error Log:', errorData);
-                }
-                
-                // حفظ في localStorage للتصحيح
-                const errorLogs = JSON.parse(localStorage.getItem('errorLogs') || '[]');
-                errorLogs.push(errorData);
-                if (errorLogs.length > 100) errorLogs.shift(); // حفظ آخر 100 خطأ فقط
-                localStorage.setItem('errorLogs', JSON.stringify(errorLogs));
-            }
         }
 
         // 🌟 تهيئة النظام
@@ -2322,32 +2498,14 @@
             ownerSystem.filterPayments();
         }
 
-        // 📄 دوال التصدير (التعديلات المطلوبة)
+        // 📤 دوال التصدير PDF و Excel
         async function exportToPDF() {
             try {
-                const currentTab = document.querySelector('.tab-pane.active').id;
-                let endpoint = '';
-                let filename = '';
+                const tab = document.querySelector('.tab-pane.active').id;
+                const endpoint = `/api/export/${tab || 'dashboard'}/pdf`;
+                const filename = `${tab}-${new Date().toISOString().split('T')[0]}.pdf`;
 
-                switch(currentTab) {
-                    case 'reports':
-                        endpoint = '/api/export/reports/pdf';
-                        filename = `reports-${new Date().toISOString().split('T')[0]}.pdf`;
-                        break;
-                    case 'bookings':
-                        endpoint = '/api/export/bookings/pdf';
-                        filename = `bookings-${new Date().toISOString().split('T')[0]}.pdf`;
-                        break;
-                    case 'payments':
-                        endpoint = '/api/export/payments/pdf';
-                        filename = `payments-${new Date().toISOString().split('T')[0]}.pdf`;
-                        break;
-                    default:
-                        endpoint = '/api/export/dashboard/pdf';
-                        filename = `dashboard-${new Date().toISOString().split('T')[0]}.pdf`;
-                }
-
-                ownerSystem.showAlert('جاري تحضير الملف...', 'info');
+                ownerSystem.showAlert('جاري التحضير...', 'info');
 
                 const response = await fetch(endpoint, {
                     headers: ownerSystem.getAuthHeaders()
@@ -2363,50 +2521,27 @@
                     a.click();
                     document.body.removeChild(a);
                     window.URL.revokeObjectURL(url);
-                    
-                    ownerSystem.showAlert('✅ تم تصدير PDF بنجاح', 'success');
+                    ownerSystem.showAlert('✅ تم التصدير بنجاح', 'success');
                 } else {
-                    throw new Error('Failed to export PDF');
+                    throw new Error('فشل التصدير');
                 }
             } catch (error) {
-                console.error('Error exporting PDF:', error);
-                ownerSystem.showAlert('❌ حدث خطأ أثناء تصدير PDF', 'danger');
+                ownerSystem.handleApiError(error, 'exportToPDF');
             }
         }
 
         async function exportToExcel() {
             try {
-                const currentTab = document.querySelector('.tab-pane.active').id;
-                let data = [];
-                let filename = '';
+                const tab = document.querySelector('.tab-pane.active').id;
+                const data = ownerSystem[`all${tab.charAt(0).toUpperCase() + tab.slice(1)}`] || [];
+                const filename = `${tab}-${new Date().toISOString().split('T')[0]}.xlsx`;
 
-                switch(currentTab) {
-                    case 'bookings':
-                        data = ownerSystem.allBookings;
-                        filename = `bookings-${new Date().toISOString().split('T')[0]}.xlsx`;
-                        break;
-                    case 'payments':
-                        data = ownerSystem.allPayments;
-                        filename = `payments-${new Date().toISOString().split('T')[0]}.xlsx`;
-                        break;
-                    default:
-                        data = [
-                            ...ownerSystem.allBookings,
-                            ...ownerSystem.allPayments
-                        ];
-                        filename = `export-${new Date().toISOString().split('T')[0]}.xlsx`;
-                }
-
-                ownerSystem.showAlert('جاري تحضير الملف...', 'info');
+                ownerSystem.showAlert('جاري التحضير...', 'info');
 
                 const response = await fetch('/api/export/excel', {
                     method: 'POST',
                     headers: ownerSystem.getAuthHeaders(),
-                    body: JSON.stringify({
-                        data: data,
-                        filename: filename,
-                        sheet_name: currentTab
-                    })
+                    body: JSON.stringify({ data, filename, sheet_name: tab })
                 });
 
                 if (response.ok) {
@@ -2419,14 +2554,196 @@
                     a.click();
                     document.body.removeChild(a);
                     window.URL.revokeObjectURL(url);
-                    
-                    ownerSystem.showAlert('✅ تم تصدير Excel بنجاح', 'success');
+                    ownerSystem.showAlert('✅ تم التصدير بنجاح', 'success');
                 } else {
-                    throw new Error('Failed to export Excel');
+                    throw new Error('فشل التصدير');
                 }
             } catch (error) {
-                console.error('Error exporting Excel:', error);
-                ownerSystem.showAlert('❌ حدث خطأ أثناء تصدير Excel', 'danger');
+                ownerSystem.handleApiError(error, 'exportToExcel');
+            }
+        }
+
+        // 📊 دالة generateReport()
+        async function generateReport() {
+            try {
+                const reportType = prompt('اختر نوع التقرير:\n1. شهري\n2. ربع سنوي\n3. سنوي', '1');
+                let period = reportType === '1' ? 'monthly' : reportType === '2' ? 'quarterly' : 'yearly';
+
+                ownerSystem.showLoading('reports', 'جاري إنشاء التقرير...');
+
+                const response = await fetch('/api/admin-reports/generate', {
+                    method: 'POST',
+                    headers: ownerSystem.getAuthHeaders(),
+                    body: JSON.stringify({
+                        report_type: period,
+                        start_date: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+                        end_date: new Date().toISOString().split('T')[0],
+                        include_charts: true,
+                        format: 'pdf'
+                    })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    document.getElementById('reports').innerHTML = `
+                        <div class="alert alert-success">
+                            <h5>✅ تم إنشاء التقرير</h5>
+                            <p><strong>الفترة:</strong> ${result.period_start} إلى ${result.period_end}</p>
+                            <p><strong>الإيرادات:</strong> ${result.total_revenue} ج.م</p>
+                            <p><strong>الحجوزات:</strong> ${result.total_bookings}</p>
+                            <button class="btn btn-primary" onclick="downloadReport(${result.report_id}, 'pdf')">تحميل PDF</button>
+                            <button class="btn btn-success" onclick="downloadReport(${result.report_id}, 'excel')">تحميل Excel</button>
+                        </div>`;
+                } else {
+                    throw new Error('فشل إنشاء التقرير');
+                }
+            } catch (error) {
+                ownerSystem.handleApiError(error, 'generateReport');
+            }
+        }
+
+        async function downloadReport(reportId, format) {
+            try {
+                const response = await fetch(`/api/admin-reports/${reportId}/download?format=${format}`, {
+                    headers: ownerSystem.getAuthHeaders()
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `report-${reportId}.${format}`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                    ownerSystem.showAlert('✅ تم تحميل التقرير', 'success');
+                } else {
+                    throw new Error('فشل تحميل التقرير');
+                }
+            } catch (error) {
+                ownerSystem.handleApiError(error, 'downloadReport');
+            }
+        }
+
+        // 🔔 دوال الإشعارات
+        async function sendBulkNotification() {
+            const modalContent = document.getElementById('notificationModalContent');
+            modalContent.innerHTML = `
+                <form id="notificationForm">
+                    <div class="mb-3">
+                        <label class="form-label">نوع الإشعار</label>
+                        <select class="form-select" name="type" required>
+                            <option value="info">معلومات عامة</option>
+                            <option value="promotion">عروض خاصة</option>
+                            <option value="maintenance">صيانة</option>
+                            <option value="update">تحديث</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">العنوان</label>
+                        <input type="text" class="form-control" name="title" required placeholder="عنوان الإشعار">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">الرسالة</label>
+                        <textarea class="form-control" name="message" rows="4" required placeholder="نص الإشعار"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">المستلمون</label>
+                        <select class="form-select" name="audience" required>
+                            <option value="all">جميع العملاء</option>
+                            <option value="recent">العملاء الجدد</option>
+                            <option value="active">العملاء النشطين</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">إرسال الإشعار</button>
+                </form>
+            `;
+
+            document.getElementById('notificationForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const data = Object.fromEntries(formData);
+
+                try {
+                    const response = await fetch('/api/notifications/send-bulk', {
+                        method: 'POST',
+                        headers: ownerSystem.getAuthHeaders(),
+                        body: JSON.stringify(data)
+                    });
+
+                    if (response.ok) {
+                        ownerSystem.showAlert('✅ تم إرسال الإشعار بنجاح', 'success');
+                        bootstrap.Modal.getInstance(document.getElementById('sendNotificationModal')).hide();
+                    } else {
+                        throw new Error('فشل إرسال الإشعار');
+                    }
+                } catch (error) {
+                    ownerSystem.handleApiError(error, 'sendBulkNotification');
+                }
+            });
+
+            new bootstrap.Modal(document.getElementById('sendNotificationModal')).show();
+        }
+
+        async function loadNotificationTemplates() {
+            try {
+                const response = await fetch('/api/notification-templates', {
+                    headers: ownerSystem.getAuthHeaders()
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    // عرض القوالب في مودال منفصل
+                    ownerSystem.showAlert('✅ تم تحميل القوالب', 'info');
+                }
+            } catch (error) {
+                ownerSystem.handleApiError(error, 'loadNotificationTemplates');
+            }
+        }
+
+        // 📈 دوال التقارير الإضافية
+        async function generateDetailedReport() {
+            try {
+                ownerSystem.showAlert('جاري إنشاء التقرير المفصل...', 'info');
+                
+                const response = await fetch('/api/owner/detailed-report', {
+                    headers: ownerSystem.getAuthHeaders()
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    const reportWindow = window.open('', '_blank');
+                    reportWindow.document.write(`
+                        <html dir="rtl">
+                        <head>
+                            <title>تقرير مفصل - ${new Date().toLocaleDateString('ar-EG')}</title>
+                            <style>
+                                body { font-family: 'Cairo', sans-serif; padding: 20px; }
+                                .header { text-align: center; margin-bottom: 30px; }
+                                .section { margin-bottom: 20px; }
+                                table { width: 100%; border-collapse: collapse; }
+                                th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+                                th { background-color: #f2f2f2; }
+                            </style>
+                        </head>
+                        <body>
+                            <div class="header">
+                                <h1>تقرير أداء الملاعب</h1>
+                                <p>تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}</p>
+                            </div>
+                            ${result.html_content || '<p>لا توجد بيانات للتقرير</p>'}
+                        </body>
+                        </html>
+                    `);
+                    reportWindow.document.close();
+                } else {
+                    throw new Error('فشل إنشاء التقرير');
+                }
+            } catch (error) {
+                ownerSystem.handleApiError(error, 'generateDetailedReport');
             }
         }
 
