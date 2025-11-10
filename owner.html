@@ -2703,6 +2703,61 @@
             }
         }
 
+            // 🛠️ دوال معالجة الأخطاء المحسنة (التعديلات المطلوبة)
+            handleApiError(error, context) {
+                console.error(`❌ Error in ${context}:`, error);
+                
+                let userMessage = 'حدث خطأ غير متوقع';
+                
+                if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                    userMessage = 'تعذر الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت.';
+                } else if (error.response) {
+                    // خطأ من الخادم
+                    switch(error.response.status) {
+                        case 401:
+                            userMessage = 'انتهت جلستك. يرجى تسجيل الدخول مرة أخرى.';
+                            this.handleAuthError();
+                            return;
+                        case 403:
+                            userMessage = 'ليس لديك صلاحية للقيام بهذا الإجراء.';
+                            break;
+                        case 404:
+                            userMessage = 'لم يتم العثور على البيانات المطلوبة.';
+                            break;
+                        case 500:
+                            userMessage = 'خطأ في الخادم. يرجى المحاولة لاحقاً.';
+                            break;
+                        default:
+                            userMessage = error.response.data?.message || `خطأ في الخادم (${error.response.status})`;
+                    }
+                } else if (error.request) {
+                    userMessage = 'تعذر الاتصال بالخادم. يرجى التحقق من اتصال الشبكة.';
+                }
+                
+                this.showAlert(`❌ ${userMessage}`, 'danger');
+                
+                // تسجيل الخطأ للتصحيح
+                this.logError({
+                    context: context,
+                    error: error.message,
+                    timestamp: new Date().toISOString(),
+                    user: this.currentUser?.username
+                });
+            }
+
+            // دالة تسجيل الأخطاء
+            logError(errorData) {
+                // يمكن إرسال الأخطاء لخدمة مراقبة أو حفظها محلياً
+                if (process.env.NODE_ENV === 'development') {
+                    console.log('📝 Error Log:', errorData);
+                }
+                
+                // حفظ في localStorage للتصحيح
+                const errorLogs = JSON.parse(localStorage.getItem('errorLogs') || '[]');
+                errorLogs.push(errorData);
+                if (errorLogs.length > 100) errorLogs.shift(); // حفظ آخر 100 خطأ فقط
+                localStorage.setItem('errorLogs', JSON.stringify(errorLogs));
+            }
         // 📈 دوال التقارير الإضافية
         async function generateDetailedReport() {
             try {
