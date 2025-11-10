@@ -2150,24 +2150,28 @@
                     <form id="editStadiumForm">
                         <input type="hidden" name="id" value="${stadium.id}">
                         <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">اسم الملعب</label>
-                                <input type="text" class="form-control" name="name" value="${stadium.name}" required>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">اسم الملعب</label>
+                                    <input type="text" class="form-control" name="name" value="${stadium.name}" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">السعر للساعة (جنيه)</label>
+                                        <input type="number" class="form-control" name="price" value="${stadium.price}" required>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">السعر للساعة (جنيه)</label>
-                                <input type="number" class="form-control" name="price" value="${stadium.price}" required>
+                            <div class="mb-3">
+                                <label class="form-label">الموقع</label>
+                                <input type="text" class="form-control" name="location" value="${stadium.location}" required>
                             </div>
+                            <div class="mb-3">
+                                <label class="form-label">المميزات</label>
+                                <input type="text" class="form-control" name="features" value="${stadium.features ? stadium.features.join(', ') : ''}">
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">حفظ التغييرات</button>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label">الموقع</label>
-                            <input type="text" class="form-control" name="location" value="${stadium.location}" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">المميزات</label>
-                            <input type="text" class="form-control" name="features" value="${stadium.features ? stadium.features.join(', ') : ''}">
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100">حفظ التغييرات</button>
                     </form>
                 `;
 
@@ -2766,7 +2770,7 @@
                 window.location.href = '/login.html';
             }
 
-            // 🛠️ دوال معالجة الأخطاء المحسنة (التعديلات المطلوبة)
+            // 🛠️ دوال معالجة الأخطاء المحسنة
             handleApiError(error, context) {
                 console.error(`❌ Error in ${context}:`, error);
                 
@@ -2869,7 +2873,7 @@
             document.getElementById('addPitchForm').dispatchEvent(new Event('submit'));
         }
 
-        // 🕒 دالة إضافة الساعات (التعديلات المطلوبة)
+        // 🕒 دالة إضافة الساعات
         async function addTimeSlots() {
             const stadiumId = document.getElementById('stadiumSelect').value;
             const date = document.getElementById('slotDate').value;
@@ -2915,7 +2919,7 @@
             }
         }
 
-        // 📊 دالة إنشاء التقارير (التعديلات المطلوبة)
+        // 📊 دالة إنشاء التقارير
         async function generateReport() {
             try {
                 // عرض نافذة اختيار نوع التقرير
@@ -3003,7 +3007,7 @@
             }
         }
 
-        // 📄 دوال التصدير (التعديلات المطلوبة)
+        // 📄 دوال التصدير
         async function exportToPDF() {
             try {
                 const currentTab = document.querySelector('.tab-pane.active').id;
