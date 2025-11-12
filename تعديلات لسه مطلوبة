@@ -279,3 +279,65 @@ app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
 "pending" (حجز في انتظار التأكيد)
 
 "confirmed"
+
+
+
+
+1. في server.js
+
+نضيف API endpoints بالترتيب ده:
+
+🔹 جلب الساعات:
+app.get('/api/stadiums/:id/slots', async (req, res) => {
+  const stadiumId = req.params.id;
+  const slots = await execQuery(`
+    SELECT id, date, start_time, end_time, price, status
+    FROM time_slots
+    WHERE stadium_id = $1 AND status = 'available'
+    ORDER BY date, start_time
+  `, [stadiumId]);
+  res.json(slots);
+});
+
+🔹 إنشاء حجز جديد:
+app.post('/api/bookings', async (req, res) => {
+  const { slot_id, name, phone } = req.body;
+  await withTransaction(async (client) => {
+    await client.query(`UPDATE time_slots SET status = 'pending' WHERE id = $1`, [slot_id]);
+    await client.query(`
+      INSERT INTO bookings (pitch_id, customer_name, customer_phone, status, amount)
+      VALUES (
+        (SELECT stadium_id FROM time_slots WHERE id = $1),
+        $2, $3, 'pending', 
+        (SELECT price FROM time_slots WHERE id = $1)
+      )
+    `, [slot_id, name, phone]);
+  });
+  res.json({ message: "Booking created and pending payment" });
+});
+
+🔹 تأكيد الدفع:
+app.post('/api/bookings/:id/confirm', async (req, res) => {
+  await withTransaction(async (client) => {
+    await client.query(`UPDATE bookings SET status = 'confirmed' WHERE id = $1`, [req.params.id]);
+    await client.query(`
+      UPDATE time_slots SET status = 'confirmed' 
+      WHERE id = (SELECT pitch_id FROM bookings WHERE id = $1)
+    `, [req.params.id]);
+  });
+  res.json({ message: "Booking confirmed" });
+});
+
+🔹 إلغاء الحجز:
+app.post('/api/bookings/:id/cancel', async (req, res) => {
+  const { reason } = req.body;
+  await withTransaction(async (client) => {
+    const booking = await client.query(`SELECT * FROM bookings WHERE id = $1`, [req.params.id]);
+    await client.query(`
+      INSERT INTO cancelled_bookings (booking_id, customer_name, customer_phone, reason, cancelled_at)
+      VALUES ($1, $2, $3, $4, NOW())
+    `, [booking.rows[0].id, booking.rows[0].customer_name, booking.rows[0].customer_phone, reason]);
+    await client.query(`UPDATE time_slots SET status = 'available' WHERE id = $1`, [booking.rows[0].pitch_id]);
+  });
+  res.json({ message: "Booking cancelled" });
+});
