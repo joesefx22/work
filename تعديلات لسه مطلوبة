@@ -1,786 +1,281 @@
-📋 القائمة التفصيلية للنقاط الناقصة
-1. 🔧 إكمال دالة addTimeSlots()
-الملف: admin-dashboard.js و owner-dashboard.js
-الكود الحالي (غير مكتمل):
+أولاً: التعديلات الهيكلية العامة في أعلى الملف
 
-javascript
-async function addTimeSlots() {
-    adminSystem.showAlert('هذه الخاصية قيد التطوير', 'info');
-}
-الكود المطلوب:
+ضع هذا الجزء بعد require('express') مباشرة (قبل أي route).
 
-javascript
-async function addTimeSlots() {
-    const stadiumId = document.getElementById('stadiumSelect').value;
-    const date = document.getElementById('slotDate').value;
-    const startTime = document.getElementById('startTime').value;
-    const endTime = document.getElementById('endTime').value;
-    
-    if (!stadiumId || !date || !startTime || !endTime) {
-        adminSystem.showAlert('يرجى ملء جميع الحقول', 'warning');
-        return;
-    }
+// =============== الإضافات الأساسية ===============
+const express = require("express");
+const bodyParser = require("body-parser");
+const session = require("express-session");
+const cors = require("cors");
+const morgan = require("morgan");
+const dotenv = require("dotenv");
+const { execQuery, execQueryOne, withTransaction } = require("./db");
+dotenv.config();
 
-    try {
-        const response = await fetch('/api/time-slots/batch', {
-            method: 'POST',
-            headers: adminSystem.getAuthHeaders(),
-            body: JSON.stringify({
-                stadium_id: parseInt(stadiumId),
-                date: date,
-                start_time: startTime,
-                end_time: endTime,
-                price: 200, // السعر الافتراضي أو من إعدادات الملعب
-                interval: 60 // دقائق بين كل فترة
-            })
-        });
+// ================= إعداد السيرفر =================
+const app = express();
+app.use(express.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cors({ origin: true, credentials: true }));
+app.use(morgan("dev"));
+app.use(express.static("public"));
 
-        if (response.ok) {
-            const result = await response.json();
-            adminSystem.showAlert(`✅ تم إضافة ${result.added_slots} ساعة بنجاح`, 'success');
-            
-            // تحديث العرض
-            await adminSystem.loadTimeSlots(stadiumId, date);
-            
-            // إعادة تعيين الحقول
-            document.getElementById('startTime').value = '08:00';
-            document.getElementById('endTime').value = '22:00';
-        } else {
-            const error = await response.json();
-            adminSystem.showAlert(`❌ ${error.message || 'فشل في إضافة الساعات'}`, 'danger');
-        }
-    } catch (error) {
-        console.error('Error adding time slots:', error);
-        adminSystem.showAlert('❌ حدث خطأ في الإتصال بالخادم', 'danger');
-    }
-}
-2. 🔧 إكمال دالة generateReport()
-الملف: admin-dashboard.js
-الكود المطلوب:
+// ================= إعداد الجلسة =================
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "ehgzly_secret",
+    resave: false,
+    saveUninitialized: false,
+    cookie: { secure: false },
+  })
+);
 
-javascript
-async function generateReport() {
-    try {
-        // عرض نافذة اختيار نوع التقرير
-        const reportType = prompt('اختر نوع التقرير:\n1. تقرير شهري\n2. تقرير ربع سنوي\n3. تقرير سنوي', '1');
-        
-        let period = '';
-        switch(reportType) {
-            case '1': period = 'monthly'; break;
-            case '2': period = 'quarterly'; break;
-            case '3': period = 'yearly'; break;
-            default: return;
-        }
-
-        adminSystem.showLoading('reports', 'جاري إنشاء التقرير...');
-
-        const response = await fetch('/api/admin-reports/generate', {
-            method: 'POST',
-            headers: adminSystem.getAuthHeaders(),
-            body: JSON.stringify({
-                report_type: period,
-                start_date: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-                end_date: new Date().toISOString().split('T')[0],
-                include_charts: true,
-                format: 'pdf'
-            })
-        });
-
-        if (response.ok) {
-            const result = await response.json();
-            
-            // عرض معاينة التقرير
-            const reportPreview = `
-                <div class="alert alert-success">
-                    <h5>✅ تم إنشاء التقرير بنجاح</h5>
-                    <p><strong>نوع التقرير:</strong> ${period === 'monthly' ? 'شهري' : period === 'quarterly' ? 'ربع سنوي' : 'سنوي'}</p>
-                    <p><strong>الفترة:</strong> ${result.period_start} إلى ${result.period_end}</p>
-                    <p><strong>إجمالي الإيرادات:</strong> ${result.total_revenue} ج.م</p>
-                    <p><strong>عدد الحجوزات:</strong> ${result.total_bookings}</p>
-                    <div class="mt-3">
-                        <button class="btn btn-primary me-2" onclick="downloadReport(${result.report_id}, 'pdf')">
-                            <i class="bi bi-download me-1"></i>تحميل PDF
-                        </button>
-                        <button class="btn btn-success" onclick="downloadReport(${result.report_id}, 'excel')">
-                            <i class="bi bi-file-excel me-1"></i>تحميل Excel
-                        </button>
-                    </div>
-                </div>
-            `;
-            
-            document.getElementById('reports').innerHTML = reportPreview;
-        } else {
-            throw new Error('Failed to generate report');
-        }
-    } catch (error) {
-        console.error('Error generating report:', error);
-        adminSystem.showAlert('❌ حدث خطأ أثناء إنشاء التقرير', 'danger');
-    }
+// دالة وسيطة للتحقق من الجلسة
+function requireLogin(req, res, next) {
+  if (!req.session.user) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+  next();
 }
 
-// دالة مساعدة لتحميل التقرير
-async function downloadReport(reportId, format) {
-    try {
-        const response = await fetch(`/api/admin-reports/${reportId}/download?format=${format}`, {
-            headers: adminSystem.getAuthHeaders()
-        });
-
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `report-${reportId}.${format}`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-            
-            adminSystem.showAlert('✅ تم تحميل التقرير بنجاح', 'success');
-        } else {
-            throw new Error('Failed to download report');
-        }
-    } catch (error) {
-        console.error('Error downloading report:', error);
-        adminSystem.showAlert('❌ حدث خطأ أثناء تحميل التقرير', 'danger');
+// دالة وسيطة للتحقق من الدور
+function requireRole(role) {
+  return (req, res, next) => {
+    if (!req.session.user || req.session.user.role !== role) {
+      return res.status(403).json({ message: "Forbidden" });
     }
-}
-3. 🔧 إكمال دوال التصدير exportToPDF() و exportToExcel()
-الملف: admin-dashboard.js و owner-dashboard.js
-الكود المطلوب:
-
-javascript
-async function exportToPDF() {
-    try {
-        const currentTab = document.querySelector('.tab-pane.active').id;
-        let endpoint = '';
-        let filename = '';
-
-        switch(currentTab) {
-            case 'reports':
-                endpoint = '/api/export/reports/pdf';
-                filename = `reports-${new Date().toISOString().split('T')[0]}.pdf`;
-                break;
-            case 'bookings':
-                endpoint = '/api/export/bookings/pdf';
-                filename = `bookings-${new Date().toISOString().split('T')[0]}.pdf`;
-                break;
-            case 'payments':
-                endpoint = '/api/export/payments/pdf';
-                filename = `payments-${new Date().toISOString().split('T')[0]}.pdf`;
-                break;
-            default:
-                endpoint = '/api/export/dashboard/pdf';
-                filename = `dashboard-${new Date().toISOString().split('T')[0]}.pdf`;
-        }
-
-        adminSystem.showAlert('جاري تحضير الملف...', 'info');
-
-        const response = await fetch(endpoint, {
-            headers: adminSystem.getAuthHeaders()
-        });
-
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-            
-            adminSystem.showAlert('✅ تم تصدير PDF بنجاح', 'success');
-        } else {
-            throw new Error('Failed to export PDF');
-        }
-    } catch (error) {
-        console.error('Error exporting PDF:', error);
-        adminSystem.showAlert('❌ حدث خطأ أثناء تصدير PDF', 'danger');
-    }
+    next();
+  };
 }
 
-async function exportToExcel() {
-    try {
-        const currentTab = document.querySelector('.tab-pane.active').id;
-        let data = [];
-        let filename = '';
+🟩 ثانيًا: Endpoint المستخدم الحالي
 
-        switch(currentTab) {
-            case 'bookings':
-                data = adminSystem.allBookings;
-                filename = `bookings-${new Date().toISOString().split('T')[0]}.xlsx`;
-                break;
-            case 'payments':
-                data = adminSystem.allPayments;
-                filename = `payments-${new Date().toISOString().split('T')[0]}.xlsx`;
-                break;
-            case 'users':
-                data = adminSystem.allUsers;
-                filename = `users-${new Date().toISOString().split('T')[0]}.xlsx`;
-                break;
-            default:
-                data = [
-                    ...adminSystem.allBookings,
-                    ...adminSystem.allPayments,
-                    ...adminSystem.allUsers
-                ];
-                filename = `export-${new Date().toISOString().split('T')[0]}.xlsx`;
-        }
+يستخدَم في admin.js و owner.js للتأكد من نوع المستخدم.
 
-        adminSystem.showAlert('جاري تحضير الملف...', 'info');
-
-        const response = await fetch('/api/export/excel', {
-            method: 'POST',
-            headers: adminSystem.getAuthHeaders(),
-            body: JSON.stringify({
-                data: data,
-                filename: filename,
-                sheet_name: currentTab
-            })
-        });
-
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-            
-            adminSystem.showAlert('✅ تم تصدير Excel بنجاح', 'success');
-        } else {
-            throw new Error('Failed to export Excel');
-        }
-    } catch (error) {
-        console.error('Error exporting Excel:', error);
-        adminSystem.showAlert('❌ حدث خطأ أثناء تصدير Excel', 'danger');
-    }
-}
-4. 🛠️ تحسين معالجة الأخطاء
-الملف: admin-dashboard.js و owner-dashboard.js
-أضف هذه الدوال في قسم معالجة الأخطاء:
-
-javascript
-// دالة محسنة لمعالجة الأخطاء
-handleApiError(error, context) {
-    console.error(`❌ Error in ${context}:`, error);
-    
-    let userMessage = 'حدث خطأ غير متوقع';
-    
-    if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        userMessage = 'تعذر الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت.';
-    } else if (error.response) {
-        // خطأ من الخادم
-        switch(error.response.status) {
-            case 401:
-                userMessage = 'انتهت جلستك. يرجى تسجيل الدخول مرة أخرى.';
-                this.handleAuthError();
-                return;
-            case 403:
-                userMessage = 'ليس لديك صلاحية للقيام بهذا الإجراء.';
-                break;
-            case 404:
-                userMessage = 'لم يتم العثور على البيانات المطلوبة.';
-                break;
-            case 500:
-                userMessage = 'خطأ في الخادم. يرجى المحاولة لاحقاً.';
-                break;
-            default:
-                userMessage = error.response.data?.message || `خطأ في الخادم (${error.response.status})`;
-        }
-    } else if (error.request) {
-        userMessage = 'تعذر الاتصال بالخادم. يرجى التحقق من اتصال الشبكة.';
-    }
-    
-    this.showAlert(`❌ ${userMessage}`, 'danger');
-    
-    // تسجيل الخطأ للتصحيح
-    this.logError({
-        context: context,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-        user: this.currentUser?.username
-    });
-}
-
-// دالة تسجيل الأخطاء
-logError(errorData) {
-    // يمكن إرسال الأخطاء لخدمة مراقبة أو حفظها محلياً
-    if (process.env.NODE_ENV === 'development') {
-        console.log('📝 Error Log:', errorData);
-    }
-    
-    // حفظ في localStorage للتصحيح
-    const errorLogs = JSON.parse(localStorage.getItem('errorLogs') || '[]');
-    errorLogs.push(errorData);
-    if (errorLogs.length > 100) errorLogs.shift(); // حفظ آخر 100 خطأ فقط
-    localStorage.setItem('errorLogs', JSON.stringify(errorLogs));
-}
-
-// مثال على استخدام محسن في دالة التحميل
-async function loadPitchesWithRetry() {
-    const maxRetries = 3;
-    let retries = 0;
-    
-    while (retries < maxRetries) {
-        try {
-            await adminSystem.loadPitches();
-            break; // نجح، نخرج من الحلقة
-        } catch (error) {
-            retries++;
-            if (retries === maxRetries) {
-                adminSystem.handleApiError(error, 'loadPitches');
-            } else {
-                console.log(`🔄 Retry ${retries}/${maxRetries} for loadPitches`);
-                await new Promise(resolve => setTimeout(resolve, 1000 * retries)); // انتظار تصاعدي
-            }
-        }
-    }
-}
-5. 📋 توثيق الـ APIs المطلوبة
-إنشاء ملف: api-endpoints.md
-markdown
-# 📡 API Endpoints Documentation
-
-## 🔐 Authentication
-- `POST /api/login` - تسجيل الدخول
-- `GET /api/current-user` - بيانات المستخدم الحالي
-- `POST /api/logout` - تسجيل الخروج
-
-## 🏟️ Stadiums Management
-- `GET /api/stadiums` - جميع الملاعب (للأدمن)
-- `GET /api/owner/stadiums` - ملاعب المدير
-- `POST /api/stadiums` - إضافة ملعب جديد
-- `PUT /api/stadiums/:id` - تحديث بيانات الملعب
-- `DELETE /api/stadiums/:id` - حذف ملعب
-
-## 📅 Bookings Management
-- `GET /api/bookings` - جميع الحجوزات (للأدمن)
-- `GET /api/owner/bookings` - حجوزات المدير
-- `POST /api/owner/bookings/:id/confirm` - تأكيد الحجز
-- `POST /api/owner/bookings/:id/cancel` - إلغاء الحجز
-
-## 🕒 Time Slots Management
-- `GET /api/owner/time-slots/:stadium_id` - ساعات الملعب
-- `POST /api/time-slots/batch` - إضافة ساعات جديدة
-- `PUT /api/time-slots/:id` - تحديث ساعة
-- `DELETE /api/time-slots/:id` - حذف ساعة
-
-## 👥 Users Management
-- `GET /api/users` - إدارة المستخدمين
-- `PUT /api/users/:id/approve` - تفعيل مستخدم
-- `PUT /api/users/:id/status` - تغيير حالة المستخدم
-
-## 💰 Payments
-- `GET /api/payments` - جميع المدفوعات
-- `GET /api/owner/payments` - مدفوعات المدير
-
-## 📊 Reports & Export
-- `POST /api/admin-reports/generate` - إنشاء تقرير
-- `GET /api/export/:type/pdf` - تصدير PDF
-- `POST /api/export/excel` - تصدير Excel
-6. 🧪 إضافة اختبارات أساسية
-إنشاء ملف: admin-system.test.js
-javascript
-// اختبارات أساسية للنظام
-describe('Admin Management System', () => {
-    let adminSystem;
-
-    beforeEach(() => {
-        adminSystem = new AdminManagementSystem();
-    });
-
-    test('should initialize with correct default values', () => {
-        expect(adminSystem.userRole).toBe('admin');
-        expect(adminSystem.allBookings).toEqual([]);
-        expect(adminSystem.allPitches).toEqual([]);
-    });
-
-    test('should generate correct status badge classes', () => {
-        expect(adminSystem.getStatusBadgeClass('confirmed')).toBe('bg-success');
-        expect(adminSystem.getStatusBadgeClass('pending')).toBe('bg-warning');
-        expect(adminSystem.getStatusBadgeClass('cancelled')).toBe('bg-danger');
-    });
-
-    test('should handle authentication errors correctly', () => {
-        const mockError = { 
-            response: { status: 401 },
-            message: 'Unauthorized' 
-        };
-        
-        adminSystem.handleApiError(mockError, 'test');
-        // يجب أن يتم إعادة التوجيه لصفحة تسجيل الدخول
-    });
+app.get("/api/me", requireLogin, async (req, res) => {
+  try {
+    const user = req.session.user;
+    res.json(user);
+  } catch (e) {
+    res.status(500).json({ message: "Server Error" });
+  }
 });
 
-// اختبارات واجهة المستخدم
-describe('UI Components', () => {
-    test('should show loading state correctly', () => {
-        document.body.innerHTML = '<div id="testContainer"></div>';
-        adminSystem.showLoading('testContainer', 'جاري التحميل...');
-        
-        expect(document.getElementById('testContainer').innerHTML).toContain('loading-spinner');
-    });
+🟧 ثالثًا: مسارات الأدمن (/api/admin/...)
 
-    test('should show alerts correctly', () => {
-        adminSystem.showAlert('Test message', 'success');
-        expect(document.getElementById('alertsContainer').innerHTML).toContain('Test message');
+دي كلها صلاحيات الأدمن الكاملة فقط.
+
+// 🧠 لوحة الإحصائيات
+app.get("/api/admin/dashboard", requireLogin, requireRole("admin"), async (req, res) => {
+  try {
+    const [users, stadiums, bookings, payments] = await Promise.all([
+      execQueryOne("SELECT COUNT(*) AS total_users FROM users"),
+      execQueryOne("SELECT COUNT(*) AS total_stadiums FROM stadiums"),
+      execQueryOne("SELECT COUNT(*) AS total_bookings FROM bookings"),
+      execQueryOne("SELECT COALESCE(SUM(amount), 0) AS total_revenue FROM payments WHERE status = 'confirmed'")
+    ]);
+    res.json({
+      totalUsers: users.total_users,
+      totalStadiums: stadiums.total_stadiums,
+      totalBookings: bookings.total_bookings,
+      totalRevenue: payments.total_revenue
     });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error loading dashboard data" });
+  }
 });
-🎯 خطة التنفيذ:
-الأسبوع الأول:
-إكمال دوال إدارة الساعات (2 ساعة)
 
-تحسين معالجة الأخطاء (3 ساعات)
+// 🏟️ عرض كل الملاعب
+app.get("/api/admin/stadiums", requireLogin, requireRole("admin"), async (req, res) => {
+  try {
+    const data = await execQuery("SELECT id, name, location, area, price, is_active FROM stadiums ORDER BY id DESC");
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ message: "Error loading stadiums" });
+  }
+});
 
-الأسبوع الثاني:
-إكمال نظام التقارير (4 ساعات)
+// 👥 عرض المستخدمين
+app.get("/api/admin/users", requireLogin, requireRole("admin"), async (req, res) => {
+  try {
+    const data = await execQuery("SELECT id, username, email, phone, role, approved FROM users ORDER BY created_at DESC");
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ message: "Error loading users" });
+  }
+});
 
-توثيق الـ APIs (2 ساعة)
+// 🧾 عرض آخر الحجوزات
+app.get("/api/admin/bookings", requireLogin, requireRole("admin"), async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    const data = await execQuery(`
+      SELECT customer_name, pitch_name, date, time, amount, status
+      FROM bookings
+      ORDER BY created_at DESC
+      LIMIT $1
+    `, [limit]);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ message: "Error loading bookings" });
+  }
+});
 
-الأسبوع الثالث:
-إضافة الاختبارات (3 ساعات)
+// 🧑‍💼 طلبات المديرين المعلقة
+app.get("/api/admin/pending-managers", requireLogin, requireRole("admin"), async (req, res) => {
+  try {
+    const data = await execQuery(`
+      SELECT u.id AS user_id, u.username, u.email, json_agg(s.name) AS requested_stadiums
+      FROM stadium_managers sm
+      JOIN users u ON sm.user_id = u.id
+      JOIN stadiums s ON sm.stadium_id = s.id
+      WHERE sm.is_active = false
+      GROUP BY u.id, u.username, u.email
+    `);
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error loading pending managers" });
+  }
+});
 
-المراجعة النهائية (2 ساعة)
+// ✅ قبول مدير
+app.post("/api/admin/pending-managers/:id/approve", requireLogin, requireRole("admin"), async (req, res) => {
+  try {
+    await execQuery("UPDATE stadium_managers SET is_active = true WHERE user_id = $1", [req.params.id]);
+    res.json({ message: "Manager approved" });
+  } catch (err) {
+    res.status(500).json({ message: "Error approving manager" });
+  }
+});
 
-الوقت الإجمالي المقدر: 16 ساعة عمل
+// ❌ رفض مدير
+app.post("/api/admin/pending-managers/:id/reject", requireLogin, requireRole("admin"), async (req, res) => {
+  try {
+    await execQuery("DELETE FROM stadium_managers WHERE user_id = $1", [req.params.id]);
+    res.json({ message: "Manager rejected" });
+  } catch (err) {
+    res.status(500).json({ message: "Error rejecting manager" });
+  }
+});
 
-كل هذه النقاط ستجعل النظام جاهزاً 100% للإنتاج بمستوى احترافي! 🚀
+// 📜 سجل النشاط
+app.get("/api/admin/activity-logs", requireLogin, requireRole("admin"), async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 15;
+    const logs = await execQuery(`
+      SELECT a.*, u.username AS user_name
+      FROM activity_logs a
+      LEFT JOIN users u ON a.user_id = u.id
+      ORDER BY a.created_at DESC
+      LIMIT $1
+    `, [limit]);
+    res.json(logs);
+  } catch (err) {
+    res.status(500).json({ message: "Error loading logs" });
+  }
+});
 
-❌ الدوال المفقودة من الإصدار القديم:
-1. دوال إدارة الحجوزات المتقدمة ❌
-javascript
-// 📍 الملف: admin-dashboard.js
-// ❌ ناقصة تماماً
+🟦 رابعًا: مسارات صاحب الملعب (/api/owner/...)
+// ⚽ عرض الملاعب الخاصة بالمستخدم
+app.get("/api/owner/stadiums", requireLogin, requireRole("owner"), async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+    const stadiums = await execQuery(`
+      SELECT s.id, s.name, s.location
+      FROM stadiums s
+      JOIN stadium_managers sm ON sm.stadium_id = s.id
+      WHERE sm.user_id = $1 AND sm.is_active = true
+    `, [userId]);
+    res.json(stadiums);
+  } catch (err) {
+    res.status(500).json({ message: "Error loading owner stadiums" });
+  }
+});
 
-// تأكيد الحجز مع خصم
-async function confirmBookingWithDiscount(bookingId, discountAmount) {
-    try {
-        const response = await fetch(`/api/bookings/${bookingId}/confirm-with-discount`, {
-            method: 'POST',
-            headers: this.getAuthHeaders(),
-            body: JSON.stringify({ discount_amount: discountAmount })
-        });
-        if (response.ok) {
-            this.showAlert('تم تأكيد الحجز مع الخصم', 'success');
-            this.loadBookings();
-        }
-    } catch (error) {
-        this.handleApiError(error, 'confirmBookingWithDiscount');
-    }
-}
+// ⏱️ جلب الساعات الخاصة بملعب معين
+app.get("/api/owner/time-slots/:stadiumId", requireLogin, requireRole("owner"), async (req, res) => {
+  try {
+    const { stadiumId } = req.params;
+    const slots = await execQuery(`
+      SELECT id, date, start_time, end_time, price, status
+      FROM time_slots
+      WHERE stadium_id = $1
+      ORDER BY date, start_time
+    `, [stadiumId]);
+    res.json(slots);
+  } catch (err) {
+    res.status(500).json({ message: "Error loading time slots" });
+  }
+});
 
-// إعادة جدولة الحجز
-async function rescheduleBooking(bookingId, newDate, newTime) {
-    try {
-        const response = await fetch(`/api/bookings/${bookingId}/reschedule`, {
-            method: 'PUT',
-            headers: this.getAuthHeaders(),
-            body: JSON.stringify({ 
-                new_date: newDate, 
-                new_time: newTime 
-            })
-        });
-        if (response.ok) {
-            this.showAlert('تم إعادة جدولة الحجز', 'success');
-            this.loadBookings();
-        }
-    } catch (error) {
-        this.handleApiError(error, 'rescheduleBooking');
-    }
-}
-2. دوال إدارة الخصومات والأكواد ❌
-javascript
-// 📍 الملف: admin-dashboard.js
-// ❌ ناقصة تماماً
+// 📋 كل الحجوزات الخاصة بصاحب الملعب
+app.get("/api/owner/bookings", requireLogin, requireRole("owner"), async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+    const data = await execQuery(`
+      SELECT b.id, b.customer_name, b.pitch_name, b.date, b.time, b.status, b.deposit_amount
+      FROM bookings b
+      JOIN stadium_managers sm ON sm.stadium_id = b.pitch_id
+      WHERE sm.user_id = $1
+      ORDER BY b.date DESC
+    `, [userId]);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ message: "Error loading bookings" });
+  }
+});
 
-// إنشاء كود خصم جديد
-async function createDiscountCode(codeData) {
-    try {
-        const response = await fetch('/api/discount-codes', {
-            method: 'POST',
-            headers: this.getAuthHeaders(),
-            body: JSON.stringify(codeData)
-        });
-        if (response.ok) {
-            this.showAlert('تم إنشاء كود الخصم بنجاح', 'success');
-        }
-    } catch (error) {
-        this.handleApiError(error, 'createDiscountCode');
-    }
-}
+// ✅ تأكيد الحجز (عند عدم وجود عربون)
+app.post("/api/owner/bookings/:id/confirm", requireLogin, requireRole("owner"), async (req, res) => {
+  try {
+    await execQuery("UPDATE bookings SET status = 'confirmed' WHERE id = $1", [req.params.id]);
+    res.json({ message: "Booking confirmed" });
+  } catch (err) {
+    res.status(500).json({ message: "Error confirming booking" });
+  }
+});
 
-// إدارة أكواد الخصم
-async function loadDiscountCodes() {
-    try {
-        const response = await fetch('/api/discount-codes', {
-            headers: this.getAuthHeaders()
-        });
-        if (response.ok) {
-            const result = await response.json();
-            this.discountCodes = result.codes || [];
-            this.updateDiscountCodesTable();
-        }
-    } catch (error) {
-        this.handleApiError(error, 'loadDiscountCodes');
-    }
-}
+// ❌ إلغاء الحجز
+app.post("/api/owner/bookings/:id/cancel", requireLogin, requireRole("owner"), async (req, res) => {
+  try {
+    await execQuery(`
+      UPDATE bookings 
+      SET status = 'cancelled'
+      WHERE id = $1
+    `, [req.params.id]);
+    res.json({ message: "Booking cancelled" });
+  } catch (err) {
+    res.status(500).json({ message: "Error cancelling booking" });
+  }
+});
 
-// تحديث كود خصم
-async function updateDiscountCode(codeId, updateData) {
-    try {
-        const response = await fetch(`/api/discount-codes/${codeId}`, {
-            method: 'PUT',
-            headers: this.getAuthHeaders(),
-            body: JSON.stringify(updateData)
-        });
-        if (response.ok) {
-            this.showAlert('تم تحديث كود الخصم', 'success');
-            this.loadDiscountCodes();
-        }
-    } catch (error) {
-        this.handleApiError(error, 'updateDiscountCode');
-    }
-}
-3. دوال إدارة الحجوزات الجماعية ❌
-javascript
-// 📍 الملف: admin-dashboard.js
-// ❌ ناقصة تماماً
+🟨 خامسًا: تشغيل السيرفر
 
-// حذف حجوزات جماعي
-async function bulkDeleteBookings(bookingIds) {
-    try {
-        const response = await fetch('/api/bookings/bulk-delete', {
-            method: 'POST',
-            headers: this.getAuthHeaders(),
-            body: JSON.stringify({ booking_ids: bookingIds })
-        });
-        if (response.ok) {
-            this.showAlert(`تم حذف ${bookingIds.length} حجز`, 'success');
-            this.loadBookings();
-        }
-    } catch (error) {
-        this.handleApiError(error, 'bulkDeleteBookings');
-    }
-}
+تأكد أن هذا الجزء موجود في نهاية الملف.
 
-// تحديث حالة حجوزات جماعي
-async function bulkUpdateBookingStatus(bookingIds, newStatus) {
-    try {
-        const response = await fetch('/api/bookings/bulk-update-status', {
-            method: 'PUT',
-            headers: this.getAuthHeaders(),
-            body: JSON.stringify({ 
-                booking_ids: bookingIds, 
-                new_status: newStatus 
-            })
-        });
-        if (response.ok) {
-            this.showAlert(`تم تحديث ${bookingIds.length} حجز`, 'success');
-            this.loadBookings();
-        }
-    } catch (error) {
-        this.handleApiError(error, 'bulkUpdateBookingStatus');
-    }
-}
-4. دوال الإحصائيات المتقدمة ❌
-javascript
-// 📍 الملف: admin-dashboard.js
-// ❌ ناقصة تماماً
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
 
-// إحصائيات الأداء اليومي
-async function loadDailyPerformanceStats(date) {
-    try {
-        const response = await fetch(`/api/stats/daily-performance?date=${date}`, {
-            headers: this.getAuthHeaders()
-        });
-        if (response.ok) {
-            const result = await response.json();
-            this.dailyStats = result.stats || {};
-            this.updateDailyPerformanceChart();
-        }
-    } catch (error) {
-        this.handleApiError(error, 'loadDailyPerformanceStats');
-    }
-}
+✅ النتيجة النهائية:
 
-// تقرير الإيرادات التفصيلي
-async function generateRevenueReport(startDate, endDate, groupBy = 'daily') {
-    try {
-        const response = await fetch('/api/reports/revenue-detailed', {
-            method: 'POST',
-            headers: this.getAuthHeaders(),
-            body: JSON.stringify({
-                start_date: startDate,
-                end_date: endDate,
-                group_by: groupBy
-            })
-        });
-        if (response.ok) {
-            const result = await response.json();
-            this.revenueReport = result.report || {};
-            this.displayRevenueReport();
-        }
-    } catch (error) {
-        this.handleApiError(error, 'generateRevenueReport');
-    }
-}
-5. دوال إدارة الإشعارات المتقدمة ❌
-javascript
-// 📍 الملف: admin-dashboard.js
-// ❌ ناقصة تماماً
+بعد تطبيق الكود أعلاه:
 
-// إرسال إشعارات جماعية
-async function sendBulkNotification(notificationData) {
-    try {
-        const response = await fetch('/api/notifications/bulk-send', {
-            method: 'POST',
-            headers: this.getAuthHeaders(),
-            body: JSON.stringify(notificationData)
-        });
-        if (response.ok) {
-            this.showAlert('تم إرسال الإشعارات الجماعية', 'success');
-            this.loadNotifications();
-        }
-    } catch (error) {
-        this.handleApiError(error, 'sendBulkNotification');
-    }
-}
+الأدمن هيشوف كل حاجة (ملاعب، مستخدمين، مدفوعات، أنشطة...).
 
-// قوالب الإشعارات
-async function loadNotificationTemplates() {
-    try {
-        const response = await fetch('/api/notification-templates', {
-            headers: this.getAuthHeaders()
-        });
-        if (response.ok) {
-            const result = await response.json();
-            this.notificationTemplates = result.templates || [];
-            this.updateNotificationTemplates();
-        }
-    } catch (error) {
-        this.handleApiError(error, 'loadNotificationTemplates');
-    }
-}
-6. دوال النسخ الاحتياطي والاستعادة ❌
-javascript
-// 📍 الملف: admin-dashboard.js
-// ❌ ناقصة تماماً
+صاحب الملعب هيشوف ملاعبه فقط وحجوزاتها وساعاتها.
 
-// إنشاء نسخة احتياطية
-async function createBackup() {
-    try {
-        this.showAlert('جاري إنشاء النسخة الاحتياطية...', 'info');
-        const response = await fetch('/api/backup/create', {
-            method: 'POST',
-            headers: this.getAuthHeaders()
-        });
-        if (response.ok) {
-            const result = await response.json();
-            this.showAlert(`تم إنشاء النسخة الاحتياطية: ${result.backup_file}`, 'success');
-        }
-    } catch (error) {
-        this.handleApiError(error, 'createBackup');
-    }
-}
+كل البيانات تُسحب من قاعدة PostgreSQL مباشرة.
 
-// استعادة نسخة احتياطية
-async function restoreBackup(backupFile) {
-    try {
-        if (!confirm('هل أنت متأكد من استعادة هذه النسخة؟ سيتم استبدال جميع البيانات الحالية.')) {
-            return;
-        }
-        
-        const response = await fetch('/api/backup/restore', {
-            method: 'POST',
-            headers: this.getAuthHeaders(),
-            body: JSON.stringify({ backup_file: backupFile })
-        });
-        if (response.ok) {
-            this.showAlert('تم استعادة النسخة الاحتياطية بنجاح', 'success');
-            setTimeout(() => {
-                location.reload(); // إعادة تحميل الصفحة
-            }, 2000);
-        }
-    } catch (error) {
-        this.handleApiError(error, 'restoreBackup');
-    }
-}
-📊 ملخص الدوال الناقصة:
-النوع	عدد الدوال الناقصة	الأهمية
-إدارة الحجوزات المتقدمة	4 دوال	🟡 متوسطة
-إدارة الخصومات	3 دوال	🟢 مهمة
-إجراءات جماعية	2 دوال	🟡 متوسطة
-إحصائيات متقدمة	2 دوال	🟢 مهمة
-إشعارات متقدمة	2 دوال	🔴 منخفضة
-نسخ احتياطي	2 دوال	🟢 مهمة
-🎯 التوصية:
-الدوال المهمة والضرورية التي يجب إضافتها فوراً:
-إدارة الخصومات - ضرورية للتجارة
+مفيش أي بيانات ثابتة.
 
-النسخ الاحتياطي - ضرورية للأمان
+في حماية كاملة بالأدوار.
 
-الإحصائيات المتقدمة - مهمة لاتخاذ القرارات
+الساعات فيها 3 حالات فقط:
 
-الدوال التي يمكن تأجيلها:
-الإشعارات المتقدمة
+"available"
 
-الإجراءات الجماعية (يمكن تعويضها بالإجراءات الفردية)
+"pending" (حجز في انتظار التأكيد)
 
-الوقت المقدر لإضافة الدوال المهمة: 8-10 ساعات عمل
-❌ النواقص والتعديلات المطلوبة
-1. ⚠️ حماية الوصول حسب الدور
-رغم أن كل واجهة مخصصة لدور معين، لا يوجد تحقق صارم داخل الـ HTML أو JS يمنع الوصول غير المصرّح.
-
-✅ الحل: أضف تحقق في بداية كل ملف JS:
-
-js
-if (user.role !== 'admin') window.location.href = '/unauthorized.html';
-2. 🧩 تبويبات ناقصة في owner.html
-تبويب الإشعارات و سجل الأنشطة غير موجودين لصاحب الملعب.
-
-إذا كان صاحب الملعب يحتاجهم، أضفهم مع ربط API /api/owner/activity-logs و /api/owner/notifications.
-
-3. 📥 تأكيد الحجز بدون عربون
-في owner.js، تأكيد الحجز يتم فقط إذا deposit_amount === 0.
-
-هذا الشرط قد يمنع تأكيد حجوزات مدفوعة جزئيًا.
-
-✅ الحل: راجع منطق التأكيد ليشمل الحالات المناسبة حسب النظام المالي.
-
-4. 🧪 لا يوجد اختبارات أو fallback
-لا يوجد fallback في حالة فشل تحميل البيانات أو عدم وجود اتصال.
-
-✅ الحل: أضف catch لكل fetch مع عرض رسالة في alertsContainer.
-
-5. 📁 تبويب "ملاعبى" في owner.html
-تبويب "ملاعبى" يعرض نفس الملاعب الموجودة في لوحة التحكم.
-
-✅ الحل: اجعل أحد التبويبين يعرض التفاصيل، والآخر يعرض الإحصائيات فقط لتجنب التكرار.
-
-6. 🧠 تحديثات غير متزامنة
-بعض الدوال مثل loadOwnerStats تعتمد على بيانات لم تُحمّل بعد (مثل this.allBookings).
-
-✅ الحل: تأكد من ترتيب await في loadInitialData لتجنب السبق الزمني.
-
-🛡️ اقتراحات تحسين إضافية
-التحسين	الفائدة
-إضافة rate limiting على تأكيد/إلغاء الحجز	حماية من السبام أو الضغط الزائد
-تسجيل activity logs عند كل إجراء	تتبع العمليات وتحليل الأداء
-إضافة زر "إرسال إشعار" لصاحب الملعب	تواصل مباشر مع العملاء
-دعم رفع صورة للملعب	تحسين تجربة المستخدم
-فلترة الحجوزات حسب الحالة والتاريخ	تسهيل الإدارة
-❌ الدوال الناقصة أو تحتاج مراجعة
-الدالة	الحالة	المطلوب
-approveUser()	❌ غير موجودة	لو الأدمن يحتاج يقبل مستخدمين جدد، لازم إضافتها
-toggleUserStatus()	❌ غير موجودة	تفعيل/إيقاف مستخدم من قبل الأدمن
-sendNotificationToUser()	❌ غير موجودة	إرسال إشعار لمستخدم معين
-approveManagerRequest() / rejectManagerRequest()	❌ غير موجودة	إدارة طلبات المديرين
-showBookingDetails()	✅ موجودة	لكن محتاج تتأكد إن الـ modal أو التفاصيل فعلاً بتظهر
-viewStadiumDetails()	✅ موجودة	لكن محتاج تتأكد من وجود modal أو صفحة التفاصيل
-exportData() / exportBookings()	✅ موجودة كزر	لكن محتاج تتأكد من تنفيذ فعلي للـ export
+"confirmed"
