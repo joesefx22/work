@@ -398,6 +398,7 @@ async function requestAdditionalPlayers(bookingId, playersNeeded) {
   }
 }
 
+// ==================== 🆕 نظام الساعات الذهبية ====================
 async function loadGoldenSlots() {
   try {
     const response = await fetch('/api/golden-slots');
@@ -507,7 +508,7 @@ function displayFilteredStadiums(stadiums) {
     summary.textContent = `عرض ${stadiums.length} من ${window.allStadiums.length} ملعب`;
   }
 
-  // سيتم استدعاء renderStadiums مع البيانات المفلترة
+  renderStadiums(stadiums);
 }
 
 // ==================== نظام التخزين المؤقت ====================
@@ -891,9 +892,9 @@ async function openStadiumPopup(id) {
   document.getElementById('stadiumPopup').style.display = 'flex';
 }
 
-async function loadStadiumSlots(stadiumId) {
+async function loadStadiumSlots(stadiumId, date) {
   try {
-    const response = await fetch(`/api/stadiums/${stadiumId}/slots`);
+    const response = await fetch(`/api/stadiums/${stadiumId}/slots${date ? `?date=${date}` : ''}`);
     if (!response.ok) throw new Error('فشل في تحميل الساعات');
     
     const slots = await response.json();
