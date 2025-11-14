@@ -72,9 +72,21 @@
       </div>
       <p id="popupDesc" style="color:#444;margin-top:8px"></p>
 
+      <!-- 🆕 منتقي الأيام المضاف -->
+      <div style="margin:15px 0;">
+        <label style="display:block;margin-bottom:8px;font-weight:bold;">اختر يوم الحجز:</label>
+        <div id="popupDaySelector" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+      </div>
+
       <div style="margin-top:10px">
         <h4 style="margin:8px 0">أقرب الساعات</h4>
         <div id="popupSlots" class="slots-inline" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+      </div>
+
+      <!-- 🆕 قسم الساعات الذهبية -->
+      <div id="goldenSlotsSection" style="margin-top:15px;display:none;">
+        <h4 style="margin:8px 0;color:#ff9800;">👥 الساعات الذهبية - تحتاج لاعبين</h4>
+        <div id="goldenSlots" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
       </div>
 
       <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">
@@ -96,6 +108,217 @@ let goldenSlots = [];
 let validatedVouchers = [];
 let userFavorites = JSON.parse(localStorage.getItem('favoriteStadiums') || '[]');
 let userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
+let currentCancellationStep = 1;
+
+// ==================== 🆕 نظام الوضع الليلي ====================
+function initTheme() {
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme === 'dark') {
+    document.body.classList.add('night-mode');
+  }
+}
+
+function toggleDarkMode() {
+  document.body.classList.toggle('night-mode');
+  const isDark = document.body.classList.contains('night-mode');
+  localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  showToast(isDark ? 'تم تفعيل الوضع الليلي' : 'تم تفعيل الوضع النهاري');
+}
+
+// ==================== 🆕 نظام منتقي الأيام ====================
+function createDaySelector(containerId, stadiumId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const days = generateNext7Days();
+  container.innerHTML = days.map(day => `
+    <div onclick="selectDay('${day.date}', ${stadiumId})" 
+         style="padding:10px;border:1px solid #ddd;border-radius:8px;text-align:center;cursor:pointer;min-width:80px;">
+      <div style="font-weight:bold;">${day.dayName}</div>
+      <div style="font-size:12px;color:#666;">${day.date}</div>
+    </div>
+  `).join('');
+}
+
+function generateNext7Days() {
+  const days = [];
+  const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+  
+  for (let i = 0; i < 7; i++) {
+    const date = new Date();
+    date.setDate(date.getDate() + i);
+    
+    days.push({
+      date: date.toISOString().split('T')[0],
+      dayName: i === 0 ? 'اليوم' : dayNames[date.getDay()],
+      displayDate: date.getDate() + '/' + (date.getMonth() + 1)
+    });
+  }
+  
+  return days;
+}
+
+function selectDay(date, stadiumId) {
+  selectedDate = date;
+  loadStadiumSlots(stadiumId, date);
+  showToast(`تم اختيار يوم: ${date}`);
+}
+
+// ==================== 🆕 نظام الساعات الذهبية ====================
+async function loadGoldenSlots() {
+  try {
+    const response = await fetch('/api/golden-slots');
+    goldenSlots = await response.json();
+    updateGoldenSlotsDisplay();
+  } catch (error) {
+    console.error('Error loading golden slots:', error);
+    goldenSlots = [];
+  }
+}
+
+function updateGoldenSlotsDisplay() {
+  const goldenSection = document.getElementById('goldenSlotsSection');
+  const goldenContainer = document.getElementById('goldenSlots');
+  
+  if (goldenSlots.length > 0) {
+    goldenSection.style.display = 'block';
+    goldenContainer.innerHTML = goldenSlots.map(slot => `
+      <div style="background:linear-gradient(135deg, #ffd700, #ffed4e);color:#000;padding:8px 12px;border-radius:20px;font-size:14px;font-weight:bold;border:2px solid #ffc107;">
+        ${slot.time} - يحتاج ${slot.playersNeeded} لاعبين
+        <button onclick="joinGoldenSlot(${slot.id})" style="background:#000;color:#ffd700;border:none;padding:4px 8px;border-radius:12px;margin-right:8px;cursor:pointer;">انضم</button>
+      </div>
+    `).join('');
+  }
+}
+
+function joinGoldenSlot(slotId) {
+  if (!checkAuthStatus()) {
+    showToast('يجب تسجيل الدخول أولاً', 'warning');
+    return;
+  }
+  showToast('جاري الانضمام للمباراة...');
+  // تنفيذ الانضمام
+}
+
+// ==================== 🆕 نظام إلغاء الحجز متعدد الخطوات ====================
+function startCancellation(bookingId) {
+  currentCancellationStep = 1;
+  showCancellationStep(1);
+  // عرض مودال الإلغاء
+}
+
+function showCancellationStep(step) {
+  // إخفاء كل الخطوات
+  document.querySelectorAll('.cancellation-step').forEach(el => {
+    el.style.display = 'none';
+  });
+  
+  // عرض الخطوة الحالية
+  const currentStep = document.getElementById(`cancellationStep${step}`);
+  if (currentStep) {
+    currentStep.style.display = 'block';
+  }
+}
+
+function nextCancellationStep() {
+  if (validateCurrentStep(currentCancellationStep)) {
+    currentCancellationStep++;
+    showCancellationStep(currentCancellationStep);
+  }
+}
+
+function validateCurrentStep(step) {
+  switch(step) {
+    case 1:
+      if (!document.getElementById('confirmCancellation').checked) {
+        showToast('يجب تأكيد رغبتك في الإلغاء', 'warning');
+        return false;
+      }
+      return true;
+    case 2:
+      if (!document.getElementById('cancellationReason').value) {
+        showToast('يجب اختيار سبب الإلغاء', 'warning');
+        return false;
+      }
+      return true;
+    default:
+      return true;
+  }
+}
+
+async function confirmCancellation() {
+  try {
+    const reason = document.getElementById('cancellationReason').value;
+    const response = await fetch(`/api/bookings/${currentBookingId}/cancel`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+      },
+      body: JSON.stringify({ reason })
+    });
+
+    if (response.ok) {
+      showToast('تم إلغاء الحجز بنجاح', 'success');
+      // إغلاق المودال وتحديث البيانات
+    }
+  } catch (error) {
+    showToast('فشل في إلغاء الحجز', 'error');
+  }
+}
+
+// ==================== 🆕 نظام العد التنازلي ====================
+function startCountdown(bookingId, targetDate) {
+  const countdownElement = document.getElementById(`countdown-${bookingId}`);
+  if (!countdownElement) return;
+
+  function updateCountdown() {
+    const now = new Date().getTime();
+    const target = new Date(targetDate).getTime();
+    const distance = target - now;
+
+    if (distance < 0) {
+      countdownElement.innerHTML = "انتهى الوقت";
+      return;
+    }
+
+    const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+
+    countdownElement.innerHTML = `${days} يوم ${hours} ساعة ${minutes} دقيقة`;
+  }
+
+  updateCountdown();
+  setInterval(updateCountdown, 60000);
+}
+
+// ==================== 🆕 نظام التقييم المتقدم ====================
+function showRatingModal(stadiumId) {
+  const stadium = window.allStadiums.find(s => s.id === stadiumId);
+  if (!stadium) return;
+
+  // عرض مودال التقييم
+  showToast(`تقييم الملعب: ${stadium.name}`);
+}
+
+function submitRating(stadiumId, rating, comment) {
+  // إرسال التقييم للخادم
+  showToast('شكراً لتقييمك!');
+}
+
+// ==================== 🆕 نظام الإشعارات الذكية ====================
+function initSmartNotifications() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+function sendNotification(title, options) {
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification(title, options);
+  }
+}
 
 // ==================== دوال المساعدة الأساسية ====================
 function showLoading() {
@@ -124,6 +347,238 @@ function escapeHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
 }
 
+function checkAuthStatus() {
+  return !!localStorage.getItem('authToken');
+}
+
+// ==================== دوال الصفحة الرئيسية المحسنة ====================
+async function initHomePage() {
+  if (homeInitDone) return;
+  homeInitDone = true;
+
+  // 🆕 تهيئة الأنظمة الجديدة
+  initTheme();
+  initSmartNotifications();
+
+  window.searchInput = document.getElementById('searchInput');
+  window.filterArea = document.getElementById('filterArea');
+  window.filterType = document.getElementById('filterType');
+  window.datePicker = document.getElementById('datePicker');
+  window.stadiumsContainer = document.getElementById('stadiumsContainer');
+  window.filtersSummary = document.getElementById('filtersSummary');
+
+  setupFilters();
+  await loadAreas();
+  await loadBanners();
+  await loadStadiums();
+  await loadGoldenSlots(); // 🆕 تحميل الساعات الذهبية
+}
+
+function setupFilters() {
+  if (!window.searchInput) return;
+  window.searchInput.addEventListener('input', debounce(filterStadiums, 250));
+  window.filterArea.addEventListener('change', filterStadiums);
+  window.filterType.addEventListener('change', filterStadiums);
+  window.datePicker.addEventListener('change', filterStadiums);
+}
+
+function filterStadiums() {
+  const keyword = (window.searchInput && window.searchInput.value || '').toLowerCase();
+  const area = (window.filterArea && window.filterArea.value) || '';
+  const type = (window.filterType && window.filterType.value) || '';
+  const selectedDate = (window.datePicker && window.datePicker.value) || '';
+
+  const cards = document.querySelectorAll('.stadiumCard');
+  let visibleCount = 0;
+  
+  cards.forEach(card => {
+    const name = (card.dataset.name || '').toLowerCase();
+    const cardArea = card.dataset.area || '';
+    const cardType = card.dataset.type || '';
+    const price = parseFloat(card.dataset.price || '0');
+    const availableDates = (card.dataset.availableDates || '').split(',').filter(Boolean);
+
+    const matchesKeyword = !keyword || name.includes(keyword);
+    const matchesArea = !area || cardArea === area;
+    const matchesType = !type || cardType === type;
+    const matchesDate = !selectedDate || availableDates.includes(selectedDate);
+
+    const show = matchesKeyword && matchesArea && matchesType && matchesDate;
+    card.style.display = show ? 'block' : 'none';
+    if (show) visibleCount++;
+  });
+
+  if (window.filtersSummary) {
+    window.filtersSummary.textContent = `العروض: ${visibleCount} نتيجة`;
+  }
+}
+
+async function loadAreas() {
+  try {
+    const res = await fetch('/api/areas');
+    if (!res.ok) throw new Error('no areas');
+    const areas = await res.json();
+    const sel = document.getElementById('filterArea');
+    sel.innerHTML = '<option value="">كل المناطق</option>';
+    areas.forEach(a => {
+      const opt = document.createElement('option');
+      opt.value = a.name;
+      opt.textContent = a.name;
+      sel.appendChild(opt);
+    });
+  } catch (err) {
+    console.warn('loadAreas failed, using defaults', err);
+    const defaults = ['المعادي','المقطم','العمرانية','المعصرة'];
+    const sel = document.getElementById('filterArea');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">كل المناطق</option>';
+    defaults.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d; opt.textContent = d;
+      sel.appendChild(opt);
+    });
+  }
+}
+
+async function loadBanners() {
+  const container = document.getElementById('banners');
+  if (!container) return;
+  try {
+    const res = await fetch('/api/homepage-banners');
+    if (!res.ok) throw new Error('no banners');
+    const banners = await res.json();
+    container.innerHTML = banners.map(b => `
+      <div style="background:#fff;padding:10px;border-radius:8px;margin-bottom:8px;border:1px solid #ddd;">
+        <strong>${escapeHtml(b.title)}</strong> - ${escapeHtml(b.description || '')}
+      </div>
+    `).join('');
+  } catch (err) {
+    container.innerHTML = '';
+  }
+}
+
+async function loadStadiums() {
+  const container = document.getElementById('stadiumsContainer');
+  if (!container) return;
+  showLoading();
+  try {
+    const res = await fetch('/api/stadiums');
+    if (!res.ok) throw new Error('Failed to load stadiums');
+    const stadiums = await res.json();
+    window.allStadiums = stadiums;
+
+    container.innerHTML = '';
+    if (stadiums.length === 0) {
+      container.innerHTML = '<div style="padding:20px;text-align:center;">لا توجد ملاعب حاليا</div>';
+    } else {
+      stadiums.forEach(stadium => {
+        const div = document.createElement('div');
+        div.className = 'stadiumCard';
+        div.style.background = 'white';
+        div.style.borderRadius = '8px';
+        div.style.padding = '16px';
+        div.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+        div.style.cursor = 'pointer';
+        
+        div.dataset.id = stadium.id;
+        div.dataset.name = stadium.name || '';
+        div.dataset.area = stadium.area || '';
+        div.dataset.type = stadium.type || '';
+        div.dataset.price = String(stadium.price || 0);
+        div.dataset.availableDates = (stadium.available_dates || stadium.availableDates || []).join(',');
+        
+        div.innerHTML = `
+          <img src="${escapeHtml(stadium.image || '/assets/default.jpg')}" alt="${escapeHtml(stadium.name)}" style="width:100%;height:160px;object-fit:cover;border-radius:4px;">
+          <h3 style="margin:12px 0 8px 0;">${escapeHtml(stadium.name)}</h3>
+          <div class="stadium-meta" style="color:#666;font-size:14px;">
+            <div>${escapeHtml(stadium.location || '')}</div>
+            <div style="color:#2ecc71;font-weight:bold;margin-top:4px;">${escapeHtml(stadium.price || 0)} ج/الساعة</div>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+            <button class="btn" onclick="event.stopPropagation();openStadiumPopup(${stadium.id})" style="background:#3498db;color:white;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;">عرض</button>
+            <button class="btn" onclick="event.stopPropagation();location.href='/stadium.html?id=${stadium.id}'" style="background:#2ecc71;color:white;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;">احجز</button>
+          </div>
+        `;
+        
+        div.addEventListener('click', () => openStadiumPopup(stadium.id));
+        container.appendChild(div);
+      });
+    }
+    
+    filterStadiums();
+  } catch (err) {
+    console.error('loadStadiums error', err);
+    container.innerHTML = '<div style="padding:20px;text-align:center;">خطأ في تحميل الملاعب</div>';
+    showToast('تعذّر تحميل الملاعب، حاول لاحقاً', 'error');
+  } finally {
+    hideLoading();
+  }
+}
+
+// ==================== نافذة عرض الملعب المحسنة ====================
+async function openStadiumPopup(id) {
+  const popup = document.getElementById('stadiumPopup');
+  const title = document.getElementById('popupTitle');
+  const locationEl = document.getElementById('popupLocation');
+  const desc = document.getElementById('popupDesc');
+  const slotsContainer = document.getElementById('popupSlots');
+  const goBtn = document.getElementById('goToStadiumPage');
+
+  const stadium = window.allStadiums.find(s => String(s.id) === String(id));
+  if (!stadium) {
+    showToast('الملعب غير موجود', 'error');
+    return;
+  }
+
+  title.textContent = stadium.name;
+  locationEl.textContent = stadium.location || '';
+  desc.textContent = stadium.description || 'لا يوجد وصف';
+  slotsContainer.innerHTML = '<div>تحميل الساعات...</div>';
+
+  // 🆕 إضافة منتقي الأيام
+  createDaySelector('popupDaySelector', id);
+
+  try {
+    const res = await fetch(`/api/stadiums/${id}/slots`);
+    if (!res.ok) throw new Error('no slots');
+    let slots = await res.json();
+    if (!Array.isArray(slots)) slots = [];
+
+    const upcoming = slots.slice(0, 8);
+    slotsContainer.innerHTML = '';
+    
+    if (upcoming.length === 0) {
+      slotsContainer.innerHTML = '<div style="color:#666;">لا توجد ساعات متاحة</div>';
+    } else {
+      upcoming.forEach(s => {
+        const pill = document.createElement('div');
+        pill.style.background = s.status === 'available' ? '#e8f5e8' : '#fff3cd';
+        pill.style.padding = '6px 12px';
+        pill.style.borderRadius = '20px';
+        pill.style.fontSize = '14px';
+        pill.style.border = s.status === 'available' ? '1px solid #2ecc71' : '1px solid #ffc107';
+        pill.textContent = `${escapeHtml(s.date)} ${escapeHtml(s.start_time)} - ${escapeHtml(s.end_time)}`;
+        slotsContainer.appendChild(pill);
+      });
+    }
+  } catch (err) {
+    slotsContainer.innerHTML = '<div style="color:#e74c3c;">فشل جلب الساعات</div>';
+  }
+
+  goBtn.onclick = () => {
+    closePopup();
+    location.href = `/stadium.html?id=${id}`;
+  };
+
+  popup.style.display = 'flex';
+}
+
+function closePopup() {
+  const popup = document.getElementById('stadiumPopup');
+  if (popup) popup.style.display = 'none';
+}
+
+// ==================== دوال إضافية ====================
 function debounce(fn, wait) {
   let t;
   return function(...args) {
@@ -132,593 +587,15 @@ function debounce(fn, wait) {
   }
 }
 
-function formatCurrency(amount) {
-  return new Intl.NumberFormat('ar-EG', { style: 'currency', currency: 'EGP' }).format(amount);
-}
-
-function formatTime(timeString) {
-  if (!timeString) return '';
-  const time = new Date(`2000-01-01T${timeString}`);
-  return time.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
-}
-
-// ==================== نظام المصادقة والجلسة ====================
-function checkAuthStatus() {
-  const token = localStorage.getItem('authToken');
-  const userData = localStorage.getItem('userData');
-  
-  if (token && userData) {
-    userSession = JSON.parse(userData);
-    updateUIForLoggedInUser();
-    return true;
-  }
-  return false;
-}
-
-function updateUIForLoggedInUser() {
-  const loginBtn = document.querySelector('button[onclick*="login"]');
-  if (loginBtn && userSession.name) {
-    loginBtn.textContent = `مرحباً، ${userSession.name}`;
-    loginBtn.onclick = () => window.location.href = '/profile.html';
-  }
-}
-
-function logout() {
-  localStorage.removeItem('authToken');
-  localStorage.removeItem('userData');
-  userSession = {};
-  window.location.reload();
-}
-
-// ==================== نظام المفضلة المتقدم ====================
-function toggleFavorite(stadiumId) {
-  const index = userFavorites.indexOf(stadiumId);
-  if (index > -1) {
-    userFavorites.splice(index, 1);
-    showToast('تم إزالة الملعب من المفضلة', 'info');
-  } else {
-    userFavorites.push(stadiumId);
-    showToast('تم إضافة الملعب إلى المفضلة', 'success');
-  }
-  
-  localStorage.setItem('favoriteStadiums', JSON.stringify(userFavorites));
-  updateFavoriteButtons();
-  updateStadiumCards();
-}
-
-function updateFavoriteButtons() {
-  document.querySelectorAll('.favorite-btn').forEach(btn => {
-    const stadiumId = parseInt(btn.dataset.stadiumId);
-    if (userFavorites.includes(stadiumId)) {
-      btn.innerHTML = '❤️';
-      btn.title = 'إزالة من المفضلة';
-    } else {
-      btn.innerHTML = '🤍';
-      btn.title = 'إضافة إلى المفضلة';
-    }
-  });
-}
-
-// ==================== نظام الحجز المتقدم ====================
-async function bookStadium(stadiumId, date, time) {
-  if (!checkAuthStatus()) {
-    showToast('يجب تسجيل الدخول أولاً', 'warning');
-    window.location.href = '/login.html';
-    return;
-  }
-
+async function loadStadiumSlots(stadiumId, date) {
   try {
-    showLoading();
-    const bookingData = {
-      stadiumId,
-      date,
-      time,
-      userId: userSession.id
-    };
-
-    const response = await fetch('/api/bookings', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-      },
-      body: JSON.stringify(bookingData)
-    });
-
-    if (!response.ok) throw new Error('فشل في الحجز');
-    
-    const result = await response.json();
-    showToast('تم الحجز بنجاح!', 'success');
-    trackBookingProgress(result.bookingId);
-    
-  } catch (error) {
-    showToast('فشل في إتمام الحجز', 'error');
-    console.error('Booking error:', error);
-  } finally {
-    hideLoading();
-  }
-}
-
-function trackBookingProgress(bookingId) {
-  console.log('تتبع الحجز:', bookingId);
-  // تنفيذ نظام تتبع الحجز
-}
-
-// ==================== نظام الدفع والأكواد ====================
-async function validateVoucher(voucherCode) {
-  try {
-    const response = await fetch('/api/vouchers/validate', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ code: voucherCode })
-    });
-
-    if (!response.ok) throw new Error('كود غير صالح');
-    
-    const result = await response.json();
-    validatedVouchers.push(result);
-    showToast(`كود صالح! خصم ${result.discount}%`, 'success');
-    return result;
-    
-  } catch (error) {
-    showToast('كود غير صالح', 'error');
-    return null;
-  }
-}
-
-async function processPayment(bookingId, amount, paymentMethod) {
-  try {
-    const paymentData = {
-      bookingId,
-      amount,
-      paymentMethod,
-      vouchers: validatedVouchers
-    };
-
-    const response = await fetch('/api/payments/process', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-      },
-      body: JSON.stringify(paymentData)
-    });
-
-    if (!response.ok) throw new Error('فشل في الدفع');
-    
-    const result = await response.json();
-    showToast('تم الدفع بنجاح!', 'success');
-    return result;
-    
-  } catch (error) {
-    showToast('فشل في عملية الدفع', 'error');
-    throw error;
-  }
-}
-
-// ==================== نظام التقييم والمراجعات ====================
-async function submitRating(stadiumId, rating, comment) {
-  try {
-    const ratingData = {
-      stadiumId,
-      rating,
-      comment,
-      userId: userSession.id
-    };
-
-    const response = await fetch('/api/ratings', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-      },
-      body: JSON.stringify(ratingData)
-    });
-
-    if (!response.ok) throw new Error('فشل في إرسال التقييم');
-    
-    showToast('شكراً لتقييمك!', 'success');
-    return await response.json();
-    
-  } catch (error) {
-    showToast('فشل في إرسال التقييم', 'error');
-    throw error;
-  }
-}
-
-function generateStarRating(rating) {
-  let stars = '';
-  for (let i = 1; i <= 5; i++) {
-    if (i <= rating) {
-      stars += '⭐';
-    } else {
-      stars += '☆';
-    }
-  }
-  return stars;
-}
-
-// ==================== نظام اللاعبين الإضافيين ====================
-async function requestAdditionalPlayers(bookingId, playersNeeded) {
-  try {
-    const requestData = {
-      bookingId,
-      playersNeeded,
-      requesterId: userSession.id
-    };
-
-    const response = await fetch('/api/player-requests', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-      },
-      body: JSON.stringify(requestData)
-    });
-
-    if (!response.ok) throw new Error('فشل في طلب اللاعبين');
-    
-    showToast('تم طلب اللاعبين الإضافيين', 'success');
-    return await response.json();
-    
-  } catch (error) {
-    showToast('فشل في طلب اللاعبين', 'error');
-    throw error;
-  }
-}
-
-async function loadGoldenSlots() {
-  try {
-    const response = await fetch('/api/golden-slots');
-    if (!response.ok) throw new Error('فشل في تحميل الساعات الذهبية');
-    
-    goldenSlots = await response.json();
-    updateGoldenSlotsDisplay();
-    
-  } catch (error) {
-    console.error('Error loading golden slots:', error);
-    goldenSlots = [];
-  }
-}
-
-function updateGoldenSlotsDisplay() {
-  // تحديث العرض بالساعات الذهبية
-  goldenSlots.forEach(slot => {
-    const slotElement = document.querySelector(`[data-slot-id="${slot.id}"]`);
-    if (slotElement) {
-      slotElement.classList.add('golden-slot');
-      slotElement.innerHTML += ' 👥';
-    }
-  });
-}
-
-// ==================== نظام الإشعارات الذكية ====================
-function initNotifications() {
-  if ('Notification' in window) {
-    Notification.requestPermission().then(permission => {
-      if (permission === 'granted') {
-        console.log('تم تفعيل الإشعارات');
-      }
-    });
-  }
-}
-
-function sendNotification(title, message) {
-  if ('Notification' in window && Notification.permission === 'granted') {
-    new Notification(title, { body: message, icon: '/icon.png' });
-  }
-}
-
-// ==================== نظام البحث والفلترة المتقدم ====================
-function setupAdvancedFilters() {
-  const searchInput = document.getElementById('searchInput');
-  const areaFilter = document.getElementById('filterArea');
-  const typeFilter = document.getElementById('filterType');
-  const datePicker = document.getElementById('datePicker');
-
-  if (searchInput) {
-    searchInput.addEventListener('input', debounce(performAdvancedSearch, 300));
-  }
-
-  if (areaFilter) {
-    areaFilter.addEventListener('change', performAdvancedSearch);
-  }
-
-  if (typeFilter) {
-    typeFilter.addEventListener('change', performAdvancedSearch);
-  }
-
-  if (datePicker) {
-    datePicker.addEventListener('change', performAdvancedSearch);
-  }
-}
-
-function performAdvancedSearch() {
-  const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-  const area = document.getElementById('filterArea').value;
-  const type = document.getElementById('filterType').value;
-  const date = document.getElementById('datePicker').value;
-
-  const filteredStadiums = window.allStadiums.filter(stadium => {
-    const matchesSearch = !searchTerm || 
-      stadium.name.toLowerCase().includes(searchTerm) ||
-      stadium.location.toLowerCase().includes(searchTerm) ||
-      stadium.description.toLowerCase().includes(searchTerm);
-
-    const matchesArea = !area || stadium.area === area;
-    const matchesType = !type || stadium.type === type;
-    const matchesDate = !date || (stadium.availableDates && stadium.availableDates.includes(date));
-
-    return matchesSearch && matchesArea && matchesType && matchesDate;
-  });
-
-  displayFilteredStadiums(filteredStadiums);
-}
-
-function displayFilteredStadiums(stadiums) {
-  const container = document.getElementById('stadiumsContainer');
-  const summary = document.getElementById('filtersSummary');
-  
-  if (summary) {
-    summary.textContent = `عرض ${stadiums.length} من ${window.allStadiums.length} ملعب`;
-  }
-
-  // سيتم استدعاء renderStadiums مع البيانات المفلترة
-}
-
-// ==================== نظام التخزين المؤقت ====================
-function cacheStadiumsData(stadiums) {
-  localStorage.setItem('cachedStadiums', JSON.stringify({
-    data: stadiums,
-    timestamp: Date.now(),
-    expiry: 15 * 60 * 1000 // 15 دقيقة
-  }));
-}
-
-function getCachedStadiumsData() {
-  const cached = localStorage.getItem('cachedStadiums');
-  if (!cached) return null;
-
-  const { data, timestamp, expiry } = JSON.parse(cached);
-  if (Date.now() - timestamp > expiry) {
-    localStorage.removeItem('cachedStadiums');
-    return null;
-  }
-
-  return data;
-}
-
-// ==================== نظام إدارة الأخطاء ====================
-function handleAPIError(error, context) {
-  console.error(`Error in ${context}:`, error);
-  
-  if (error.message.includes('network') || error.message.includes('fetch')) {
-    showToast('فشل في الاتصال بالخادم', 'error');
-    return getFallbackData(context);
-  }
-  
-  if (error.message.includes('auth')) {
-    showToast('انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى', 'warning');
-    logout();
-    return null;
-  }
-
-  showToast('حدث خطأ غير متوقع', 'error');
-  return null;
-}
-
-function getFallbackData(context) {
-  const fallbackData = {
-    'stadiums': getDefaultStadiums(),
-    'areas': ['المعادي', 'المقطم', 'العمرانية'],
-    'banners': getDefaultBanners()
-  };
-
-  return fallbackData[context] || null;
-}
-
-function getDefaultStadiums() {
-  return [
-    {
-      id: 1,
-      name: "ملعب افتراضي",
-      location: "موقع افتراضي",
-      price: 200,
-      type: "نجيل صناعي",
-      area: "المعادي",
-      image: "/assets/default.jpg",
-      rating: 4.0
-    }
-  ];
-}
-
-function getDefaultBanners() {
-  return [
-    {
-      title: "عرض افتراضي",
-      description: "هذا عرض افتراضي عند عدم الاتصال"
-    }
-  ];
-}
-
-// ==================== دوال الصفحة الرئيسية المحسنة ====================
-async function initHomePage() {
-  if (homeInitDone) return;
-  homeInitDone = true;
-
-  // التحقق من حالة المستخدم
-  checkAuthStatus();
-
-  // إعداد الأنظمة
-  setupAdvancedFilters();
-  initNotifications();
-
-  // تحميل البيانات
-  await loadInitialData();
-
-  showToast('تم تحميل التطبيق بنجاح', 'success');
-}
-
-async function loadInitialData() {
-  showLoading();
-  
-  try {
-    // محاولة جلب البيانات المخزنة مؤقتاً أولاً
-    const cachedStadiums = getCachedStadiumsData();
-    if (cachedStadiums) {
-      window.allStadiums = cachedStadiums;
-      renderStadiums(cachedStadiums);
-    }
-
-    // تحميل البيانات من الخادم
-    await Promise.all([
-      loadStadiums(),
-      loadAreas(),
-      loadBanners(),
-      loadGoldenSlots()
-    ]);
-
-  } catch (error) {
-    handleAPIError(error, 'initialization');
-  } finally {
-    hideLoading();
-  }
-}
-
-async function loadStadiums() {
-  try {
-    const response = await fetch('/api/stadiums');
-    if (!response.ok) throw new Error('فشل في تحميل الملاعب');
-    
-    const stadiums = await response.json();
-    window.allStadiums = stadiums;
-    cacheStadiumsData(stadiums);
-    renderStadiums(stadiums);
-    
-  } catch (error) {
-    const fallbackStadiums = handleAPIError(error, 'stadiums');
-    if (fallbackStadiums) {
-      window.allStadiums = fallbackStadiums;
-      renderStadiums(fallbackStadiums);
-    }
-  }
-}
-
-async function loadAreas() {
-  try {
-    const response = await fetch('/api/areas');
-    if (!response.ok) throw new Error('فشل في تحميل المناطق');
-    
-    const areas = await response.json();
-    const areaSelect = document.getElementById('filterArea');
-    areaSelect.innerHTML = '<option value="">كل المناطق</option>';
-    
-    areas.forEach(area => {
-      const option = document.createElement('option');
-      option.value = area.name;
-      option.textContent = area.name;
-      areaSelect.appendChild(option);
-    });
-    
-  } catch (error) {
-    handleAPIError(error, 'areas');
-  }
-}
-
-async function loadBanners() {
-  try {
-    const response = await fetch('/api/homepage-banners');
-    if (!response.ok) throw new Error('فشل في تحميل البانرات');
-    
-    const banners = await response.json();
-    const bannersContainer = document.getElementById('banners');
-    bannersContainer.innerHTML = banners.map(banner => `
-      <div style="background:#fff;padding:10px;border-radius:8px;margin-bottom:8px;border:1px solid #ddd;">
-        <strong>${escapeHtml(banner.title)}</strong> - ${escapeHtml(banner.description || '')}
-      </div>
-    `).join('');
-    
-  } catch (error) {
-    handleAPIError(error, 'banners');
-  }
-}
-
-function renderStadiums(stadiums) {
-  const container = document.getElementById('stadiumsContainer');
-  if (!container) return;
-
-  if (!stadiums || stadiums.length === 0) {
-    container.innerHTML = '<div style="padding:20px;text-align:center;">لا توجد ملاعب حالياً</div>';
-    return;
-  }
-
-  container.innerHTML = stadiums.map(stadium => {
-    const isFavorite = userFavorites.includes(stadium.id);
-    
-    return `
-      <div class="stadiumCard" data-id="${stadium.id}" data-name="${stadium.name}" data-area="${stadium.area}" data-type="${stadium.type}" data-price="${stadium.price}" data-available-dates="${stadium.availableDates || ''}">
-        <img src="${escapeHtml(stadium.image || '/assets/default.jpg')}" alt="${escapeHtml(stadium.name)}" style="width:100%;height:160px;object-fit:cover;border-radius:4px;">
-        <h3 style="margin:12px 0 8px 0;">${escapeHtml(stadium.name)}</h3>
-        <div style="color:#666;font-size:14px;">
-          <div>${escapeHtml(stadium.location || '')}</div>
-          <div style="color:#2ecc71;font-weight:bold;margin-top:4px;">${formatCurrency(stadium.price || 0)} / الساعة</div>
-          <div style="margin-top:4px;">${generateStarRating(stadium.rating || 4.0)}</div>
-        </div>
-        <div style="display:flex;gap:8px;justify-content:space-between;margin-top:12px">
-          <button class="favorite-btn" data-stadium-id="${stadium.id}" onclick="event.stopPropagation();toggleFavorite(${stadium.id})" style="background:transparent;border:1px solid #ddd;padding:8px 12px;border-radius:4px;cursor:pointer;" title="${isFavorite ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}">${isFavorite ? '❤️' : '🤍'}</button>
-          <button onclick="event.stopPropagation();openStadiumPopup(${stadium.id})" style="background:#3498db;color:white;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;">عرض</button>
-          <button onclick="event.stopPropagation();location.href='/stadium.html?id=${stadium.id}'" style="background:#2ecc71;color:white;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;">احجز</button>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  updateFavoriteButtons();
-}
-
-// ==================== نافذة عرض الملعب المحسنة ====================
-async function openStadiumPopup(id) {
-  const stadium = window.allStadiums.find(s => String(s.id) === String(id));
-  if (!stadium) {
-    showToast('الملعب غير موجود', 'error');
-    return;
-  }
-
-  // تحديث بيانات النافذة
-  document.getElementById('popupTitle').textContent = stadium.name;
-  document.getElementById('popupLocation').textContent = stadium.location || '';
-  document.getElementById('popupDesc').textContent = stadium.description || 'لا يوجد وصف';
-
-  // تحميل الساعات المتاحة
-  await loadStadiumSlots(id);
-
-  // عرض النافذة
-  document.getElementById('stadiumPopup').style.display = 'flex';
-}
-
-async function loadStadiumSlots(stadiumId) {
-  try {
-    const response = await fetch(`/api/stadiums/${stadiumId}/slots`);
-    if (!response.ok) throw new Error('فشل في تحميل الساعات');
-    
+    const response = await fetch(`/api/stadiums/${stadiumId}/slots?date=${date}`);
     const slots = await response.json();
-    const slotsContainer = document.getElementById('popupSlots');
-    
-    slotsContainer.innerHTML = slots.slice(0, 6).map(slot => `
-      <div style="background:#e8f5e8;padding:6px 12px;border-radius:20px;font-size:14px;border:1px solid #2ecc71;">
-        ${formatTime(slot.start_time)} - ${formatTime(slot.end_time)}
-      </div>
-    `).join('');
-    
+    // تحديث عرض الساعات
+    showToast(`تم تحميل الساعات ليوم ${date}`);
   } catch (error) {
-    document.getElementById('popupSlots').innerHTML = '<div style="color:#e74c3c;">فشل في تحميل الساعات</div>';
+    showToast('فشل في تحميل الساعات', 'error');
   }
-}
-
-function closePopup() {
-  document.getElementById('stadiumPopup').style.display = 'none';
 }
 
 // ==================== التهيئة النهائية ====================
@@ -728,39 +605,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// ==================== دوال للاستخدام العام ====================
+// ==================== دوال للاستخدام في الكونسول ====================
 window.appHelpers = {
-  // النظام الأساسي
-  loadStadiums,
-  loadAreas,
-  loadBanners,
-  
-  // المصادقة والمستخدم
-  checkAuthStatus,
-  logout,
-  
-  // المفضلة
-  toggleFavorite,
-  
-  // الحجز والدفع
-  bookStadium,
-  validateVoucher,
-  processPayment,
-  
-  // التقييمات
-  submitRating,
-  
-  // اللاعبين الإضافيين
-  requestAdditionalPlayers,
-  loadGoldenSlots,
-  
-  // المساعدة
-  showToast,
-  escapeHtml,
-  formatCurrency
+  loadStadiums, loadAreas, openStadiumPopup,
+  toggleDarkMode, startCancellation, showRatingModal,
+  joinGoldenSlot, startCountdown
 };
-
-console.log('🚀 نظام Ehgzly جاهز للاستخدام!');
 </script>
 
 </body>
