@@ -1444,6 +1444,121 @@
             }, 5000);
         }
 
+        // public/payment.html (داخل وسم <script> الموجود)
+// ... (بعد الدالة showAlert وقبل سطر document.addEventListener) ...
+
+const bookingId = new URLSearchParams(window.location.search).get('bookingId');
+let pollingInterval = null;
+let csrfToken = ''; // يجب جلب الـ token
+
+// دالة مساعدة لطباعة حالة الدفع (يمكن أن تكون موجودة بالفعل)
+function showPaymentStatus(title, message, type, ref = null) {
+    const container = document.getElementById('paymentConfirmation');
+    const icon = type === 'success' ? 'bi-check-circle-fill' : 'bi-x-octagon-fill';
+    
+    container.innerHTML = `
+        <div class="alert alert-${type} text-center p-4">
+            <i class="bi ${icon} display-4 mb-3"></i>
+            <h3>${title}</h3>
+            <p class="lead">${message}</p>
+            ${ref ? `<p><strong>الرقم المرجعي:</strong> ${ref}</p>` : ''}
+            <a href="/" class="btn btn-outline-${type === 'success' ? 'dark' : 'light'} mt-3">العودة للصفحة الرئيسية</a>
+        </div>
+    `;
+    document.getElementById('paymentCard').style.display = 'none';
+}
+
+
+async function loadBookingInfo() {
+    if (!bookingId) {
+        return showPaymentStatus('❌ خطأ', 'لا يوجد معرف حجز.', 'danger');
+    }
+
+    // 1. التحقق من حالة الدفع بعد العودة من الـ callback
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('status') === 'success') {
+        // إذا تم التوجيه من الـ callback بنجاح
+        return showPaymentStatus('✅ تم الدفع بنجاح!', 'تم تأكيد حجزك. المبلغ المتبقي يُدفع في الملعب.', 'success', urlParams.get('ref'));
+    } else if (urlParams.get('status') === 'failure') {
+        // إذا تم التوجيه من الـ callback بفشل
+        return showPaymentStatus('❌ فشل الدفع', 'لم تتمكن عملية الدفع من النجاح. يرجى المحاولة مرة أخرى.', 'danger', urlParams.get('ref'));
+    }
+
+
+    try {
+        showLoading(true);
+        // (يفترض وجود دالة apiRequest تقوم بإضافة الـ token والـ CSRF)
+        const booking = await apiRequest(`/api/booking/${bookingId}/info`, 'GET');
+        
+        // عرض تفاصيل الحجز
+        document.getElementById('fieldInfo').textContent = `${booking.field_name} - ${booking.location}`;
+        document.getElementById('slotTime').textContent = `${booking.booking_date} ${booking.start_time}`;
+        document.getElementById('depositAmount').textContent = `${booking.deposit_amount} ج.م`;
+        document.getElementById('totalAmountDue').textContent = `${booking.total_amount - booking.deposit_amount} ج.م`;
+        
+        document.getElementById('paymentFormContainer').style.display = 'block';
+
+        // ربط زر الدفع بالدالة
+        document.getElementById('processPaymentBtn').addEventListener('click', initiatePayment);
+
+    } catch (error) {
+        showPaymentStatus('❌ خطأ', error.message || 'فشل تحميل معلومات الحجز.', 'danger');
+    } finally {
+        showLoading(false);
+    }
+}
+
+async function initiatePayment() {
+    // جمع معلومات العميل
+    const customerInfo = {
+        name: document.getElementById('customerName').value,
+        email: document.getElementById('customerEmail').value,
+        phone: document.getElementById('customerPhone').value,
+    };
+    
+    if (!customerInfo.name || !customerInfo.email || !customerInfo.phone) {
+        return showAlert('يرجى ملء جميع بيانات العميل.', 'warning');
+    }
+
+    try {
+        showLoading(true);
+        // استدعاء الـ API لبدء عملية الدفع (الحصول على رابط PayMob Mock)
+        const response = await apiRequest(`/api/booking/${bookingId}/pay`, 'POST', { customerInfo });
+
+        if (response.payment_url) {
+            // توجيه المستخدم إلى رابط الدفع (PayMob Mock)
+            showAlert('جاري التوجيه إلى صفحة الدفع...', 'info');
+            setTimeout(() => {
+                window.location.href = response.payment_url;
+            }, 1500);
+        }
+
+    } catch (error) {
+        showAlert(`فشل بدء الدفع: ${error.message}`, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// ... (تأكد من أن هذا الجزء يظل موجوداً) ...
+/*
+        // ... (دوال مساعدة أخرى) ...
+        // التهيئة عند تحميل الصفحة
+        document.addEventListener('DOMContentLoaded', function() {
+            // ... (باقي المنطق)
+            loadBookingInfo(); // يجب أن تستدعى هنا
+        });
+*/
+
+// ملاحظة: يجب تعديل هيكل payment.html ليحتوي على العناصر التالية
+// - <div id="fieldInfo"></div>
+// - <div id="slotTime"></div>
+// - <span id="depositAmount"></span>
+// - <span id="totalAmountDue"></span>
+// - <div id="paymentFormContainer" style="display:none;">...</div>
+// - <div id="paymentConfirmation"></div>
+// - حقول الإدخال: #customerName, #customerEmail, #customerPhone
+// - زر الدفع: #processPaymentBtn
         // التهيئة عند تحميل الصفحة
         document.addEventListener('DOMContentLoaded', function() {
             // التحقق من بيانات المستخدم
@@ -1472,3 +1587,4 @@
     </script>
 </body>
 </html>
+
