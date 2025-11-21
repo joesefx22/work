@@ -922,6 +922,56 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+  // new index (1).html (داخل وسم <script>)
+// (تأكد من وجود دالة apiRequest في نطاق الوصول)
+
+/**
+ * تبدأ عملية الحجز وتتحقق من الحاجة لدفع عربون
+ * يتم استدعاؤها عند النقر على ساعة متاحة
+ */
+window.bookStadium = async function(fieldId, bookingDate, startTime, endTime) {
+    // يمكن إضافة مودال (Modal) هنا لجلب البيانات الإضافية
+    // (سنفترض وجود عنصر لإدخال عدد اللاعبين الإضافيين)
+    const playersNeededInput = document.getElementById('playersNeededInput');
+    const playersNeeded = playersNeededInput ? parseInt(playersNeededInput.value) || 0 : 0; 
+    
+    // إظهار شاشة التحميل
+    window.showLoading(true); 
+
+    try {
+        const response = await apiRequest("/api/booking/request", 'POST', {
+            fieldId,
+            bookingDate,
+            startTime,
+            endTime,
+            playersNeeded
+        });
+
+        window.showLoading(false);
+        
+        if (response.requiresPayment) {
+            // توجيه لصفحة الدفع لدفع العربون
+            window.showToast("تم حجز الساعة مبدئياً. جاري التوجيه للدفع...", 'info');
+            // تأكد أن /payment.html هو المسار الصحيح
+            setTimeout(() => {
+                window.location.href = `/payment.html?bookingId=${response.bookingId}`;
+            }, 1000);
+        } else {
+            // حجز معلق لا يحتاج دفع عربون (أقل من 24 ساعة)
+            window.showToast(response.message, 'info');
+            // إعادة تحميل حالة الملعب لعرض حالة "Pending" الجديدة
+            // (يجب أن تكون loadStadiumDetails مُعرّفة في هذا الملف)
+            loadStadiumDetails(fieldId); 
+        }
+    } catch (error) {
+        window.showLoading(false);
+        window.showToast(`فشل الحجز: ${error.message}`, 'error');
+    }
+}
+// تأكد من إضافة الدالة إلى appHelpers إذا كنت تستخدم نمط التصدير هذا
+if (window.appHelpers) {
+    window.appHelpers.bookStadium = window.bookStadium;
+}
 // ==================== دوال للاستخدام العام ====================
 window.appHelpers = {
   // النظام الأساسي
